@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,14 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { 
   type AltaSocioData, altaSocioSchema,
   type Paso1TitularData, paso1TitularSchema,
@@ -169,21 +166,18 @@ export function AltaSocioMultiStepForm() {
                   <FormField control={control} name="apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                   <FormField control={control} name="nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                   <FormField control={control} name="fechaNacimiento" render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Fecha de Nacimiento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                              {field.value ? format(field.value, "PPP", { locale: es }) : <span>Seleccione una fecha</span>}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                          className="w-full"
+                          max={format(new Date(), 'yyyy-MM-dd')}
+                          min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -295,14 +289,19 @@ export function AltaSocioMultiStepForm() {
                             <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Nac. Cónyuge</FormLabel>
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Seleccione fecha</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button></FormControl></PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent>
-                                </Popover><FormMessage />
+                                <FormItem>
+                                  <FormLabel>Fecha Nac. Cónyuge</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="date"
+                                      value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                      className="w-full"
+                                      max={format(new Date(), 'yyyy-MM-dd')}
+                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={control} name="familiares.conyuge.dni" render={({ field }) => ( <FormItem> <FormLabel>DNI Cónyuge</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -322,14 +321,19 @@ export function AltaSocioMultiStepForm() {
                            <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Nac.</FormLabel>
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Seleccione fecha</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button></FormControl></PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent>
-                                </Popover><FormMessage />
+                                <FormItem>
+                                  <FormLabel>Fecha Nac.</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="date"
+                                      value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                      className="w-full"
+                                      max={format(new Date(), 'yyyy-MM-dd')}
+                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -357,14 +361,19 @@ export function AltaSocioMultiStepForm() {
                            <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Nac.</FormLabel>
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Seleccione fecha</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button></FormControl></PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent>
-                                </Popover><FormMessage />
+                                <FormItem>
+                                  <FormLabel>Fecha Nac.</FormLabel>
+                                  <FormControl>
+                                     <Input
+                                      type="date"
+                                      value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                      className="w-full"
+                                      max={format(new Date(), 'yyyy-MM-dd')}
+                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -418,3 +427,5 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
+
+    

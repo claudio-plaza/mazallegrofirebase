@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,16 +13,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import type { Socio, RevisionMedica, AptoMedicoInfo } from '@/types';
-import { cn, } from '@/lib/utils';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { CalendarIcon, CheckCircle2, Search, User, XCircle } from 'lucide-react';
+import { CheckCircle2, Search, User, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Label } from '@/components/ui/label'; // Added Label import
+import { Card } from '@/components/ui/card'; // Added Card import
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -197,24 +196,17 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 control={form.control}
                 name="fechaRevision"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Fecha de Revisión</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
-                          >
-                            {field.value ? format(field.value, "PPP", { locale: es }) : <span>Seleccione una fecha</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} initialFocus />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                       <Input
+                        type="date"
+                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                        className="w-full"
+                        max={format(new Date(), 'yyyy-MM-dd')}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -277,3 +269,5 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     </Dialog>
   );
 }
+
+    

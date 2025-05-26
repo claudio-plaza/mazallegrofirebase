@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -73,17 +74,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {accessibleFeatures.map((feature) => (
               <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                {feature.image && (
-                  <div className="relative w-full h-48">
-                    <Image 
-                      src={feature.image} 
-                      alt={feature.title} 
-                      layout="fill" 
-                      objectFit="cover" 
-                      data-ai-hint={feature.imageHint || 'feature image'}
-                    />
-                  </div>
-                )}
+                {/* Image removed as per user request */}
                 <CardHeader>
                   <CardTitle className="flex items-center text-xl">
                     <feature.icon className="mr-3 h-6 w-6 text-primary" />
@@ -125,3 +116,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

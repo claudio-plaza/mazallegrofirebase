@@ -1,3 +1,4 @@
+
 import type { QuickAccessFeature, UserRole } from '@/types';
 import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles } from 'lucide-react';
 
@@ -14,8 +15,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: Home,
     href: '/dashboard',
     roles: ['socio', 'portero', 'medico', 'administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'club entrance',
   },
   {
     id: 'carnet-digital',
@@ -24,8 +23,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: FileText,
     href: '/carnet',
     roles: ['socio', 'administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'digital card',
   },
   {
     id: 'perfil-alta',
@@ -34,8 +31,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: UserCircle,
     href: '/perfil',
     roles: ['socio'], // Typically for new users or existing ones to update
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'profile update',
   },
   {
     id: 'panel-medico',
@@ -44,8 +39,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: Stethoscope,
     href: '/medico/panel',
     roles: ['medico', 'administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'medical office',
   },
   {
     id: 'control-acceso',
@@ -54,8 +47,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: ShieldCheck,
     href: '/control-acceso',
     roles: ['portero', 'administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'security gate',
   },
   {
     id: 'gestion-socios',
@@ -64,8 +55,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: Users,
     href: '/admin/gestion-socios',
     roles: ['administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'member database',
   },
   {
     id: 'ai-suggestions',
@@ -74,7 +63,7 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: Sparkles,
     href: '/admin/ai-suggestions',
     roles: ['administrador'],
-    image: 'https://placehold.co/600x400.png',
-    imageHint: 'ai analytics',
   }
 ];
+
+    
