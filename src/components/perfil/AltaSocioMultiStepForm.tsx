@@ -15,7 +15,6 @@ import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   type AgregarFamiliaresData, agregarFamiliaresSchema,
-  type FamiliaresDetallesData, familiaresDetallesSchema, // For step 2 validation
   RelacionFamiliar, MAX_HIJOS, MAX_PADRES
 } from '@/types';
 import { getFileUrl } from '@/lib/helpers';
@@ -25,20 +24,17 @@ const totalSteps = 3;
 export function AltaSocioMultiStepForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const { toast } = useToast();
-  const auth = useAuth(); // Still useful for context, though titular data isn't filled here
+  const auth = useAuth(); 
 
   const form = useForm<AgregarFamiliaresData>({
     resolver: async (data, context, options) => {
       let result;
       if (currentStep === 1) {
-        // Validate only tipoGrupoFamiliar for step 1
         const step1Schema = z.object({ tipoGrupoFamiliar: agregarFamiliaresSchema.shape.tipoGrupoFamiliar });
         result = await zodResolver(step1Schema)(data, context, options);
-      } else if (currentStep === 2) {
-        // For step 2, validate the entire schema, which includes superRefine logic
+      } else if (currentStep === 2) { 
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
-      } else {
-        // For Step 3 (Review), assume data is valid from previous steps or use full schema for safety
+      } else { 
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
       }
       return result;
@@ -54,7 +50,7 @@ export function AltaSocioMultiStepForm() {
     },
   });
 
-  const { control, trigger, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isValid } } = form;
+  const { control, trigger, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = form;
 
   const { fields: hijosFields, append: appendHijo, remove: removeHijo } = useFieldArray({
     control,
@@ -73,21 +69,11 @@ export function AltaSocioMultiStepForm() {
     if (currentStep === 1) {
       isValidStep = await trigger(["tipoGrupoFamiliar"]);
     } else if (currentStep === 2) {
-      isValidStep = await trigger(["familiares"]); // This will trigger the full schema validation including superRefine
-       // Manually check for errors from superRefine if they are not directly on 'familiares'
-      const allFormErrors = form.formState.errors;
-      if (allFormErrors.familiares && (allFormErrors.familiares as any).message && !isValidStep) {
-         // If RHF's isValid is false due to superRefine on root or 'familiares', this is fine
-      } else if (Object.keys(allFormErrors).length > 0 && !(allFormErrors.familiares as any)?.type) {
-         // Check if there are root level errors from superRefine that didn't make isValidStep false.
+      isValidStep = await trigger(["familiares"]); 
+      if (errors.familiares && (errors.familiares as any).message && !isValidStep) {
+        // Handled by the general toast below
       }
-      // A more direct check for the superRefine message specifically:
-      if (errors.familiares && (errors.familiares as any).message) {
-        // This means the superRefine likely failed.
-      }
-
-
-    } else { // Review step
+    } else { 
       isValidStep = true; 
     }
 
@@ -96,13 +82,19 @@ export function AltaSocioMultiStepForm() {
         setCurrentStep(prev => prev + 1);
       }
     } else {
+      let description = "Por favor, corrija los errores en el formulario.";
+      if (currentStep === 1 && errors.tipoGrupoFamiliar) {
+        description = errors.tipoGrupoFamiliar.message || "Por favor, seleccione un tipo de grupo familiar para continuar.";
+      } else if (currentStep === 2 && errors.familiares && (errors.familiares as any).message) {
+        description = (errors.familiares as any).message;
+      }
+      
       toast({
         title: "Error de Validación",
-        description: "Por favor, corrija los errores en el formulario. Asegúrese de agregar al menos un familiar según el tipo seleccionado.",
+        description: description,
         variant: "destructive",
       });
-       // Log errors for debugging
-      console.log("Validation errors:", form.formState.errors);
+      console.log(`Validation errors (Step ${currentStep}):`, JSON.stringify(form.formState.errors, null, 2));
     }
   };
 
@@ -118,8 +110,6 @@ export function AltaSocioMultiStepForm() {
       title: 'Familiares Agregados',
       description: 'Los datos de los familiares han sido enviados exitosamente (simulación).',
     });
-    // reset(); // Optionally reset form
-    // setCurrentStep(1); // Optionally go back to step 1
   };
 
  const renderFilePreview = (fileList: FileList | null | undefined, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
@@ -137,6 +127,21 @@ export function AltaSocioMultiStepForm() {
     }
     return null;
   };
+
+  // Effect to clear dependent fields when tipoGrupoFamiliar changes
+  useEffect(() => {
+    const subscription = watch((value, { name }) => {
+      if (name === 'tipoGrupoFamiliar') {
+        if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
+          setValue('familiares.padres', []);
+        } else if (value.tipoGrupoFamiliar === 'padresMadres') {
+          setValue('familiares.conyuge', null);
+          setValue('familiares.hijos', []);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, setValue]);
 
   return (
     <FormProvider {...form}>
@@ -169,11 +174,7 @@ export function AltaSocioMultiStepForm() {
                                 <Button 
                                     type="button" 
                                     variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'} 
-                                    onClick={() => {
-                                        field.onChange('conyugeEHijos');
-                                        // Clear other group type data
-                                        setValue('familiares.padres', []); 
-                                    }} 
+                                    onClick={() => field.onChange('conyugeEHijos')} 
                                     className="flex-1 justify-start p-6 text-left h-auto"
                                 >
                                     <div className="flex items-center">
@@ -187,12 +188,7 @@ export function AltaSocioMultiStepForm() {
                                 <Button 
                                     type="button" 
                                     variant={field.value === 'padresMadres' ? 'default' : 'outline'} 
-                                    onClick={() => {
-                                        field.onChange('padresMadres');
-                                        // Clear other group type data
-                                        setValue('familiares.conyuge', null);
-                                        setValue('familiares.hijos', []);
-                                    }} 
+                                    onClick={() => field.onChange('padresMadres')} 
                                     className="flex-1 justify-start p-6 text-left h-auto"
                                 >
                                     <div className="flex items-center">
@@ -224,7 +220,7 @@ export function AltaSocioMultiStepForm() {
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="text-md font-semibold">Datos del Cónyuge</h4>
                             {!watch("familiares.conyuge") ? (
-                                <Button type="button" size="sm" variant="outline" onClick={() => setValue('familiares.conyuge', { apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.CONYUGE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null })}>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setValue('familiares.conyuge', { apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.CONYUGE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cónyuge
                                 </Button>
                             ) : (
@@ -365,7 +361,6 @@ export function AltaSocioMultiStepForm() {
                         )}
                     </div>
                 )}
-                 {/* Display global form errors from superRefine */}
                  {errors.familiares && (errors.familiares as any).message && (
                   <FormItem>
                     <FormMessage>{(errors.familiares as any).message}</FormMessage>
@@ -427,3 +422,4 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
+
