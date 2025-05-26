@@ -30,11 +30,16 @@ export function AltaSocioMultiStepForm() {
     resolver: async (data, context, options) => {
       let result;
       if (currentStep === 1) {
-        const step1Schema = z.object({ tipoGrupoFamiliar: agregarFamiliaresSchema.shape.tipoGrupoFamiliar });
+        // Define step1Schema directly to avoid issues with agregarFamiliaresSchema.shape
+        const step1Schema = z.object({
+          tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
+            required_error: "Debe seleccionar un tipo de grupo familiar.", // Matching error message from main schema
+          }),
+        });
         result = await zodResolver(step1Schema)(data, context, options);
       } else if (currentStep === 2) { 
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
-      } else { 
+      } else { // currentStep === 3
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
       }
       return result;
@@ -71,7 +76,7 @@ export function AltaSocioMultiStepForm() {
     } else if (currentStep === 2) {
       isValidStep = await trigger(["familiares"]); 
       if (errors.familiares && (errors.familiares as any).message && !isValidStep) {
-        // Handled by the general toast below
+        // Error handled by the general toast below
       }
     } else { 
       isValidStep = true; 
@@ -110,6 +115,9 @@ export function AltaSocioMultiStepForm() {
       title: 'Familiares Agregados',
       description: 'Los datos de los familiares han sido enviados exitosamente (simulación).',
     });
+    // Optionally reset form and go to first step or a success page
+    // reset(); 
+    // setCurrentStep(1);
   };
 
  const renderFilePreview = (fileList: FileList | null | undefined, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
@@ -132,6 +140,7 @@ export function AltaSocioMultiStepForm() {
   useEffect(() => {
     const subscription = watch((value, { name }) => {
       if (name === 'tipoGrupoFamiliar') {
+        // When tipoGrupoFamiliar changes, reset the other group's data
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
           setValue('familiares.padres', []);
         } else if (value.tipoGrupoFamiliar === 'padresMadres') {
@@ -142,6 +151,7 @@ export function AltaSocioMultiStepForm() {
     });
     return () => subscription.unsubscribe();
   }, [watch, setValue]);
+
 
   return (
     <FormProvider {...form}>
