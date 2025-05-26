@@ -86,26 +86,40 @@ export interface MiembroFamiliar {
   aptoMedico?: AptoMedicoInfo; // Para familiares que también requieran apto
 }
 
-export interface Socio {
+// Titular data schema (can be used for initial full registration elsewhere)
+export const titularSchema = z.object({
+  apellido: z.string().min(2, "Apellido es requerido."),
+  nombre: z.string().min(2, "Nombre es requerido."),
+  fechaNacimiento: z.date({ errorMap: () => ({ message: "Fecha de nacimiento es requerida."})}).refine(date => {
+    return date <= subYears(new Date(), 18);
+  }, "Debe ser mayor de 18 años."),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
+  empresa: z.nativeEnum(EmpresaTitular, { errorMap: () => ({ message: "Seleccione una empresa."})}),
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
+  direccion: z.string().min(5, "Dirección es requerida."),
+  email: z.string().email("Email inválido."),
+  fotoDniFrente: z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere foto del DNI (frente).")
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`)
+    .refine(files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo PNG, JPG o PDF."),
+  fotoDniDorso: z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere foto del DNI (dorso).")
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`)
+    .refine(files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo PNG, JPG o PDF."),
+  fotoPerfil: z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere foto de perfil.")
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`)
+    .refine(files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type), "Solo PNG o JPG."),
+});
+export type TitularData = z.infer<typeof titularSchema>;
+
+
+export interface Socio extends TitularData { // Socio now extends TitularData
   id: string; // Puede ser el numeroSocio o un UUID
-  nombre: string;
-  apellido: string;
   numeroSocio: string; // Identificador unico para socios
-  dni: string;
-  fechaNacimiento: Date;
   fotoUrl?: string; // URL a la foto de perfil
-  fotoPerfil?: FileList | null;
-  fotoDniFrente?: FileList | null;
-  fotoDniDorso?: FileList | null;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  email: string;
-  telefono: string;
-  direccion: string;
-  empresa: EmpresaTitular;
   miembroDesde: string; // ISO date string
   ultimaRevisionMedica?: string; // ISO date string
-  grupoFamiliar: MiembroFamiliar[];
+  grupoFamiliar: MiembroFamiliar[]; // This will be managed by the new form structure
   cuenta?: CuentaSocio;
   documentos?: DocumentoSocioGeneral[];
   estadoSolicitud?: EstadoSolicitudSocio;
@@ -123,35 +137,16 @@ export interface RevisionMedica {
   medicoResponsable?: string; // Nombre del medico o ID
 }
 
-// Zod Schemas for Forms
+// Zod Schemas for Perfil/Agregar Familiares Form
 
 const fileSchema = z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere un archivo.")
   .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`) 
   .refine(files => files?.length === 1, "Solo se puede subir un archivo.");
 
-
 const dniFileSchema = fileSchema
   .refine(files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo se aceptan archivos PNG, JPG o PDF para el DNI.");
 const profileFileSchema = fileSchema
   .refine(files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type), "Solo se aceptan archivos PNG o JPG para la foto de perfil.");
-
-
-export const paso1TitularSchema = z.object({
-  apellido: z.string().min(2, "Apellido es requerido."),
-  nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: z.date({ errorMap: () => ({ message: "Fecha de nacimiento es requerida."})}).refine(date => {
-    return date <= subYears(new Date(), 18);
-  }, "Debe ser mayor de 18 años."),
-  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.nativeEnum(EmpresaTitular, { errorMap: () => ({ message: "Seleccione una empresa."})}),
-  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
-  direccion: z.string().min(5, "Dirección es requerida."),
-  email: z.string().email("Email inválido."),
-  fotoDniFrente: dniFileSchema,
-  fotoDniDorso: dniFileSchema,
-  fotoPerfil: profileFileSchema,
-});
-export type Paso1TitularData = z.infer<typeof paso1TitularSchema>;
 
 export const familiarBaseSchema = z.object({
   id: z.string().optional(),
@@ -183,22 +178,71 @@ export const padreSchema = familiarBaseSchema.extend({
 });
 export type PadreData = z.infer<typeof padreSchema>;
 
-// Schema for Step 2 (previously Step 3) - Datos del Grupo Familiar
-export const paso2FamiliaresSchema = z.object({
-  // tipoGrupoFamiliar is removed
+
+// Schema for the data of family members (Step 2 of new flow)
+export const familiaresDetallesSchema = z.object({
   conyuge: conyugeSchema.optional().nullable(),
   hijos: z.array(hijoSchema).max(MAX_HIJOS, `No puede agregar más de ${MAX_HIJOS} hijos.`).optional(),
   padres: z.array(padreSchema).max(MAX_PADRES, `No puede agregar más de ${MAX_PADRES} padres.`).optional(),
 });
-// The superRefine logic that depended on tipoGrupoFamiliar is removed.
-// If you need specific constraints like "cannot have conyuge AND parents", that would require a new superRefine.
-// For now, it allows any combination of conyuge, hijos, padres (within their respective limits).
-export type Paso2FamiliaresData = z.infer<typeof paso2FamiliaresSchema>;
+export type FamiliaresDetallesData = z.infer<typeof familiaresDetallesSchema>;
+
+// Main schema for the "Agregar Familiares" form
+export const agregarFamiliaresSchema = z.object({
+  tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
+    required_error: "Debe seleccionar un tipo de grupo familiar.",
+  }),
+  familiares: familiaresDetallesSchema,
+}).superRefine((data, ctx) => {
+  if (data.tipoGrupoFamiliar === "conyugeEHijos") {
+    if (!data.familiares?.conyuge && (!data.familiares?.hijos || data.familiares.hijos.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe agregar al menos un cónyuge o un hijo/a cuando selecciona 'Cónyuge e Hijos/as'.",
+        path: ["familiares"], 
+      });
+    }
+    // Ensure padres array is empty or not present if conyugeEHijos is selected
+    if (data.familiares?.padres && data.familiares.padres.length > 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "No puede agregar padres cuando selecciona 'Cónyuge e Hijos/as'. Vacíe la sección de padres.",
+            path: ["familiares.padres"],
+        });
+    }
+  } else if (data.tipoGrupoFamiliar === "padresMadres") {
+    if (!data.familiares?.padres || data.familiares.padres.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe agregar al menos un padre/madre cuando selecciona 'Padres/Madres'.",
+        path: ["familiares.padres"],
+      });
+    }
+     // Ensure conyuge and hijos are empty/null if padresMadres is selected
+    if (data.familiares?.conyuge) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "No puede agregar cónyuge cuando selecciona 'Padres/Madres'. Quite al cónyuge.",
+            path: ["familiares.conyuge"],
+        });
+    }
+    if (data.familiares?.hijos && data.familiares.hijos.length > 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "No puede agregar hijos cuando selecciona 'Padres/Madres'. Vacíe la sección de hijos.",
+            path: ["familiares.hijos"],
+        });
+    }
+  }
+});
+export type AgregarFamiliaresData = z.infer<typeof agregarFamiliaresSchema>;
 
 
-// Main schema for the entire multi-step form
-export const altaSocioSchema = paso1TitularSchema.merge(z.object({ familiares: paso2FamiliaresSchema }));
+// This was the old main schema, keeping it for reference or other uses if needed,
+// but the Perfil page will use agregarFamiliaresSchema now.
+export const altaSocioSchema = titularSchema.merge(z.object({ familiares: familiaresDetallesSchema }));
 export type AltaSocioData = z.infer<typeof altaSocioSchema>;
+
 
 export interface QuickAccessFeature {
   id: string;
@@ -207,6 +251,6 @@ export interface QuickAccessFeature {
   icon: React.ElementType;
   href: string;
   roles: UserRole[];
-  image?: string; // Was previously used for placeholder, can be removed if not needed
+  image?: string; 
   imageHint?: string;
 }
