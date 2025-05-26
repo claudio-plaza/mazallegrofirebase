@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { subYears, parseISO } from 'date-fns';
 
@@ -15,7 +16,7 @@ export enum EmpresaTitular {
   SIDUNCU = "Siduncu",
   CLAN_PITU = "Clan Pitu",
   PARTICULAR = "Particular",
-  OSDE = "OSDE", // Kept existing ones for compatibility, can be removed if not needed
+  OSDE = "OSDE", 
   SWISS_MEDICAL = "Swiss Medical",
   GALENO = "Galeno",
   MEDICUS = "Medicus",
@@ -108,7 +109,7 @@ export interface Socio {
   cuenta?: CuentaSocio;
   documentos?: DocumentoSocioGeneral[];
   estadoSolicitud?: EstadoSolicitudSocio;
-  role: Extract<UserRole, 'socio'>; // Para asegurar que un socio siempre tenga rol 'socio'
+  role: Extract<UserRole, 'socio'>; 
 }
 
 export interface RevisionMedica {
@@ -125,7 +126,7 @@ export interface RevisionMedica {
 // Zod Schemas for Forms
 
 const fileSchema = z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere un archivo.")
-  .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`) // Check if files[0] exists
+  .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`) 
   .refine(files => files?.length === 1, "Solo se puede subir un archivo.");
 
 
@@ -158,9 +159,9 @@ export const familiarBaseSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido."),
   fechaNacimiento: z.date({ errorMap: () => ({ message: "Fecha de nacimiento inválida."})}),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: dniFileSchema, // Required for family members
-  fotoDniDorso: dniFileSchema, // Required for family members
-  fotoPerfil: profileFileSchema, // Required for family members
+  fotoDniFrente: dniFileSchema, 
+  fotoDniDorso: dniFileSchema, 
+  fotoPerfil: profileFileSchema, 
   direccion: z.string().min(5, "Dirección es requerida.").optional(),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional(),
   email: z.string().email("Email inválido.").optional(),
@@ -182,41 +183,21 @@ export const padreSchema = familiarBaseSchema.extend({
 });
 export type PadreData = z.infer<typeof padreSchema>;
 
-export const paso3FamiliaresSchema = z.object({
-  tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], { errorMap: () => ({ message: "Debe seleccionar un tipo de grupo familiar."}) }),
+// Schema for Step 2 (previously Step 3) - Datos del Grupo Familiar
+export const paso2FamiliaresSchema = z.object({
+  // tipoGrupoFamiliar is removed
   conyuge: conyugeSchema.optional().nullable(),
   hijos: z.array(hijoSchema).max(MAX_HIJOS, `No puede agregar más de ${MAX_HIJOS} hijos.`).optional(),
   padres: z.array(padreSchema).max(MAX_PADRES, `No puede agregar más de ${MAX_PADRES} padres.`).optional(),
-}).superRefine((data, ctx) => {
-  if (data.tipoGrupoFamiliar === "conyugeEHijos") {
-    if (data.padres && data.padres.length > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "No puede registrar Padres si eligió Cónyuge e Hijos.",
-        path: ["padres"],
-      });
-    }
-  } else if (data.tipoGrupoFamiliar === "padresMadres") {
-    if (data.conyuge) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "No puede registrar Cónyuge si eligió Padres/Madres.",
-        path: ["conyuge"],
-      });
-    }
-    if (data.hijos && data.hijos.length > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "No puede registrar Hijos si eligió Padres/Madres.",
-        path: ["hijos"],
-      });
-    }
-  }
 });
-export type Paso3FamiliaresData = z.infer<typeof paso3FamiliaresSchema>;
+// The superRefine logic that depended on tipoGrupoFamiliar is removed.
+// If you need specific constraints like "cannot have conyuge AND parents", that would require a new superRefine.
+// For now, it allows any combination of conyuge, hijos, padres (within their respective limits).
+export type Paso2FamiliaresData = z.infer<typeof paso2FamiliaresSchema>;
 
 
-export const altaSocioSchema = paso1TitularSchema.merge(z.object({ familiares: paso3FamiliaresSchema }));
+// Main schema for the entire multi-step form
+export const altaSocioSchema = paso1TitularSchema.merge(z.object({ familiares: paso2FamiliaresSchema }));
 export type AltaSocioData = z.infer<typeof altaSocioSchema>;
 
 export interface QuickAccessFeature {
@@ -226,6 +207,6 @@ export interface QuickAccessFeature {
   icon: React.ElementType;
   href: string;
   roles: UserRole[];
-  image?: string;
+  image?: string; // Was previously used for placeholder, can be removed if not needed
   imageHint?: string;
 }

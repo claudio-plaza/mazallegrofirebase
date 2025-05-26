@@ -17,12 +17,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { 
   type AltaSocioData, altaSocioSchema,
   type Paso1TitularData, paso1TitularSchema,
-  type Paso3FamiliaresData, paso3FamiliaresSchema,
+  type Paso2FamiliaresData, paso2FamiliaresSchema, // Changed from Paso3FamiliaresData
   empresas, EmpresaTitular, RelacionFamiliar, MAX_HIJOS, MAX_PADRES
 } from '@/types';
 import { getFileUrl } from '@/lib/helpers';
 
-const totalSteps = 4;
+const totalSteps = 3; // Reduced from 4 to 3
 
 export function AltaSocioMultiStepForm() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -35,11 +35,11 @@ export function AltaSocioMultiStepForm() {
       let result;
       if (currentStep === 1) {
         result = await zodResolver(paso1TitularSchema)(data, context, options);
-      } else if (currentStep === 3) {
-        const familiaresData = data.familiares || { tipoGrupoFamiliar: undefined, conyuge: null, hijos: [], padres: [] };
-        result = await zodResolver(paso3FamiliaresSchema)(familiaresData, context, options);
+      } else if (currentStep === 2) { // Previously Step 3, now Step 2 for familiares
+        const familiaresData = data.familiares || { conyuge: null, hijos: [], padres: [] };
+        result = await zodResolver(paso2FamiliaresSchema)(familiaresData, context, options);
         if (result.errors && Object.keys(result.errors).length > 0) {
-            const errorsMapped = {};
+            const errorsMapped: Record<string, any> = {};
             Object.keys(result.errors).forEach(key => {
                 errorsMapped[`familiares.${key}`] = result.errors[key];
             });
@@ -47,7 +47,9 @@ export function AltaSocioMultiStepForm() {
         }
         return {values: { ...data, familiares: result.values }, errors: {}};
       } else {
-        result = { values: data, errors: {} };
+        // For Step 3 (Review), or any other step not explicitly handled, assume full schema or no validation needed yet.
+        // For the final submission, the full `altaSocioSchema` will be used by `handleSubmit`.
+        result = { values: data, errors: {} }; 
       }
       return result;
     },
@@ -55,8 +57,7 @@ export function AltaSocioMultiStepForm() {
     defaultValues: {
       apellido: '', nombre: '', dni: '', empresa: undefined, telefono: '', direccion: '', email: '',
       fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null,
-      familiares: {
-        tipoGrupoFamiliar: undefined,
+      familiares: { // tipoGrupoFamiliar is removed
         conyuge: null,
         hijos: [],
         padres: [],
@@ -66,31 +67,20 @@ export function AltaSocioMultiStepForm() {
 
   const { control, trigger, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isValid } } = form;
 
-  // Simulate loading titular data and skipping step 1 if data exists
   useEffect(() => {
     const loadTitularData = async () => {
       setIsLoadingTitularData(true);
-      // In a real app, fetch data from backend or use auth state if signup was more detailed
-      // For now, we'll simulate this. If a user manually fills step 1 and navigates away and back,
-      // this logic might need adjustment or rely on persisted form state.
-      
-      // Example: If DNI is already in form (e.g. from a previous session or a more detailed signup)
-      // This is a placeholder for a more robust check.
       const existingDni = getValues("dni"); 
-      if (existingDni && auth.isLoggedIn) { // Check if DNI is already there and user is logged in
-        // Potentially pre-fill form with more data if available from auth or localStorage
-        // For demo, if DNI exists, we assume Step 1 data is "complete" and skip to Step 2.
-        // This assumes that if DNI is present, other titular fields were also filled.
-        // A more robust solution would check multiple key fields or a specific "profile_complete" flag.
-        console.log("Datos del titular detectados (simulado), saltando al paso 2.");
-        setCurrentStep(2);
+      if (existingDni && auth.isLoggedIn) { 
+        console.log("Datos del titular detectados (simulado), saltando al paso 2 (Datos Familiares).");
+        setCurrentStep(2); // Skip to new Step 2 (Familiares)
       }
       setIsLoadingTitularData(false);
     };
 
     loadTitularData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.isLoggedIn]); // Rerun if login status changes
+  }, [auth.isLoggedIn]);
 
 
   const { fields: hijosFields, append: appendHijo, remove: removeHijo } = useFieldArray({
@@ -103,22 +93,15 @@ export function AltaSocioMultiStepForm() {
     name: "familiares.padres",
   });
   
-  const tipoGrupoFamiliar = watch("familiares.tipoGrupoFamiliar");
+  // tipoGrupoFamiliar is no longer watched or used to control UI visibility in this step
 
   const nextStep = async () => {
     let isValidStep = false;
-    if (currentStep === 1) {
+    if (currentStep === 1) { // Titular data
       isValidStep = await trigger(["apellido", "nombre", "fechaNacimiento", "dni", "empresa", "telefono", "direccion", "email", "fotoDniFrente", "fotoDniDorso", "fotoPerfil"]);
-    } else if (currentStep === 2) {
-        isValidStep = !!tipoGrupoFamiliar;
-        if(!isValidStep) {
-            form.setError("familiares.tipoGrupoFamiliar", { type: "manual", message: "Debe seleccionar un tipo de grupo familiar." });
-        } else {
-            form.clearErrors("familiares.tipoGrupoFamiliar");
-        }
-    } else if (currentStep === 3) {
+    } else if (currentStep === 2) { // Familiares data (new Step 2)
       isValidStep = await trigger(["familiares"]);
-    } else {
+    } else { // Review step (new Step 3)
       isValidStep = true; 
     }
 
@@ -176,7 +159,6 @@ export function AltaSocioMultiStepForm() {
     );
   }
 
-
   return (
     <FormProvider {...form}>
       <Card className="w-full max-w-3xl mx-auto">
@@ -201,7 +183,7 @@ export function AltaSocioMultiStepForm() {
                       <FormControl>
                         <Input
                           type="date"
-                          value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                           onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
                           className="w-full"
                           max={format(new Date(), 'yyyy-MM-dd')}
@@ -262,104 +244,76 @@ export function AltaSocioMultiStepForm() {
                 </div>
               </section>
             )}
-
+            
+            {/* Step 2 (Old Step 3) - Datos del Grupo Familiar */}
             {currentStep === 2 && ( 
               <section>
-                <h3 className="text-lg font-semibold mb-4">Tipo de Grupo Familiar</h3>
-                 <FormField
-                    control={control}
-                    name="familiares.tipoGrupoFamiliar"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>¿Qué tipo de grupo familiar desea registrar?</FormLabel>
-                        <FormControl>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <Button type="button" variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'} onClick={() => field.onChange('conyugeEHijos')} className="flex-1 justify-start p-6 text-left h-auto">
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold">Registrar Cónyuge e Hijos/as</span>
-                                        <span className="text-xs text-muted-foreground">Permite agregar un cónyuge y hasta {MAX_HIJOS} hijos/as.</span>
-                                    </div>
-                                </Button>
-                                <Button type="button" variant={field.value === 'padresMadres' ? 'default' : 'outline'} onClick={() => field.onChange('padresMadres')} className="flex-1 justify-start p-6 text-left h-auto">
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold">Registrar Padres/Madres</span>
-                                        <span className="text-xs text-muted-foreground">Permite agregar hasta {MAX_PADRES} padres/madres.</span>
-                                    </div>
-                                </Button>
-                            </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                <h3 className="text-lg font-semibold mb-4">Datos del Grupo Familiar (Opcional)</h3>
+                <p className="text-sm text-muted-foreground mb-4">Agregue los miembros de su familia que desee asociar.</p>
+                
+                {/* Sección Cónyuge */}
+                <div className="mb-6 p-4 border rounded-md">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-md font-semibold">Datos del Cónyuge</h4>
+                     {!watch("familiares.conyuge") ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => setValue('familiares.conyuge', { apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.CONYUGE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null })}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cónyuge
+                        </Button>
+                    ) : (
+                        <Button type="button" size="sm" variant="destructive" onClick={() => setValue('familiares.conyuge', null)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Quitar Cónyuge
+                        </Button>
                     )}
-                  />
-              </section>
-            )}
-            
-            {currentStep === 3 && ( 
-              <section>
-                <h3 className="text-lg font-semibold mb-4">Datos del Grupo Familiar</h3>
-                {tipoGrupoFamiliar === 'conyugeEHijos' && (
-                  <>
-                    <div className="mb-6 p-4 border rounded-md">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-md font-semibold">Datos del Cónyuge</h4>
-                         {!watch("familiares.conyuge") ? (
-                            <Button type="button" size="sm" variant="outline" onClick={() => setValue('familiares.conyuge', { apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.CONYUGE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null })}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cónyuge
-                            </Button>
-                        ) : (
-                            <Button type="button" size="sm" variant="destructive" onClick={() => setValue('familiares.conyuge', null)}>
-                                <Trash2 className="mr-2 h-4 w-4" /> Quitar Cónyuge
-                            </Button>
-                        )}
+                  </div>
+                   {watch("familiares.conyuge") && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                          <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                          <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac. Cónyuge</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
+                          <FormField control={control} name="familiares.conyuge.dni" render={({ field }) => ( <FormItem> <FormLabel>DNI Cónyuge</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                          <FormField control={control} name="familiares.conyuge.telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                          <FormField control={control} name="familiares.conyuge.direccion" render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                          <FormField control={control} name="familiares.conyuge.email" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                       </div>
-                       {watch("familiares.conyuge") && (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac. Cónyuge</FormLabel> <FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
-                              <FormField control={control} name="familiares.conyuge.dni" render={({ field }) => ( <FormItem> <FormLabel>DNI Cónyuge</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.direccion" render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.email" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                          </div>
-                          <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Cónyuge</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
-                                  <FormField
-                                      control={control}
-                                      name={`familiares.conyuge.${docType}`}
-                                      key={`conyuge-${docType}`}
-                                      render={({ field: { onChange, value, ...restField }}) => (
-                                      <FormItem>
-                                          <FormLabel>{docType === 'fotoDniFrente' ? 'DNI Frente' : docType === 'fotoDniDorso' ? 'DNI Dorso' : 'Foto Perfil'}</FormLabel>
-                                          <FormControl>
-                                              <label className="cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary">
-                                                  <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                                                  <span className="text-sm text-muted-foreground">{value && value.length > 0 ? value[0].name : "Subir"}</span>
-                                                  <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
-                                              </label>
-                                          </FormControl>
-                                          {renderFilePreview(value, `familiares.conyuge.${docType}`)}
-                                          <FormMessage />
-                                      </FormItem>
-                                  )} />
-                              ))}
-                          </div>
-                        </>
-                       )}
-                    </div>
+                      <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Cónyuge</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
+                              <FormField
+                                  control={control}
+                                  name={`familiares.conyuge.${docType}`}
+                                  key={`conyuge-${docType}`}
+                                  render={({ field: { onChange, value, ...restField }}) => (
+                                  <FormItem>
+                                      <FormLabel>{docType === 'fotoDniFrente' ? 'DNI Frente' : docType === 'fotoDniDorso' ? 'DNI Dorso' : 'Foto Perfil'}</FormLabel>
+                                      <FormControl>
+                                          <label className="cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary">
+                                              <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+                                              <span className="text-sm text-muted-foreground">{value && value.length > 0 ? value[0].name : "Subir"}</span>
+                                              <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
+                                          </label>
+                                      </FormControl>
+                                      {renderFilePreview(value, `familiares.conyuge.${docType}`)}
+                                      <FormMessage />
+                                  </FormItem>
+                              )} />
+                          ))}
+                      </div>
+                    </>
+                   )}
+                </div>
 
+                {/* Sección Hijos */}
+                <div className="mb-6 p-4 border rounded-md">
                     <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta {MAX_HIJOS})</h4>
                     {hijosFields.map((item, index) => (
-                      <div key={item.id} className="mb-4 p-4 border rounded-md relative">
+                      <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                         <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)}> <Trash2 className="h-4 w-4" /> </Button>
                         <p className="font-medium mb-2">Hijo/a {index + 1}</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                           <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
+                           <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
                            <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.hijos.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.hijos.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -392,19 +346,19 @@ export function AltaSocioMultiStepForm() {
                         <PlusCircle className="mr-2 h-4 w-4" /> Agregar Hijo/a
                       </Button>
                     )}
-                  </>
-                )}
-                {tipoGrupoFamiliar === 'padresMadres' && (
-                    <>
+                </div>
+
+                {/* Sección Padres/Madres */}
+                 <div className="mb-6 p-4 border rounded-md">
                     <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta {MAX_PADRES})</h4>
                      {padresFields.map((item, index) => (
-                      <div key={item.id} className="mb-4 p-4 border rounded-md relative">
+                      <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                         <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)}> <Trash2 className="h-4 w-4" /> </Button>
                         <p className="font-medium mb-2">Padre/Madre {index + 1}</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                           <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
+                           <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} /></FormControl> <FormMessage /> </FormItem> )}/>
                            <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.padres.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                            <FormField control={control} name={`familiares.padres.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -437,20 +391,20 @@ export function AltaSocioMultiStepForm() {
                         <PlusCircle className="mr-2 h-4 w-4" /> Agregar Padre/Madre
                       </Button>
                     )}
-                    </>
-                )}
+                </div>
                  {errors.familiares && (errors.familiares as any).message && <FormMessage>{(errors.familiares as any).message}</FormMessage>}
               </section>
             )}
 
-            {currentStep === 4 && ( 
+            {/* Step 3 (Old Step 4) - Review and Submit */}
+            {currentStep === 3 && ( 
               <section>
                 <h3 className="text-lg font-semibold mb-4">Revisar y Enviar Solicitud</h3>
                 <p className="text-muted-foreground mb-4">Por favor, revisa que toda la información sea correcta antes de enviar.</p>
                 <div className="space-y-2 p-4 border rounded-md bg-muted/30">
                   <p><strong>Titular:</strong> {watch("nombre")} {watch("apellido")} - DNI: {watch("dni")}</p>
                   <p><strong>Email:</strong> {watch("email")}</p>
-                  {watch("familiares.tipoGrupoFamiliar") && <p><strong>Grupo Familiar:</strong> {watch("familiares.tipoGrupoFamiliar") === "conyugeEHijos" ? "Cónyuge e Hijos" : "Padres/Madres"}</p>}
+                  {/* tipoGrupoFamiliar is removed from review */}
                   {watch("familiares.conyuge") && <p className="pl-4"><strong>Cónyuge:</strong> {watch("familiares.conyuge.nombre")} {watch("familiares.conyuge.apellido")}</p>}
                   {watch("familiares.hijos")?.map((h, i) => <p key={i} className="pl-4"><strong>Hijo/a {i+1}:</strong> {h.nombre} {h.apellido}</p>)}
                   {watch("familiares.padres")?.map((p, i) => <p key={i} className="pl-4"><strong>Padre/Madre {i+1}:</strong> {p.nombre} {p.apellido}</p>)}
