@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
+import { siteConfig } from '@/config/site';
 
 export function CarnetDigital() {
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
@@ -32,12 +34,10 @@ export function CarnetDigital() {
       }
       setLoading(false);
     } else {
-      // Fallback for admin or if no socio logged in, show a demo socio (e.g. first from mock)
-      // This part can be adjusted based on specific requirements for non-socio roles
       const storedSocios = localStorage.getItem('sociosDB');
       if (storedSocios) {
         const socios: Socio[] = JSON.parse(storedSocios);
-        setSocioData(socios[0] || null); // Show first socio as demo
+        setSocioData(socios[0] || null); 
       }
       setLoading(false);
     }
@@ -105,7 +105,7 @@ export function CarnetDigital() {
         <UserCircle className="h-10 w-10" />
         <div>
           <CardTitle className="text-2xl">Carnet Digital del Socio</CardTitle>
-          <p className="text-sm opacity-90">ClubZenith</p>
+          <p className="text-sm opacity-90">{siteConfig.name}</p>
         </div>
       </div>
       
@@ -126,30 +126,30 @@ export function CarnetDigital() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={`p-4 rounded-lg border ${socioData.estadoSocio === 'Activo' ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+          <div className={`p-4 rounded-lg border ${socioData.estadoSocio === 'Activo' ? 'border-green-500 bg-green-500/10' : 'border-red-500 bg-red-500/10'}`}>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Estado Socio</h3>
             <div className="flex items-center">
               {socioData.estadoSocio === 'Activo' ? 
-                <ShieldCheck className="h-6 w-6 text-green-600 mr-2" /> : 
-                <ShieldAlert className="h-6 w-6 text-red-600 mr-2" />}
-              <Badge variant={socioData.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioData.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>
+                <ShieldCheck className="h-6 w-6 text-green-500 mr-2" /> : 
+                <ShieldAlert className="h-6 w-6 text-red-500 mr-2" />}
+              <Badge variant={socioData.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioData.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
                 {socioData.estadoSocio}
               </Badge>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg border ${aptoStatus.colorClass.includes('green') ? 'border-green-500 bg-green-50' : aptoStatus.colorClass.includes('orange') ? 'border-orange-500 bg-orange-50' : 'border-red-500 bg-red-50'}`}>
+          <div className={`p-4 rounded-lg border ${aptoStatus.colorClass.includes('green') ? 'border-green-500 bg-green-500/10' : aptoStatus.colorClass.includes('orange') ? 'border-orange-500 bg-orange-500/10' : 'border-red-500 bg-red-500/10'}`}>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Apto Médico</h3>
             <div className="flex items-center">
-              {aptoStatus.status === 'Válido' && <CheckCircle2 className="h-6 w-6 text-green-600 mr-2" />}
-              {aptoStatus.status === 'Vencido' && <XCircle className="h-6 w-6 text-red-600 mr-2" />}
-              {aptoStatus.status === 'Inválido' && <AlertTriangle className="h-6 w-6 text-red-600 mr-2" />}
-              {aptoStatus.status === 'Pendiente' && <CalendarClock className="h-6 w-6 text-yellow-600 mr-2" />}
-               <Badge variant="outline" className={`${aptoStatus.colorClass} border-current`}>
+              {aptoStatus.status === 'Válido' && <CheckCircle2 className="h-6 w-6 text-green-500 mr-2" />}
+              {aptoStatus.status === 'Vencido' && <XCircle className="h-6 w-6 text-red-500 mr-2" />}
+              {aptoStatus.status === 'Inválido' && <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />}
+              {aptoStatus.status === 'Pendiente' && <CalendarClock className="h-6 w-6 text-yellow-500 mr-2" />}
+               <Badge variant="outline" className={`${aptoStatus.colorClass.replace('bg-', 'border-').replace('-100', '-500')} text-current`}>
                 {aptoStatus.status}
               </Badge>
             </div>
-            <p className={`text-xs mt-1 ${aptoStatus.colorClass.replace('bg-', 'text-')}`}>{aptoStatus.message}</p>
+            <p className={`text-xs mt-1 ${aptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-400')}`}>{aptoStatus.message}</p>
             {socioData.aptoMedico?.observaciones && (
               <p className="text-xs mt-1 text-muted-foreground">Obs: {socioData.aptoMedico.observaciones}</p>
             )}

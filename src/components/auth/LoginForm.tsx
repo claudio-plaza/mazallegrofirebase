@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,14 +17,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { loginUser, initializeMockDatabases, mockUsers } from '@/lib/auth'; // mockUsers for demo
+import { loginUser, initializeMockDatabases, mockUsers } from '@/lib/auth'; 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn } from 'lucide-react';
+import { siteConfig } from '@/config/site';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido.'),
-  password: z.string().min(1, 'Contraseña es requerida.'), // Basic validation for demo
+  password: z.string().min(1, 'Contraseña es requerida.'), 
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -31,7 +33,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth(); // Using the context
+  const auth = useAuth(); 
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -42,12 +44,11 @@ export function LoginForm() {
   });
 
   function onSubmit(data: LoginFormValues) {
-    // In a real app, password would be used. Here, it's just for form structure.
     const user = loginUser(data.email, data.password);
 
     if (user) {
-      initializeMockDatabases(); // Initialize DBs on first successful login
-      auth.login(user.role, user.name, user.numeroSocio); // Notify context
+      initializeMockDatabases(); 
+      auth.login(user.role, user.name, user.numeroSocio); 
       toast({
         title: 'Inicio de Sesión Exitoso',
         description: `Bienvenido de nuevo, ${user.name}!`,
@@ -59,7 +60,6 @@ export function LoginForm() {
         description: 'Email o contraseña incorrectos. Por favor, intente de nuevo.',
         variant: 'destructive',
       });
-      // For demo purposes, log available mock users if login fails
       console.log("Login failed. Available mock users for testing:", mockUsers.map(u => ({email: u.email, role: u.role})));
     }
   }
@@ -71,7 +71,7 @@ export function LoginForm() {
           <LogIn className="mr-2 h-6 w-6 text-primary" /> Iniciar Sesión
         </CardTitle>
         <CardDescription>
-          Accede a tu cuenta de ClubZenith.
+          Accede a tu cuenta de {siteConfig.name}.
         </CardDescription>
       </CardHeader>
       <CardContent>

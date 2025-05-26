@@ -1,9 +1,10 @@
 import { AltaSocioMultiStepForm } from '@/components/perfil/AltaSocioMultiStepForm';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Solicitud de Alta / Mi Perfil - ClubZenith',
-  description: 'Completa tus datos para registrarte como socio en ClubZenith o actualiza tu perfil.',
+  title: `Solicitud de Alta / Mi Perfil - ${siteConfig.name}`,
+  description: `Completa tus datos para registrarte como socio en ${siteConfig.name} o actualiza tu perfil.`,
 };
 
 export default function PerfilPage() {

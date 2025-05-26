@@ -17,10 +17,15 @@ import { useToast } from '@/hooks/use-toast';
 import type { Socio, RevisionMedica, AptoMedicoInfo } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO } from 'date-fns';
-import { CheckCircle2, Search, User, XCircle } from 'lucide-react';
+import { es } from 'date-fns/locale';
+import { CheckCircle2, Search, User, XCircle, CalendarDays } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Label } from '@/components/ui/label'; // Added Label import
-import { Card } from '@/components/ui/card'; // Added Card import
+import { Label } from '@/components/ui/label'; 
+import { Card } from '@/components/ui/card'; 
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from "@/lib/utils";
+import { siteConfig } from '@/config/site';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -45,7 +50,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
   const [searchedSocio, setSearchedSocio] = useState<Socio | null>(null);
   const [searchMessage, setSearchMessage] = useState('');
   const { toast } = useToast();
-  const { userName: medicoName } = useAuth(); // Get logged-in medic's name
+  const { userName: medicoName } = useAuth(); 
 
   const form = useForm<RevisionFormValues>({
     resolver: zodResolver(revisionSchema),
@@ -92,7 +97,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       socioNombre: `${searchedSocio.nombre} ${searchedSocio.apellido}`,
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
-      medicoResponsable: medicoName || 'Médico ClubZenith',
+      medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
     };
 
     const aptoMedicoUpdate: AptoMedicoInfo = {
@@ -102,14 +107,13 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     };
 
     if (data.resultado === 'Apto') {
-      aptoMedicoUpdate.fechaVencimiento = formatISO(addDays(data.fechaRevision, 14)); // Válido por 15 días, se guarda último día válido
+      aptoMedicoUpdate.fechaVencimiento = formatISO(addDays(data.fechaRevision, 14)); 
       nuevaRevision.fechaVencimientoApto = aptoMedicoUpdate.fechaVencimiento;
     } else {
        aptoMedicoUpdate.razonInvalidez = 'No Apto según última revisión';
-       aptoMedicoUpdate.fechaVencimiento = undefined; // O la fecha de revisión si se quiere marcar el día que dejó de ser apto
+       aptoMedicoUpdate.fechaVencimiento = undefined; 
     }
 
-    // Update localStorage
     const storedSocios = localStorage.getItem('sociosDB');
     if (storedSocios) {
       let socios: Socio[] = JSON.parse(storedSocios);
@@ -123,7 +127,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
 
     const storedRevisiones = localStorage.getItem('revisionesDB');
     let revisiones: RevisionMedica[] = storedRevisiones ? JSON.parse(storedRevisiones) : [];
-    revisiones.unshift(nuevaRevision); // Add to beginning
+    revisiones.unshift(nuevaRevision); 
     localStorage.setItem('revisionesDB', JSON.stringify(revisiones));
     
     window.dispatchEvent(new Event('sociosDBUpdated'));
@@ -137,7 +141,6 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
 
   const currentSocioAptoStatus = searchedSocio ? getAptoMedicoStatus(searchedSocio.aptoMedico) : null;
 
-  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
@@ -153,10 +156,15 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       <DialogTrigger asChild>
         <Button><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nueva Revisión Médica</DialogTitle>
-          <DialogDescription>Registre una nueva revisión médica para un socio.</DialogDescription>
+          <DialogTitle className="flex items-center">
+            <CalendarDays className="mr-2 h-5 w-5 text-primary" />
+            Registrar Nueva Revisión Médica
+          </DialogTitle>
+          <DialogDescription>
+            Busca un socio y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Se registrará el último día de validez.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -167,10 +175,10 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 id="searchSocio" 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Ej: 1001 o 12345678"
+                placeholder="Ej: S00123 o 30123456"
               />
             </div>
-            <Button onClick={handleSearchSocio} type="button"><Search className="mr-2 h-4 w-4" /> Buscar</Button>
+            <Button onClick={handleSearchSocio} type="button" variant="outline"><Search className="h-4 w-4" /></Button>
           </div>
           {searchMessage && <p className="text-sm text-destructive">{searchMessage}</p>}
 
@@ -181,7 +189,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 <h4 className="font-semibold">{searchedSocio.nombre} {searchedSocio.apellido} (N°: {searchedSocio.numeroSocio})</h4>
               </div>
               {currentSocioAptoStatus && (
-                <p className={`text-sm ${currentSocioAptoStatus.colorClass.replace('bg-', 'text-')}`}>
+                <p className={`text-sm ${currentSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-400')}`}>
                   Apto actual: {currentSocioAptoStatus.status} - {currentSocioAptoStatus.message}
                 </p>
               )}
@@ -196,17 +204,40 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 control={form.control}
                 name="fechaRevision"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Fecha de Revisión</FormLabel>
-                    <FormControl>
-                       <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                        className="w-full"
-                        max={format(new Date(), 'yyyy-MM-dd')}
-                      />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            {field.value ? (
+                              format(field.value, "PPP", { locale: es })
+                            ) : (
+                              <span>Seleccione fecha</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                          locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -250,14 +281,14 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                   <FormItem>
                     <FormLabel>Observaciones</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Detalles adicionales de la revisión..." {...field} />
+                      <Textarea placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
                 <Button type="submit" disabled={!searchedSocio || form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
                 </Button>
@@ -269,5 +300,3 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     </Dialog>
   );
 }
-
-    

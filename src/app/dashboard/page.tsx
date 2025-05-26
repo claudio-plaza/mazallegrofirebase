@@ -54,7 +54,7 @@ export default function DashboardPage() {
   }
 
   if (!isLoggedIn) {
-    return null; // Or a redirect message, though useEffect handles redirect
+    return null; 
   }
 
   return (
@@ -74,7 +74,6 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {accessibleFeatures.map((feature) => (
               <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                {/* Image removed as per user request */}
                 <CardHeader>
                   <CardTitle className="flex items-center text-xl">
                     <feature.icon className="mr-3 h-6 w-6 text-primary" />
@@ -107,7 +106,6 @@ export default function DashboardPage() {
               Mantente al día con las últimas novedades y eventos de {siteConfig.name}. 
               Visita nuestro tablón de anuncios o contáctanos para más información.
             </p>
-            {/* Placeholder for announcements or club info */}
             <div className="mt-4 p-4 border border-dashed rounded-md">
               <p className="text-sm text-center text-muted-foreground">Próximamente: Novedades del club aquí.</p>
             </div>
@@ -116,5 +114,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

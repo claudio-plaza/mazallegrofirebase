@@ -11,7 +11,7 @@ export default function HomePage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <Image 
-            src="https://placehold.co/120x120.png" // Placeholder for logo
+            src="https://placehold.co/120x120.png" 
             alt={`${siteConfig.name} Logo`} 
             width={100} 
             height={100} 

@@ -1,8 +1,9 @@
 import { GestionSociosDashboard } from '@/components/admin/GestionSociosDashboard';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Gestión de Socios - ClubZenith Admin',
+  title: `Gestión de Socios - ${siteConfig.name} Admin`,
   description: 'Administra los socios del club, sus estados y aptos médicos.',
 };
 

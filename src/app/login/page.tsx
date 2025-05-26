@@ -1,9 +1,10 @@
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Iniciar Sesión - ClubZenith',
-  description: 'Inicia sesión en tu cuenta de ClubZenith.',
+  title: `Iniciar Sesión - ${siteConfig.name}`,
+  description: `Inicia sesión en tu cuenta de ${siteConfig.name}.`,
 };
 
 export default function LoginPage() {

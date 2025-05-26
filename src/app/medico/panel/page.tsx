@@ -1,8 +1,9 @@
 import { PanelMedicoDashboard } from '@/components/medico/PanelMedicoDashboard';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Panel Médico - ClubZenith',
+  title: `Panel Médico - ${siteConfig.name}`,
   description: 'Gestiona revisiones médicas y aptos físicos de los socios.',
 };
 

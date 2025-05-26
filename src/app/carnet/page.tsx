@@ -1,9 +1,10 @@
 import { CarnetDigital } from '@/components/carnet/CarnetDigital';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Carnet Digital - ClubZenith',
-  description: 'Visualiza tu carnet de socio digital de ClubZenith.',
+  title: `Carnet Digital - ${siteConfig.name}`,
+  description: `Visualiza tu carnet de socio digital de ${siteConfig.name}.`,
 };
 
 export default function CarnetPage() {

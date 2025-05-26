@@ -1,9 +1,10 @@
 import { SignupForm } from '@/components/auth/SignupForm';
 import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Crear Cuenta - ClubZenith',
-  description: 'Crea una nueva cuenta en ClubZenith.',
+  title: `Crear Cuenta - ${siteConfig.name}`,
+  description: `Crea una nueva cuenta en ${siteConfig.name}.`,
 };
 
 export default function SignupPage() {

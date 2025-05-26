@@ -3,7 +3,7 @@ import type { QuickAccessFeature, UserRole } from '@/types';
 import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles } from 'lucide-react';
 
 export const siteConfig = {
-  name: 'ClubZenith',
+  name: 'MazAllegro', // Changed from ClubZenith
   description: 'Sistema de gestión integral para un club deportivo y social.',
 };
 
@@ -65,5 +65,3 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['administrador'],
   }
 ];
-
-    

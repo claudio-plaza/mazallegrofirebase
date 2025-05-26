@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Roboto } from 'next/font/google'; // Changed from Inter to Roboto
 import './globals.css';
 import { Providers } from '@/components/Providers';
 import Header from '@/components/layout/Header';
 import { siteConfig } from '@/config/site';
 
-const inter = Inter({
+const roboto = Roboto({ // Changed from inter to roboto
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['300', '400', '500', '700'], // Added common weights
+  variable: '--font-roboto', // Changed variable name
 });
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${roboto.variable} font-sans antialiased`}> {/* Use roboto.variable */}
         <Providers>
           <div className="flex flex-col min-h-screen">
             <Header />

@@ -3,104 +3,103 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Inter', sans-serif, Arial, Helvetica; /* Using Inter as a modern font choice */
+  font-family: var(--font-roboto), sans-serif, Arial, Helvetica; /* Using Roboto as the default font */
 }
 
 @layer base {
   :root {
-    --background: 210 17% 96%; /* #f0f2f5 Light gray */
-    --foreground: 210 17% 20%; /* Darker gray for text */
+    --background: 220 15% 12%; /* Dark Desaturated Blue */
+    --foreground: 0 0% 100%; /* White */
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 210 17% 20%;
+    --card: 220 15% 18%; /* Slightly Lighter Dark Desaturated Blue */
+    --card-foreground: 0 0% 100%; /* White */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 17% 20%;
+    --popover: 220 15% 15%; /* Darker for popovers */
+    --popover-foreground: 0 0% 100%; /* White */
 
-    --primary: 207 70% 53%; /* #3498db Saturated blue */
+    --primary: 27 86% 51%; /* #ED771B Orange */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 210 17% 88%; /* Lighter gray */
-    --secondary-foreground: 210 17% 20%;
+    --secondary: 216 82% 31%; /* #0E4291 Dark Blue */
+    --secondary-foreground: 0 0% 100%; /* White */
 
-    --muted: 210 17% 88%;
-    --muted-foreground: 210 17% 45%; /* Slightly darker muted text */
+    --muted: 220 15% 25%; /* Muted Background */
+    --muted-foreground: 220 10% 75%; /* Lighter Muted Text for dark bg */
 
-    --accent: 283 39% 53%; /* #9b59b6 Purple */
+    --accent: 27 86% 65%; /* Lighter Orange */
     --accent-foreground: 0 0% 100%; /* White */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 55%; /* Adjusted Red for dark theme */
+    --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 210 17% 80%;
-    --input: 210 17% 90%; /* Slightly lighter input background */
-    --ring: 207 70% 53%; /* Primary color for focus rings */
+    --border: 220 15% 30%; /* Visible Border for dark theme */
+    --input: 220 15% 22%; /* Input Background for dark theme */
+    --ring: 27 86% 51%; /* Primary Orange for focus rings */
 
     --radius: 0.5rem;
 
-    /* Sidebar specific theme variables */
-    --sidebar-background: 210 17% 92%;
-    --sidebar-foreground: 210 17% 20%;
-    --sidebar-primary: 207 70% 53%;
+    /* Sidebar specific theme variables - Dark Theme */
+    --sidebar-background: 220 15% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 27 86% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 283 39% 53%;
+    --sidebar-accent: 27 86% 65%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 17% 85%;
-    --sidebar-ring: 207 70% 53%;
+    --sidebar-border: 220 15% 25%;
+    --sidebar-ring: 27 86% 51%;
 
     /* Chart colors (can be adjusted based on new theme) */
-    --chart-1: 207 70% 53%; /* Primary */
-    --chart-2: 283 39% 53%; /* Accent */
-    --chart-3: 210 40% 60%; /* A muted blue/gray */
-    --chart-4: 25 88% 70%; /* Original orange accent, for variety */
-    --chart-5: 173 58% 39%; /* Original green, for variety */
+    --chart-1: 27 86% 51%; /* Primary Orange */
+    --chart-2: 216 82% 45%; /* Lighter version of Secondary Blue */
+    --chart-3: 27 86% 70%; /* Lighter Orange */
+    --chart-4: 216 82% 60%; /* Even Lighter Blue */
+    --chart-5: 45 70% 55%; /* A contrasting Yellow/Gold */
   }
 
   .dark {
-    --background: 210 17% 10%; /* Dark gray for dark mode */
-    --foreground: 210 17% 90%; /* Light gray text for dark mode */
+    /* For now, the dark theme is the same as the default root theme */
+    --background: 220 15% 12%;
+    --foreground: 0 0% 100%;
 
-    --card: 210 17% 15%;
-    --card-foreground: 210 17% 90%;
+    --card: 220 15% 18%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 210 17% 15%;
-    --popover-foreground: 210 17% 90%;
+    --popover: 220 15% 15%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 207 70% 58%; /* Slightly lighter blue for dark mode */
+    --primary: 27 86% 51%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 17% 25%;
-    --secondary-foreground: 210 17% 90%;
+    --secondary: 216 82% 31%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 17% 25%;
-    --muted-foreground: 210 17% 60%;
+    --muted: 220 15% 25%;
+    --muted-foreground: 220 10% 75%;
 
-    --accent: 283 39% 58%; /* Slightly lighter purple for dark mode */
+    --accent: 27 86% 65%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72.2% 50.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 210 17% 30%;
-    --input: 210 17% 20%;
-    --ring: 207 70% 58%;
+    --border: 220 15% 30%;
+    --input: 220 15% 22%;
+    --ring: 27 86% 51%;
 
-    /* Dark Sidebar specific theme variables */
-    --sidebar-background: 210 17% 12%;
-    --sidebar-foreground: 210 17% 90%;
-    --sidebar-primary: 207 70% 58%;
+    --sidebar-background: 220 15% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 27 86% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 283 39% 58%;
+    --sidebar-accent: 27 86% 65%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 17% 25%;
-    --sidebar-ring: 207 70% 58%;
-
-    /* Dark Chart colors */
-    --chart-1: 207 70% 58%;
-    --chart-2: 283 39% 58%;
-    --chart-3: 210 40% 65%;
-    --chart-4: 25 88% 75%;
-    --chart-5: 173 58% 44%;
+    --sidebar-border: 220 15% 25%;
+    --sidebar-ring: 27 86% 51%;
+    
+    --chart-1: 27 86% 51%;
+    --chart-2: 216 82% 45%;
+    --chart-3: 27 86% 70%;
+    --chart-4: 216 82% 60%;
+    --chart-5: 45 70% 55%;
   }
 }
 

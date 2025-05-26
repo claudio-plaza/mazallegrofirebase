@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { UserRole } from '@/types';
 import { UserPlus } from 'lucide-react';
+import { siteConfig } from '@/config/site';
 
 const roles: UserRole[] = ['socio', 'portero', 'medico', 'administrador'];
 
@@ -28,7 +30,7 @@ const signupSchema = z.object({
   email: z.string().email('Email inválido.'),
   password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
   confirmPassword: z.string(),
-  role: z.enum(roles as [UserRole, ...UserRole[]], { // Type assertion for z.enum
+  role: z.enum(roles as [UserRole, ...UserRole[]], { 
     errorMap: () => ({ message: "Seleccione un tipo de usuario válido." })
   }),
 }).refine(data => data.password === data.confirmPassword, {
@@ -49,21 +51,13 @@ export function SignupForm() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'socio', // Default role
+      role: 'socio', 
     },
   });
 
   function onSubmit(data: SignupFormValues) {
-    // Simulate account creation
-    // In a real app, this would involve an API call to a backend
     console.log('Signup data:', data);
     
-    // Add user to mockUsers for demo purposes so they can log in
-    // This is a very basic simulation
-    // import { mockUsers } from '@/lib/auth'; // This would cause issues with 'use client' if not handled carefully
-    // Ideally, this logic would be in a server action or API route.
-    // For now, we just show a toast and redirect.
-
     toast({
       title: 'Cuenta Creada Exitosamente',
       description: 'Tu cuenta ha sido creada. Ahora puedes iniciar sesión.',
@@ -78,7 +72,7 @@ export function SignupForm() {
          <UserPlus className="mr-2 h-6 w-6 text-primary" /> Crear Cuenta
         </CardTitle>
         <CardDescription>
-          Regístrate para acceder a ClubZenith.
+          Regístrate para acceder a {siteConfig.name}.
         </CardDescription>
       </CardHeader>
       <CardContent>
