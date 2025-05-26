@@ -6,8 +6,16 @@ export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 
+// Updated list of companies
 export enum EmpresaTitular {
-  OSDE = "OSDE",
+  SADOP = "Sadop",
+  AMPROS = "Ampros",
+  JUDICIALES = "Judiciales",
+  SUTIAGA = "Sutiaga",
+  SIDUNCU = "Siduncu",
+  CLAN_PITU = "Clan Pitu",
+  PARTICULAR = "Particular",
+  OSDE = "OSDE", // Kept existing ones for compatibility, can be removed if not needed
   SWISS_MEDICAL = "Swiss Medical",
   GALENO = "Galeno",
   MEDICUS = "Medicus",
@@ -67,9 +75,9 @@ export interface MiembroFamiliar {
   dni: string;
   fechaNacimiento: Date;
   relacion: RelacionFamiliar;
-  direccion?: string;
-  telefono?: string;
-  email?: string;
+  direccion?: string; // Opcional
+  telefono?: string; // Opcional
+  email?: string; // Opcional
   fotoPerfil?: FileList | null;
   fotoDniFrente?: FileList | null;
   fotoDniDorso?: FileList | null;
@@ -117,17 +125,20 @@ export interface RevisionMedica {
 // Zod Schemas for Forms
 
 const fileSchema = z.custom<FileList>((val) => val instanceof FileList && val.length > 0, "Se requiere un archivo.")
-  .refine(files => files.length === 1, "Solo se puede subir un archivo.")
-  .refine(files => files[0].size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`);
+  .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, `El archivo no debe exceder 5MB.`) // Check if files[0] exists
+  .refine(files => files?.length === 1, "Solo se puede subir un archivo.");
 
-const dniFileSchema = fileSchema.refine(files => ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo se aceptan archivos PNG, JPG o PDF.");
-const profileFileSchema = fileSchema.refine(files => ['image/png', 'image/jpeg'].includes(files[0].type), "Solo se aceptan archivos PNG o JPG.");
+
+const dniFileSchema = fileSchema
+  .refine(files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo se aceptan archivos PNG, JPG o PDF para el DNI.");
+const profileFileSchema = fileSchema
+  .refine(files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type), "Solo se aceptan archivos PNG o JPG para la foto de perfil.");
 
 
 export const paso1TitularSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: z.date().refine(date => {
+  fechaNacimiento: z.date({ errorMap: () => ({ message: "Fecha de nacimiento es requerida."})}).refine(date => {
     return date <= subYears(new Date(), 18);
   }, "Debe ser mayor de 18 años."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
@@ -147,12 +158,12 @@ export const familiarBaseSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido."),
   fechaNacimiento: z.date({ errorMap: () => ({ message: "Fecha de nacimiento inválida."})}),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
+  fotoDniFrente: dniFileSchema, // Required for family members
+  fotoDniDorso: dniFileSchema, // Required for family members
+  fotoPerfil: profileFileSchema, // Required for family members
   direccion: z.string().min(5, "Dirección es requerida.").optional(),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional(),
   email: z.string().email("Email inválido.").optional(),
-  fotoDniFrente: dniFileSchema.optional(),
-  fotoDniDorso: dniFileSchema.optional(),
-  fotoPerfil: profileFileSchema.optional(),
   relacion: z.nativeEnum(RelacionFamiliar),
 });
 
