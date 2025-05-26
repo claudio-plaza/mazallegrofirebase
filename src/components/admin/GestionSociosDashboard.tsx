@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -13,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -195,6 +196,7 @@ export function GestionSociosDashboard() {
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead>N° Socio</TableHead>
                   <TableHead>DNI</TableHead>
+                  <TableHead>Fecha Nac.</TableHead>
                   <TableHead>Estado Club</TableHead>
                   <TableHead>Apto Médico</TableHead>
                   <TableHead>Venc. Apto</TableHead>
@@ -216,6 +218,7 @@ export function GestionSociosDashboard() {
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido}</TableCell>
                       <TableCell>{socio.numeroSocio}</TableCell>
                       <TableCell>{socio.dni}</TableCell>
+                      <TableCell>{formatDate(socio.fechaNacimiento, 'dd/MM/yyyy')}</TableCell>
                       <TableCell>
                         <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
                                className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
@@ -273,7 +276,7 @@ export function GestionSociosDashboard() {
                 })}
                 {filteredSocios.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No se encontraron socios con los criterios seleccionados.
                     </TableCell>
                   </TableRow>
@@ -286,3 +289,4 @@ export function GestionSociosDashboard() {
     </div>
   );
 }
+
