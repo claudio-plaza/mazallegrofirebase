@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -6,13 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
-import { parseISO, isToday, isSameMonth, isBefore, addDays, differenceInDays } from 'date-fns';
-import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet } from 'lucide-react';
+import { parseISO, isToday, isSameMonth, differenceInDays } from 'date-fns';
+import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '../ui/separator';
 
 interface Stats {
   revisionesHoy: number;
@@ -34,6 +38,12 @@ export function PanelMedicoDashboard() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchedSocio, setSearchedSocio] = useState<Socio | null>(null);
+  const [searchMessage, setSearchMessage] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+
+
   const loadData = useCallback(() => {
     setLoading(true);
     const storedSocios = localStorage.getItem('sociosDB');
@@ -42,11 +52,9 @@ export function PanelMedicoDashboard() {
 
     const storedRevisiones = localStorage.getItem('revisionesDB');
     const revisionesData: RevisionMedica[] = storedRevisiones ? JSON.parse(storedRevisiones) : [];
-    // Sort revisiones by date descending
     revisionesData.sort((a, b) => parseISO(b.fechaRevision).getTime() - parseISO(a.fechaRevision).getTime());
     setRevisiones(revisionesData);
     
-    // Calculate stats
     const today = new Date();
     today.setHours(0,0,0,0);
 
@@ -62,7 +70,7 @@ export function PanelMedicoDashboard() {
       if (s.aptoMedico?.valido && s.aptoMedico.fechaVencimiento) {
         const fechaVenc = parseISO(s.aptoMedico.fechaVencimiento);
         const diff = differenceInDays(fechaVenc, today);
-        if (diff >= 0 && diff <= 7) { // Vence en 7 días o menos (incluyendo hoy)
+        if (diff >= 0 && diff <= 7) { 
           vencProximos++;
         }
       }
@@ -81,11 +89,59 @@ export function PanelMedicoDashboard() {
 
   useEffect(() => {
     loadData();
-    window.addEventListener('sociosDBUpdated', loadData);
+    window.addEventListener('sociosDBUpdated', loadData); // Listen for updates from NuevaRevisionDialog or other components
     return () => {
       window.removeEventListener('sociosDBUpdated', loadData);
     };
   }, [loadData]);
+
+  const handleSearchSocio = useCallback(() => {
+    if (!searchTerm.trim()) {
+      setSearchMessage('Por favor, ingrese N° Socio, DNI o Nombre.');
+      setSearchedSocio(null);
+      return;
+    }
+    setSearchLoading(true);
+    setSearchedSocio(null);
+    
+    const searchTermLower = searchTerm.trim().toLowerCase();
+    const socio = socios.find(s =>
+      s.numeroSocio === searchTerm.trim() ||
+      s.dni === searchTerm.trim() ||
+      `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower) ||
+      s.nombre.toLowerCase().includes(searchTermLower) ||
+      s.apellido.toLowerCase().includes(searchTermLower)
+    );
+
+    if (socio) {
+      setSearchedSocio(socio);
+      setSearchMessage('');
+    } else {
+      setSearchMessage('Socio no encontrado.');
+    }
+    setSearchLoading(false);
+  }, [searchTerm, socios]);
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSearchSocio();
+    }
+  };
+
+  // Effect to re-search if socio data updates (e.g., after a new revision)
+  useEffect(() => {
+    if (searchedSocio) {
+      const updatedSocio = socios.find(s => s.id === searchedSocio.id);
+      if (updatedSocio) {
+        setSearchedSocio(updatedSocio);
+      } else {
+        // If the previously searched socio is no longer in the list (e.g., deleted by admin), clear the search
+        setSearchedSocio(null);
+        setSearchMessage('El socio buscado ya no se encuentra en los registros.');
+      }
+    }
+  }, [socios, searchedSocio?.id]);
+
 
   const handleViewRevision = (revisionId: string) => {
     toast({
@@ -100,7 +156,9 @@ export function PanelMedicoDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
-        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-12 w-full" /> {/* For search bar area */}
+        <Skeleton className="h-48 w-full" /> {/* For search result area */}
+        <Skeleton className="h-96 w-full" /> {/* For table area */}
       </div>
     );
   }
@@ -112,11 +170,12 @@ export function PanelMedicoDashboard() {
     { title: "Revisiones Este Mes", value: stats.revisionesEsteMes, icon: CalendarCheck, color: "text-green-500" },
   ];
 
+  const searchedSocioAptoStatus = searchedSocio ? getAptoMedicoStatus(searchedSocio.aptoMedico) : null;
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Panel Médico</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-3xl font-bold flex items-center"><Stethoscope className="mr-3 h-8 w-8 text-primary"/>Panel Médico</h1>
         <NuevaRevisionDialog onRevisionGuardada={loadData} open={isDialogOpen} onOpenChange={setIsDialogOpen} />
       </div>
 
@@ -136,8 +195,80 @@ export function PanelMedicoDashboard() {
 
       <Card className="shadow-lg">
         <CardHeader>
+          <CardTitle className="flex items-center"><Search className="mr-2 h-6 w-6 text-primary"/>Buscar Socio</CardTitle>
+          <CardDescription>Ingrese N° Socio, DNI o Nombre para verificar su apto médico.</CardDescription>
+          <div className="flex space-x-2 pt-4">
+            <Input
+              type="text"
+              placeholder="Buscar por N° Socio, DNI, Nombre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="flex-grow"
+            />
+            <Button onClick={handleSearchSocio} disabled={searchLoading}>
+              <Search className="mr-2 h-4 w-4" /> {searchLoading ? 'Buscando...' : 'Buscar'}
+            </Button>
+          </div>
+        </CardHeader>
+        {searchMessage && <CardContent><p className="text-sm text-center text-muted-foreground pt-2">{searchMessage}</p></CardContent>}
+        
+        {searchLoading && (
+            <CardContent className="pt-4 space-y-3">
+                <Skeleton className="h-24 w-24 rounded-full mx-auto" />
+                <Skeleton className="h-6 w-3/4 mx-auto" />
+                <Skeleton className="h-4 w-1/2 mx-auto" />
+            </CardContent>
+        )}
+
+        {searchedSocio && !searchLoading && searchedSocioAptoStatus && (
+          <CardContent className="pt-4">
+            <Card className="bg-muted/30 p-6 shadow-md">
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <Avatar className="h-24 w-24 border-2 border-primary">
+                  <AvatarImage src={searchedSocio.fotoUrl || `https://placehold.co/96x96.png?text=${searchedSocio.nombre[0]}${searchedSocio.apellido[0]}`} alt={`${searchedSocio.nombre} ${searchedSocio.apellido}`} data-ai-hint="member photo" />
+                  <AvatarFallback className="text-3xl">{searchedSocio.nombre[0]}{searchedSocio.apellido[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-1 text-center sm:text-left">
+                  <h3 className="text-2xl font-semibold text-primary">{searchedSocio.nombre} {searchedSocio.apellido}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    N° Socio: <span className="font-medium text-foreground">{searchedSocio.numeroSocio}</span> | DNI: <span className="font-medium text-foreground">{searchedSocio.dni}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Fecha de Nacimiento: {formatDate(searchedSocio.fechaNacimiento)}
+                  </p>
+                </div>
+              </div>
+              <Separator className="my-4" />
+              <div className={`p-4 rounded-lg border ${searchedSocioAptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 border-')}`}>
+                  <div className="flex items-center mb-2">
+                    {searchedSocioAptoStatus.status === 'Válido' && <ShieldCheck className={`h-7 w-7 mr-2 ${searchedSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                    {(searchedSocioAptoStatus.status === 'Vencido' || searchedSocioAptoStatus.status === 'Inválido') && <ShieldAlert className={`h-7 w-7 mr-2 ${searchedSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                    {searchedSocioAptoStatus.status === 'Pendiente' && <CalendarClock className={`h-7 w-7 mr-2 ${searchedSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                    <h4 className={`text-xl font-semibold ${searchedSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-600')}`}>
+                      Apto Médico: {searchedSocioAptoStatus.status}
+                    </h4>
+                  </div>
+                  <p className={`text-sm ${searchedSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')} mb-1`}>{searchedSocioAptoStatus.message}</p>
+                  {searchedSocio.aptoMedico?.fechaEmision && (
+                    <p className="text-xs text-muted-foreground">Emitido: {formatDate(searchedSocio.aptoMedico.fechaEmision)}</p>
+                  )}
+                  {searchedSocio.aptoMedico?.observaciones && (
+                    <p className="text-xs text-muted-foreground mt-1">Observaciones: {searchedSocio.aptoMedico.observaciones}</p>
+                  )}
+                   {searchedSocio.ultimaRevisionMedica && (
+                     <p className="text-xs text-muted-foreground mt-1">Última Revisión Médica Registrada: {formatDate(searchedSocio.ultimaRevisionMedica)}</p>
+                   )}
+              </div>
+            </Card>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
           <CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-6 w-6 text-primary"/> Últimas Revisiones Registradas</CardTitle>
-          <CardDescription>Mostrando las últimas 10 revisiones.</CardDescription>
+          <CardDescription>Mostrando las últimas 10 revisiones. El apto es válido por 15 días desde la fecha de revisión (incluida).</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[400px] w-full">
@@ -145,20 +276,16 @@ export function PanelMedicoDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha Revisión</TableHead>
-                  <TableHead>Socio</TableHead>
+                  <TableHead>Socio (Nombre y N°)</TableHead>
                   <TableHead>Resultado</TableHead>
                   <TableHead>Vencimiento Apto</TableHead>
                   <TableHead>Observaciones</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableHead>Médico</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {revisiones.slice(0, 10).map((revision) => {
-                  const aptoStatus = getAptoMedicoStatus({
-                    valido: revision.resultado === 'Apto',
-                    fechaVencimiento: revision.fechaVencimientoApto,
-                    // razonInvalidez and observaciones could be derived or set if needed for this display
-                  });
                   return (
                     <TableRow key={revision.id}>
                       <TableCell>{formatDate(revision.fechaRevision)}</TableCell>
@@ -173,9 +300,10 @@ export function PanelMedicoDashboard() {
                           ? formatDate(revision.fechaVencimientoApto) 
                           : 'N/A'}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate">{revision.observaciones || '-'}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => handleViewRevision(revision.id)}>
+                      <TableCell className="max-w-[200px] truncate" title={revision.observaciones}>{revision.observaciones || '-'}</TableCell>
+                      <TableCell className="max-w-[150px] truncate" title={revision.medicoResponsable}>{revision.medicoResponsable || 'No especificado'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewRevision(revision.id)} title="Ver detalles de la revisión">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -184,7 +312,7 @@ export function PanelMedicoDashboard() {
                 })}
                 {revisiones.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No hay revisiones registradas.
                     </TableCell>
                   </TableRow>
@@ -197,3 +325,4 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
