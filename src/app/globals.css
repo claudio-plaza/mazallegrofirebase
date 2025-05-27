@@ -8,25 +8,25 @@ body {
 
 @layer base {
   :root {
-    --background: 220 15% 12%; /* Dark Desaturated Blue */
-    --foreground: 0 0% 100%; /* White */
+    --background: 220 15% 12%; /* Dark Desaturated Blue - Matches image background */
+    --foreground: 0 0% 100%; /* White - Matches image text */
 
-    --card: 220 15% 18%; /* Slightly Lighter Dark Desaturated Blue */
+    --card: 220 15% 18%; /* Slightly Lighter Dark Desaturated Blue - Matches image card */
     --card-foreground: 0 0% 100%; /* White */
 
     --popover: 220 15% 15%; /* Darker for popovers */
     --popover-foreground: 0 0% 100%; /* White */
 
-    --primary: 27 86% 51%; /* #ED771B Orange */
+    --primary: 27 86% 51%; /* #ED771B Orange - Matches "Iniciar Sesión" button */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 216 82% 31%; /* #0E4291 Dark Blue */
+    --secondary: 208 68% 53%; /* #3498db Saturated Blue - For "Crear Cuenta" button */
     --secondary-foreground: 0 0% 100%; /* White */
 
-    --muted: 220 15% 25%; /* Muted Background */
+    --muted: 220 15% 25%; /* Muted Background - For footer and other less prominent areas */
     --muted-foreground: 220 10% 75%; /* Lighter Muted Text for dark bg */
 
-    --accent: 27 86% 65%; /* Lighter Orange */
+    --accent: 27 86% 65%; /* Lighter Orange - For hover states, etc. */
     --accent-foreground: 0 0% 100%; /* White */
 
     --destructive: 0 70% 55%; /* Adjusted Red for dark theme */
@@ -50,9 +50,9 @@ body {
 
     /* Chart colors (can be adjusted based on new theme) */
     --chart-1: 27 86% 51%; /* Primary Orange */
-    --chart-2: 216 82% 45%; /* Lighter version of Secondary Blue */
+    --chart-2: 208 68% 60%; /* Lighter version of Secondary Blue */
     --chart-3: 27 86% 70%; /* Lighter Orange */
-    --chart-4: 216 82% 60%; /* Even Lighter Blue */
+    --chart-4: 208 68% 70%; /* Even Lighter Blue */
     --chart-5: 45 70% 55%; /* A contrasting Yellow/Gold */
   }
 
@@ -70,7 +70,7 @@ body {
     --primary: 27 86% 51%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 216 82% 31%;
+    --secondary: 208 68% 53%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 220 15% 25%;
@@ -96,9 +96,9 @@ body {
     --sidebar-ring: 27 86% 51%;
     
     --chart-1: 27 86% 51%;
-    --chart-2: 216 82% 45%;
+    --chart-2: 208 68% 60%;
     --chart-3: 27 86% 70%;
-    --chart-4: 216 82% 60%;
+    --chart-4: 208 68% 70%;
     --chart-5: 45 70% 55%;
   }
 }
