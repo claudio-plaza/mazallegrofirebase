@@ -22,8 +22,8 @@ type DisplayableMember = {
   dni: string;
   fotoUrl?: string;
   aptoMedico?: AptoMedicoInfo;
-  estadoSocio?: Socio['estadoSocio']; 
-  relacion?: string; 
+  estadoSocio?: Socio['estadoSocio'];
+  relacion?: string;
 };
 
 export function ControlAcceso() {
@@ -48,12 +48,12 @@ export function ControlAcceso() {
     if (storedSocios) {
       const socios: Socio[] = JSON.parse(storedSocios);
       const searchTermLower = searchTerm.trim().toLowerCase();
-      const socio = socios.find(s => 
-        s.numeroSocio === searchTerm.trim() || 
+      const socio = socios.find(s =>
+        s.numeroSocio === searchTerm.trim() ||
         s.dni === searchTerm.trim() ||
+        `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower) || // Check full name first
         s.nombre.toLowerCase().includes(searchTermLower) ||
-        s.apellido.toLowerCase().includes(searchTermLower) ||
-        `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower)
+        s.apellido.toLowerCase().includes(searchTermLower)
       );
       if (socio) {
         setSocioEncontrado(socio);
@@ -113,7 +113,7 @@ export function ControlAcceso() {
       let motivoDenegado = '';
       if (!socioActivo) {
         motivoDenegado = esTitular ? `Socio se encuentra ${member.estadoSocio}.` : `El socio titular se encuentra ${socioEncontrado?.estadoSocio}.`;
-      } else { 
+      } else {
         motivoDenegado = `Apto médico ${aptoStatus.status.toLowerCase()}: ${aptoStatus.message}.`;
       }
       toast({
@@ -137,14 +137,17 @@ export function ControlAcceso() {
     });
     socioEncontrado.grupoFamiliar?.forEach(fam => {
       let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
+      // Check if fotoPerfil is a FileList and has a file
       if (fam.fotoPerfil && fam.fotoPerfil.length > 0 && fam.fotoPerfil[0] instanceof File) {
          fotoFamiliar = URL.createObjectURL(fam.fotoPerfil[0]);
-      } else if (typeof fam.fotoPerfil === 'string') { 
+      // Check if fotoPerfil is already a string URL (e.g., from mock data directly if not a FileList)
+      } else if (typeof fam.fotoPerfil === 'string') {
          fotoFamiliar = fam.fotoPerfil;
       }
 
+
       displayableMembers.push({
-        id: fam.id || fam.dni, 
+        id: fam.id || fam.dni,
         nombreCompleto: `${fam.nombre} ${fam.apellido}`,
         dni: fam.dni,
         fotoUrl: fotoFamiliar,
@@ -153,7 +156,7 @@ export function ControlAcceso() {
       });
     });
   }
-  
+
   let accesoGeneralPermitido = false;
   let mensajeAccesoGeneral = '';
   if (socioEncontrado) {
@@ -166,7 +169,7 @@ export function ControlAcceso() {
       mensajeAccesoGeneral = 'Socio titular activo y con apto médico vigente.';
     } else if (!titularActivo) {
       mensajeAccesoGeneral = `Socio titular se encuentra ${socioEncontrado.estadoSocio}.`;
-    } else { 
+    } else {
       mensajeAccesoGeneral = `Apto médico del titular ${titularAptoStatus.status.toLowerCase()}: ${titularAptoStatus.message}.`;
     }
   }
@@ -246,9 +249,9 @@ export function ControlAcceso() {
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 text-center sm:text-left">
-                                <div className="font-semibold text-lg text-foreground">
-                                {member.nombreCompleto}{' '}
-                                <Badge variant="outline" className="ml-2 align-middle">{member.relacion}</Badge>
+                                <div className="font-semibold text-lg text-foreground flex items-center">
+                                  {member.nombreCompleto}
+                                  <Badge variant="outline" className="ml-2 align-middle">{member.relacion}</Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
                                 {esTitular && <p className="text-sm text-muted-foreground">N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>{socioEncontrado.estadoSocio}</Badge></p>}
@@ -279,5 +282,3 @@ export function ControlAcceso() {
     </Card>
   );
 }
-
-    
