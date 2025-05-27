@@ -22,7 +22,7 @@ type DisplayableMember = {
   dni: string;
   fotoUrl?: string;
   aptoMedico?: AptoMedicoInfo;
-  estadoSocio?: Socio['estadoSocio'];
+  estadoSocio?: Socio['estadoSocio']; // Solo relevante para el titular en esta estructura
   relacion?: string;
 };
 
@@ -51,14 +51,14 @@ export function ControlAcceso() {
       const socio = socios.find(s =>
         s.numeroSocio === searchTerm.trim() ||
         s.dni === searchTerm.trim() ||
-        `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower) || // Check full name first
+        `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower) ||
         s.nombre.toLowerCase().includes(searchTermLower) ||
         s.apellido.toLowerCase().includes(searchTermLower)
       );
       if (socio) {
         setSocioEncontrado(socio);
         setMensajeBusqueda('');
-        setAccordionValue("socio-info"); // Open accordion by default when socio is found
+        setAccordionValue("socio-info"); 
       } else {
         setMensajeBusqueda('Socio no encontrado.');
       }
@@ -98,27 +98,21 @@ export function ControlAcceso() {
     });
   };
 
-  const handleRegistrarIngreso = (member: DisplayableMember, esTitular: boolean) => {
+  const handleRegistrarIngreso = (member: DisplayableMember) => {
     const aptoStatus = getAptoMedicoStatus(member.aptoMedico);
-    const socioActivo = esTitular ? member.estadoSocio === 'Activo' : socioEncontrado?.estadoSocio === 'Activo';
-    const aptoValido = aptoStatus.status === 'Válido';
+    // El ingreso SÓLO depende del estado del socio titular.
+    const socioTitularActivo = socioEncontrado?.estadoSocio === 'Activo';
 
-    if (socioActivo && aptoValido) {
+    if (socioTitularActivo) {
       toast({
         title: 'Ingreso Registrado',
-        description: `Acceso permitido y registrado para ${member.nombreCompleto}.`,
+        description: `Acceso permitido para ${member.nombreCompleto}. Observación Apto Médico: ${aptoStatus.status} (${aptoStatus.message}).`,
         variant: 'default',
       });
     } else {
-      let motivoDenegado = '';
-      if (!socioActivo) {
-        motivoDenegado = esTitular ? `Socio se encuentra ${member.estadoSocio}.` : `El socio titular se encuentra ${socioEncontrado?.estadoSocio}.`;
-      } else {
-        motivoDenegado = `Apto médico ${aptoStatus.status.toLowerCase()}: ${aptoStatus.message}.`;
-      }
       toast({
         title: 'Acceso Denegado',
-        description: `No se puede registrar ingreso para ${member.nombreCompleto}. Motivo: ${motivoDenegado}`,
+        description: `No se puede registrar ingreso. El socio titular ${socioEncontrado?.nombre} ${socioEncontrado?.apellido} se encuentra ${socioEncontrado?.estadoSocio}.`,
         variant: 'destructive',
       });
     }
@@ -137,40 +131,44 @@ export function ControlAcceso() {
     });
     socioEncontrado.grupoFamiliar?.forEach(fam => {
       let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
-      // Check if fotoPerfil is a FileList and has a file
       if (fam.fotoPerfil && fam.fotoPerfil.length > 0 && fam.fotoPerfil[0] instanceof File) {
          fotoFamiliar = URL.createObjectURL(fam.fotoPerfil[0]);
-      // Check if fotoPerfil is already a string URL (e.g., from mock data directly if not a FileList)
       } else if (typeof fam.fotoPerfil === 'string') {
          fotoFamiliar = fam.fotoPerfil;
       }
 
-
       displayableMembers.push({
-        id: fam.id || fam.dni,
+        id: fam.id || fam.dni, 
         nombreCompleto: `${fam.nombre} ${fam.apellido}`,
         dni: fam.dni,
         fotoUrl: fotoFamiliar,
         aptoMedico: fam.aptoMedico,
         relacion: fam.relacion,
+        // estadoSocio no es relevante aquí para el familiar individualmente para el ingreso, depende del titular
       });
     });
   }
 
   let accesoGeneralPermitido = false;
   let mensajeAccesoGeneral = '';
+  let colorClaseAccesoGeneral = 'bg-red-500/10 hover:bg-red-500/20 border-red-500';
+  let iconoAccesoGeneral = <XCircle className="h-8 w-8 text-red-600 mr-3" />;
+  let textoColorAccesoGeneral = 'text-red-700';
+
+
   if (socioEncontrado) {
     const titularAptoStatus = getAptoMedicoStatus(socioEncontrado.aptoMedico);
     const titularActivo = socioEncontrado.estadoSocio === 'Activo';
-    const titularAptoValido = titularAptoStatus.status === 'Válido';
 
-    if (titularActivo && titularAptoValido) {
+    if (titularActivo) {
       accesoGeneralPermitido = true;
-      mensajeAccesoGeneral = 'Socio titular activo y con apto médico vigente.';
-    } else if (!titularActivo) {
-      mensajeAccesoGeneral = `Socio titular se encuentra ${socioEncontrado.estadoSocio}.`;
+      mensajeAccesoGeneral = `Socio titular ACTIVO. Observación Apto: ${titularAptoStatus.status}.`;
+      colorClaseAccesoGeneral = 'bg-green-500/10 hover:bg-green-500/20 border-green-500';
+      iconoAccesoGeneral = <CheckCircle className="h-8 w-8 text-green-600 mr-3" />;
+      textoColorAccesoGeneral = 'text-green-700';
     } else {
-      mensajeAccesoGeneral = `Apto médico del titular ${titularAptoStatus.status.toLowerCase()}: ${titularAptoStatus.message}.`;
+      mensajeAccesoGeneral = `Socio titular ${socioEncontrado.estadoSocio.toUpperCase()}. Observación Apto: ${titularAptoStatus.status}.`;
+      // Colores y icono ya son los de denegado por defecto.
     }
   }
 
@@ -209,16 +207,12 @@ export function ControlAcceso() {
         {socioEncontrado && !loading && (
           <Accordion type="single" collapsible className="w-full" value={accordionValue} onValueChange={setAccordionValue}>
             <AccordionItem value="socio-info">
-              <AccordionTrigger className={`p-4 rounded-lg text-left ${accesoGeneralPermitido ? 'bg-green-500/10 hover:bg-green-500/20' : 'bg-red-500/10 hover:bg-red-500/20'} border ${accesoGeneralPermitido ? 'border-green-500' : 'border-red-500'}`}>
+              <AccordionTrigger className={`p-4 rounded-lg text-left ${colorClaseAccesoGeneral}`}>
                 <div className="flex items-center justify-between w-full">
                     <div className='flex items-center'>
-                        {accesoGeneralPermitido ? (
-                            <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-                        ) : (
-                            <XCircle className="h-8 w-8 text-red-600 mr-3" />
-                        )}
+                        {iconoAccesoGeneral}
                         <div>
-                            <h3 className={`text-lg font-semibold ${accesoGeneralPermitido ? 'text-green-700' : 'text-red-700'}`}>
+                            <h3 className={`text-lg font-semibold ${textoColorAccesoGeneral}`}>
                             {socioEncontrado.nombre} {socioEncontrado.apellido} (N°: {socioEncontrado.numeroSocio})
                             </h3>
                             <p className={`text-sm ${accesoGeneralPermitido ? 'text-green-600' : 'text-red-600'}`}>
@@ -226,21 +220,21 @@ export function ControlAcceso() {
                             </p>
                         </div>
                     </div>
-                    {/* ChevronDown is automatically added by AccordionTrigger, but we can customize if needed */}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-0">
                 <div className="border-t border-border px-4 py-4">
-                    <p className="text-xs text-muted-foreground mb-4 text-center">Verifique el estado individual y registre el ingreso de cada miembro del grupo familiar.</p>
+                    <p className="text-xs text-muted-foreground mb-4 text-center">Verifique el estado individual y registre el ingreso de cada miembro. El ingreso general depende del estado del socio titular.</p>
                     <div className="space-y-4">
                     {displayableMembers.map((member) => {
                         const aptoStatus = getAptoMedicoStatus(member.aptoMedico);
                         const esTitular = member.relacion === 'Titular';
                         const fotoMember = member.fotoUrl || `https://placehold.co/60x60.png?text=${member.nombreCompleto[0]}${member.nombreCompleto.split(' ')[1]?.[0] || ''}`;
-                        const puedeIngresar = (esTitular ? member.estadoSocio === 'Activo' : socioEncontrado.estadoSocio === 'Activo') && aptoStatus.status === 'Válido';
+                        // Puede ingresar si el socio titular está activo. El borde de la tarjeta refleja esto.
+                        const puedeIngresarVisual = socioEncontrado.estadoSocio === 'Activo';
 
                         return (
-                        <Card key={member.id} className={`p-4 ${puedeIngresar ? 'border-green-300' : 'border-red-300'} bg-card shadow-sm`}>
+                        <Card key={member.id} className={`p-4 ${puedeIngresarVisual ? 'border-green-300' : 'border-red-300'} bg-card shadow-sm`}>
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                             <Avatar className="h-16 w-16 border-2 border-muted">
                                 <AvatarImage src={fotoMember} alt={member.nombreCompleto} data-ai-hint="member photo"/>
@@ -260,14 +254,20 @@ export function ControlAcceso() {
                                 <Button variant="outline" size="sm" onClick={() => handleVerCarnet(member.nombreCompleto)} className="w-full sm:w-auto">
                                 <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
                                 </Button>
-                                <Button variant="default" size="sm" onClick={() => handleRegistrarIngreso(member, esTitular)} className="w-full sm:w-auto">
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  onClick={() => handleRegistrarIngreso(member)} 
+                                  className="w-full sm:w-auto"
+                                  disabled={socioEncontrado.estadoSocio !== 'Activo'} // Deshabilitar si el titular no está activo
+                                >
                                 <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso
                                 </Button>
                             </div>
                             </div>
                             <Separator className="my-3" />
                             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
-                            <span className="font-medium">Apto Médico: {aptoStatus.status}.</span> {aptoStatus.message}.
+                            <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
                             </div>
                         </Card>
                         );
@@ -282,3 +282,4 @@ export function ControlAcceso() {
     </Card>
   );
 }
+
