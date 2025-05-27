@@ -1,29 +1,9 @@
 
 import type { Socio, RevisionMedica, UserRole, MiembroFamiliar, AptoMedicoInfo } from '@/types';
-import { RelacionFamiliar } from '@/types'; // Added this import
+import { RelacionFamiliar, EmpresaTitular } from '@/types'; // Added EmpresaTitular
 import { addDays, subDays, formatISO, subMonths, subYears } from 'date-fns';
 
 const today = new Date();
-
-// Define EmpresaTitular enum if not already globally available
-enum EmpresaTitular {
-  SADOP = "Sadop",
-  AMPROS = "Ampros",
-  JUDICIALES = "Judiciales",
-  SUTIAGA = "Sutiaga",
-  SIDUNCU = "Siduncu",
-  CLAN_PITU = "Clan Pitu",
-  PARTICULAR = "Particular",
-  OSDE = "OSDE",
-  SWISS_MEDICAL = "Swiss Medical",
-  GALENO = "Galeno",
-  MEDICUS = "Medicus",
-  OMINT = "Omint",
-  SANCOR_SALUD = "Sancor Salud",
-  OTRA = "Otra",
-  NINGUNA = "Ninguna",
-}
-
 
 const mockFamiliaresJuan: MiembroFamiliar[] = [
   {
@@ -57,6 +37,49 @@ const mockFamiliaresJuan: MiembroFamiliar[] = [
   }
 ];
 
+const mockFamiliaresLaura: MiembroFamiliar[] = [
+  {
+    id: 'fam-lg-1',
+    nombre: 'Marcos',
+    apellido: 'Diaz',
+    dni: '21223344',
+    fechaNacimiento: subYears(today, 33),
+    relacion: RelacionFamiliar.CONYUGE,
+    aptoMedico: {
+      valido: true,
+      fechaEmision: formatISO(subDays(today, 7)),
+      fechaVencimiento: formatISO(addDays(subDays(today, 7), 14)), // Vence en 7 días
+      observaciones: 'Apto.',
+    },
+  },
+  {
+    id: 'fam-lg-2',
+    nombre: 'Sofia',
+    apellido: 'Diaz',
+    dni: '66778899',
+    fechaNacimiento: subYears(today, 6),
+    relacion: RelacionFamiliar.HIJO_A,
+    aptoMedico: { // Pendiente
+      valido: false,
+      razonInvalidez: 'Pendiente de presentación',
+    },
+  },
+  {
+    id: 'fam-lg-3',
+    nombre: 'Lucas',
+    apellido: 'Diaz',
+    dni: '77889900',
+    fechaNacimiento: subYears(today, 4),
+    relacion: RelacionFamiliar.HIJO_A,
+    aptoMedico: {
+      valido: true,
+      fechaEmision: formatISO(subDays(today, 1)),
+      fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)), // Vence en 13 días
+      observaciones: 'Apto.',
+    },
+  }
+];
+
 export const mockSocios: Socio[] = [
   {
     id: '1001',
@@ -64,7 +87,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Juan',
     apellido: 'Pérez',
     dni: '12345678',
-    fechaNacimiento: subYears(today, 30), // 30 years old
+    fechaNacimiento: subYears(today, 30), 
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -152,6 +175,30 @@ export const mockSocios: Socio[] = [
     grupoFamiliar: [],
     role: 'socio',
   },
+  {
+    id: '1005',
+    numeroSocio: '1005',
+    nombre: 'Laura',
+    apellido: 'Gomez',
+    dni: '22334455',
+    fechaNacimiento: subYears(today, 32),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: {
+      valido: true,
+      fechaEmision: formatISO(subDays(today, 4)),
+      fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)), // Vence en 10 días
+      observaciones: 'Apta.',
+    },
+    email: 'laura.gomez@example.com',
+    telefono: '3344556677',
+    direccion: 'Calle Sol Naciente 321',
+    empresa: EmpresaTitular.SADOP,
+    miembroDesde: formatISO(subMonths(today, 18)),
+    ultimaRevisionMedica: formatISO(subDays(today, 4)),
+    grupoFamiliar: mockFamiliaresLaura,
+    role: 'socio',
+  },
 ];
 
 export const mockRevisiones: RevisionMedica[] = [
@@ -170,7 +217,7 @@ export const mockRevisiones: RevisionMedica[] = [
     fechaRevision: formatISO(subDays(today, 20)),
     socioId: '1002',
     socioNombre: 'Ana García',
-    resultado: 'Apto', // Fue apto, pero ya venció
+    resultado: 'Apto', 
     fechaVencimientoApto: formatISO(addDays(subDays(today, 20), 14)),
     observaciones: 'Requiere nueva evaluación.',
     medicoResponsable: 'Dra. Quinn',
@@ -188,7 +235,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-jp-1',
     fechaRevision: formatISO(subDays(today, 5)),
-    socioId: 'fam-jp-1', // ID del familiar, si se registran individualmente
+    socioId: 'fam-jp-1', 
     socioNombre: 'Maria Gonzalez',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 5), 14)),
@@ -205,5 +252,34 @@ export const mockRevisiones: RevisionMedica[] = [
     observaciones: 'Apto para deportes infantiles.',
     medicoResponsable: 'Dra. Quinn',
   },
+  {
+    id: 'rev-lg-1',
+    fechaRevision: formatISO(subDays(today, 4)),
+    socioId: '1005', // Titular Laura Gomez
+    socioNombre: 'Laura Gomez',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 4), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dra. Quinn',
+  },
+  {
+    id: 'rev-fam-lg-1',
+    fechaRevision: formatISO(subDays(today, 7)),
+    socioId: 'fam-lg-1', // Conyuge Marcos Diaz
+    socioNombre: 'Marcos Diaz',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 7), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dr. House',
+  },
+  {
+    id: 'rev-fam-lg-3', // Para Lucas Diaz (Sofia está pendiente)
+    fechaRevision: formatISO(subDays(today, 1)),
+    socioId: 'fam-lg-3', 
+    socioNombre: 'Lucas Diaz',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 1), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dr. House',
+  },
 ];
-

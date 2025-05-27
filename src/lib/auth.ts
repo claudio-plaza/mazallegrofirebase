@@ -22,7 +22,7 @@ export const mockUsers: UserDetails[] = [
   { id: 'admin2', name: 'Admin Prueba', email: 'admin2@example.com', role: 'administrador', password: 'adminpass' },
   { id: 'medico2', name: 'Medico Prueba', email: 'medico2@example.com', role: 'medico', password: 'medicopass' },
   { id: 'portero2', name: 'Portero Prueba', email: 'portero2@example.com', role: 'portero', password: 'porteropass' },
-  ...mockSocios.map(socio => ({
+  ...mockSocios.filter(socio => socio.email).map(socio => ({ // Added filter for socio.email
     id: `socio-${socio.numeroSocio}`,
     name: `${socio.nombre} ${socio.apellido}`,
     email: socio.email.toLowerCase(),
