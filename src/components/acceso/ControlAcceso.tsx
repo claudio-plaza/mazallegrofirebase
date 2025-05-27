@@ -249,7 +249,10 @@ export function ControlAcceso() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 text-center sm:text-left">
-                        <p className="font-semibold text-lg text-foreground">{member.nombreCompleto} <Badge variant="outline" className="ml-2">{member.relacion}</Badge></p>
+                        <div className="font-semibold text-lg text-foreground">
+                          {member.nombreCompleto}{' '}
+                          <Badge variant="outline" className="ml-2 align-middle">{member.relacion}</Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
                         {esTitular && <p className="text-sm text-muted-foreground">N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>{socioEncontrado.estadoSocio}</Badge></p>}
                       </div>
@@ -277,3 +280,4 @@ export function ControlAcceso() {
   );
 }
 
+    
