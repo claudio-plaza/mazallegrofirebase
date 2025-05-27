@@ -22,7 +22,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Accede a tu carnet de socio digital.',
     icon: FileText,
     href: '/carnet',
-    roles: ['socio', 'administrador'],
+    roles: ['socio'], // 'administrador' removed
   },
   {
     id: 'perfil-alta',
@@ -62,6 +62,6 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Recomendaciones de IA para gestión de socios.',
     icon: Sparkles,
     href: '/admin/ai-suggestions',
-    roles: ['administrador'],
+    roles: [], // 'administrador' removed, effectively hiding it from quick access for all.
   }
 ];
