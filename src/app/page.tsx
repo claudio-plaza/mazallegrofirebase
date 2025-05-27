@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { siteConfig } from "@/config/site";
@@ -11,12 +12,12 @@ export default function HomePage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <Image 
-            src="https://placehold.co/120x120.png" 
+            src="https://placehold.co/100x100.png" 
             alt={`${siteConfig.name} Logo`} 
             width={100} 
             height={100} 
-            className="mx-auto mb-4 rounded-full"
-            data-ai-hint="club logo"
+            className="mx-auto mb-4 rounded-full" // You might want to adjust styling (e.g., remove rounded-full if your logo isn't circular)
+            data-ai-hint="club logo" // Updated hint
           />
           <CardTitle className="text-3xl font-bold text-primary">{siteConfig.name}</CardTitle>
           <CardDescription className="text-muted-foreground">
