@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles } from 'lucide-react';
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake } from 'lucide-react';
 
 export const siteConfig = {
   name: 'MazAllegro', // Changed from ClubZenith
@@ -22,15 +22,23 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Accede a tu carnet de socio digital.',
     icon: FileText,
     href: '/carnet',
-    roles: ['socio'], // 'administrador' removed
+    roles: ['socio'], 
   },
   {
     id: 'perfil-alta',
-    title: 'Mi Perfil / Alta Socio',
-    description: 'Completa o actualiza tus datos personales y familiares.',
+    title: 'Mi Perfil / Familiares',
+    description: 'Completa o actualiza tus datos familiares.',
     icon: UserCircle,
     href: '/perfil',
-    roles: ['socio'], // Typically for new users or existing ones to update
+    roles: ['socio'], 
+  },
+  {
+    id: 'mis-cumpleanos',
+    title: 'Mis Cumpleaños',
+    description: 'Gestiona las listas de invitados para tus festejos.',
+    icon: Cake,
+    href: '/cumpleanos',
+    roles: ['socio'],
   },
   {
     id: 'panel-medico',
@@ -62,6 +70,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Recomendaciones de IA para gestión de socios.',
     icon: Sparkles,
     href: '/admin/ai-suggestions',
-    roles: [], // 'administrador' removed, effectively hiding it from quick access for all.
+    roles: [], 
   }
 ];
+

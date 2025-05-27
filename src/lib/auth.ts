@@ -71,14 +71,17 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
 
 export const initializeMockDatabases = () => {
   if (typeof window !== 'undefined') {
-    // Always set/overwrite sociosDB with the current mockSocios data
     localStorage.setItem('sociosDB', JSON.stringify(mockSocios));
 
-    // Optional: Initialize revisionesDB if not present. 
-    // Make sure mockRevisiones is imported from './mockData' if you uncomment this.
-    // const storedRevisiones = localStorage.getItem('revisionesDB');
-    // if (!storedRevisiones) {
-    //   localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
+    const storedRevisiones = localStorage.getItem('revisionesDB');
+    // if (!storedRevisiones) { // Only initialize if not present, or always overwrite like sociosDB
+    //   localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones)); // Make sure mockRevisiones is imported
     // }
+
+    const storedCumpleanos = localStorage.getItem('cumpleanosDB');
+    if (!storedCumpleanos) {
+        localStorage.setItem('cumpleanosDB', JSON.stringify([])); // Initialize as empty array
+    }
   }
 };
+
