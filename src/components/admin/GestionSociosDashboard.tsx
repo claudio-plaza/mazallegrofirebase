@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -107,6 +107,26 @@ export function GestionSociosDashboard() {
       return matchesSearch && matchesEstado;
     });
   }, [socios, searchTerm, filtroEstado]);
+  
+  const handleDescargarListaPdf = () => {
+    if (filteredSocios.length === 0) {
+      toast({
+        title: "Lista Vacía",
+        description: "No hay socios que coincidan con los filtros actuales para descargar.",
+        variant: "default",
+      });
+      return;
+    }
+    
+    // Simulate PDF generation
+    console.log("Simulando generación de PDF para los siguientes socios:", filteredSocios);
+    toast({
+      title: "Descarga Iniciada (Simulada)",
+      description: `Se está generando un PDF con ${filteredSocios.length} socio(s). (Esta es una simulación, ver consola para datos).`,
+    });
+    // In a real scenario, you would use a library like jsPDF or react-pdf here
+    // to generate and trigger the download of the PDF.
+  };
 
   const stats = useMemo(() => {
     const total = socios.length;
@@ -160,7 +180,12 @@ export function GestionSociosDashboard() {
               <CardTitle>Lista de Socios</CardTitle>
               <CardDescription>Busca, filtra y gestiona los socios del club.</CardDescription>
             </div>
-            <Button onClick={handleNuevoMiembro}><UserPlus className="mr-2 h-4 w-4" /> Nuevo Miembro</Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={handleDescargarListaPdf} variant="outline">
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Descargar Lista (PDF)
+              </Button>
+              <Button onClick={handleNuevoMiembro}><UserPlus className="mr-2 h-4 w-4" /> Nuevo Miembro</Button>
+            </div>
           </div>
           <div className="mt-4 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-grow">
