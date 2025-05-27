@@ -1,7 +1,61 @@
-import type { Socio, RevisionMedica, UserRole } from '@/types';
+
+import type { Socio, RevisionMedica, UserRole, MiembroFamiliar, AptoMedicoInfo } from '@/types';
+import { RelacionFamiliar } from '@/types'; // Added this import
 import { addDays, subDays, formatISO, subMonths, subYears } from 'date-fns';
 
 const today = new Date();
+
+// Define EmpresaTitular enum if not already globally available
+enum EmpresaTitular {
+  SADOP = "Sadop",
+  AMPROS = "Ampros",
+  JUDICIALES = "Judiciales",
+  SUTIAGA = "Sutiaga",
+  SIDUNCU = "Siduncu",
+  CLAN_PITU = "Clan Pitu",
+  PARTICULAR = "Particular",
+  OSDE = "OSDE",
+  SWISS_MEDICAL = "Swiss Medical",
+  GALENO = "Galeno",
+  MEDICUS = "Medicus",
+  OMINT = "Omint",
+  SANCOR_SALUD = "Sancor Salud",
+  OTRA = "Otra",
+  NINGUNA = "Ninguna",
+}
+
+
+const mockFamiliaresJuan: MiembroFamiliar[] = [
+  {
+    id: 'fam-jp-1',
+    nombre: 'Maria',
+    apellido: 'Gonzalez',
+    dni: '12345679',
+    fechaNacimiento: subYears(today, 28),
+    relacion: RelacionFamiliar.CONYUGE,
+    aptoMedico: {
+      valido: true,
+      fechaEmision: formatISO(subDays(today, 5)),
+      fechaVencimiento: formatISO(addDays(subDays(today, 5), 14)), // Vence en 9 días
+      observaciones: 'Apta.',
+    },
+    // Fotos opcionales para mock
+  },
+  {
+    id: 'fam-jp-2',
+    nombre: 'Pedro',
+    apellido: 'Pérez',
+    dni: '55667788',
+    fechaNacimiento: subYears(today, 5),
+    relacion: RelacionFamiliar.HIJO_A,
+    aptoMedico: {
+      valido: true,
+      fechaEmision: formatISO(subDays(today, 2)),
+      fechaVencimiento: formatISO(addDays(subDays(today, 2), 14)), // Vence en 12 días
+      observaciones: 'Apto para deportes infantiles.',
+    },
+  }
+];
 
 export const mockSocios: Socio[] = [
   {
@@ -25,7 +79,7 @@ export const mockSocios: Socio[] = [
     empresa: EmpresaTitular.OSDE,
     miembroDesde: formatISO(subMonths(today, 6)),
     ultimaRevisionMedica: formatISO(subDays(today, 10)),
-    grupoFamiliar: [],
+    grupoFamiliar: mockFamiliaresJuan,
     role: 'socio',
   },
   {
@@ -131,16 +185,25 @@ export const mockRevisiones: RevisionMedica[] = [
     observaciones: 'Sin restricciones.',
     medicoResponsable: 'Dr. House',
   },
+  {
+    id: 'rev-fam-jp-1',
+    fechaRevision: formatISO(subDays(today, 5)),
+    socioId: 'fam-jp-1', // ID del familiar, si se registran individualmente
+    socioNombre: 'Maria Gonzalez',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 5), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dr. House',
+  },
+   {
+    id: 'rev-fam-jp-2',
+    fechaRevision: formatISO(subDays(today, 2)),
+    socioId: 'fam-jp-2',
+    socioNombre: 'Pedro Pérez',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 2), 14)),
+    observaciones: 'Apto para deportes infantiles.',
+    medicoResponsable: 'Dra. Quinn',
+  },
 ];
 
-// Define EmpresaTitular enum if not already globally available
-enum EmpresaTitular {
-  OSDE = "OSDE",
-  SWISS_MEDICAL = "Swiss Medical",
-  GALENO = "Galeno",
-  MEDICUS = "Medicus",
-  OMINT = "Omint",
-  SANCOR_SALUD = "Sancor Salud",
-  OTRA = "Otra",
-  NINGUNA = "Ninguna",
-}
