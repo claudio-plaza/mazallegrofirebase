@@ -1,9 +1,9 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake } from 'lucide-react';
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download } from 'lucide-react'; // Added CalendarDays, Download
 
 export const siteConfig = {
-  name: 'MazAllegro', // Changed from ClubZenith
+  name: 'MazAllegro',
   description: 'Sistema de gestión integral para un club deportivo y social.',
 };
 
@@ -22,7 +22,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Accede a tu carnet de socio digital.',
     icon: FileText,
     href: '/carnet',
-    roles: ['socio'], 
+    roles: ['socio'],
   },
   {
     id: 'perfil-alta',
@@ -30,7 +30,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Completa o actualiza tus datos familiares.',
     icon: UserCircle,
     href: '/perfil',
-    roles: ['socio'], 
+    roles: ['socio'],
   },
   {
     id: 'mis-cumpleanos',
@@ -70,7 +70,14 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Recomendaciones de IA para gestión de socios.',
     icon: Sparkles,
     href: '/admin/ai-suggestions',
-    roles: [], 
+    roles: ['administrador'], // Kept for admin as per previous logic, can be removed if needed
+  },
+  {
+    id: 'gestion-eventos',
+    title: 'Gestión de Eventos',
+    description: 'Administra y descarga listas de eventos.',
+    icon: CalendarDays,
+    href: '/admin/gestion-eventos',
+    roles: ['administrador'],
   }
 ];
-
