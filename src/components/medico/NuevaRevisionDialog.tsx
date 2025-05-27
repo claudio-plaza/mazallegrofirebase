@@ -18,7 +18,7 @@ import type { Socio, RevisionMedica, AptoMedicoInfo } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Search, User, XCircle, CalendarDays } from 'lucide-react';
+import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Label } from '@/components/ui/label'; 
 import { Card } from '@/components/ui/card'; 
@@ -107,6 +107,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     };
 
     if (data.resultado === 'Apto') {
+      // Válido por 15 días, incluyendo el día de la revisión. Se guarda el último día de validez.
       aptoMedicoUpdate.fechaVencimiento = formatISO(addDays(data.fechaRevision, 14)); 
       nuevaRevision.fechaVencimientoApto = aptoMedicoUpdate.fechaVencimiento;
     } else {
@@ -158,38 +159,39 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center">
-            <CalendarDays className="mr-2 h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center text-xl">
+            <CalendarDays className="mr-2 h-6 w-6 text-primary" />
             Registrar Nueva Revisión Médica
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm text-muted-foreground pt-1">
             Busca un socio y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Se registrará el último día de validez.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 py-4">
-          <div className="flex gap-2 items-end">
-            <div className="flex-grow">
-              <Label htmlFor="searchSocio">Buscar Socio (N° Socio o DNI)</Label>
-              <Input 
-                id="searchSocio" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Ej: S00123 o 30123456"
-              />
+        <div className="space-y-4 pt-4 pb-2">
+          <div>
+            <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Socio (N° Socio o DNI)</Label>
+            <div className="flex gap-2 items-center mt-1">
+                <Input 
+                    id="searchSocio" 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Ej: S00123 o 30123456"
+                    className="flex-grow"
+                />
+                <Button onClick={handleSearchSocio} type="button" variant="outline" size="icon" className="shrink-0"><Search className="h-4 w-4" /></Button>
             </div>
-            <Button onClick={handleSearchSocio} type="button" variant="outline"><Search className="h-4 w-4" /></Button>
           </div>
           {searchMessage && <p className="text-sm text-destructive">{searchMessage}</p>}
 
           {searchedSocio && (
-            <Card className="p-4 bg-muted/50">
-              <div className="flex items-center gap-3 mb-2">
-                <User className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold">{searchedSocio.nombre} {searchedSocio.apellido} (N°: {searchedSocio.numeroSocio})</h4>
+            <Card className="p-3 bg-muted/30">
+              <div className="flex items-center gap-2 mb-1">
+                <User className="h-4 w-4 text-primary" />
+                <h4 className="font-semibold text-sm">{searchedSocio.nombre} {searchedSocio.apellido} (N°: {searchedSocio.numeroSocio})</h4>
               </div>
               {currentSocioAptoStatus && (
-                <p className={`text-sm ${currentSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-400')}`}>
+                <p className={`text-xs ${currentSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`}>
                   Apto actual: {currentSocioAptoStatus.status} - {currentSocioAptoStatus.message}
                 </p>
               )}
@@ -205,20 +207,21 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 name="fechaRevision"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha de Revisión</FormLabel>
+                    <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant={"outline"}
                             className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              "w-full justify-start text-left font-normal text-muted-foreground",
+                              !field.value && "text-muted-foreground",
+                              field.value && "text-foreground"
                             )}
                           >
                             <CalendarDays className="mr-2 h-4 w-4" />
                             {field.value ? (
-                              format(field.value, "PPP", { locale: es })
+                              format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
                             ) : (
                               <span>Seleccione fecha</span>
                             )}
@@ -235,6 +238,9 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                           }
                           initialFocus
                           locale={es}
+                          captionLayout="dropdown-buttons"
+                          fromYear={new Date().getFullYear() - 100}
+                          toYear={new Date().getFullYear()}
                         />
                       </PopoverContent>
                     </Popover>
@@ -247,25 +253,29 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 control={form.control}
                 name="resultado"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Resultado de la Revisión</FormLabel>
+                  <FormItem className="space-y-2">
+                    <FormLabel className="text-sm font-medium">Resultado de la Revisión</FormLabel>
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        className="flex flex-col space-y-1"
+                        className="flex space-x-4"
                       >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
-                            <RadioGroupItem value="Apto" />
+                            <RadioGroupItem value="Apto" id="apto" />
                           </FormControl>
-                          <FormLabel className="font-normal flex items-center"><CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />Apto</FormLabel>
+                          <Label htmlFor="apto" className="font-normal flex items-center cursor-pointer">
+                            <Check className="mr-1 h-4 w-4 text-green-600" />Apto
+                          </Label>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
-                            <RadioGroupItem value="No Apto" />
+                            <RadioGroupItem value="No Apto" id="no-apto"/>
                           </FormControl>
-                          <FormLabel className="font-normal flex items-center"><XCircle className="mr-2 h-4 w-4 text-red-500" />No Apto</FormLabel>
+                          <Label htmlFor="no-apto" className="font-normal flex items-center cursor-pointer">
+                            <X className="mr-1 h-4 w-4 text-red-600" />No Apto
+                          </Label>
                         </FormItem>
                       </RadioGroup>
                     </FormControl>
@@ -279,15 +289,19 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 name="observaciones"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Observaciones</FormLabel>
+                    <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" {...field} />
+                      <Textarea 
+                        placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
+                        {...field} 
+                        className="min-h-[100px]"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <DialogFooter>
+              <DialogFooter className="pt-2">
                 <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
                 <Button type="submit" disabled={!searchedSocio || form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
@@ -296,6 +310,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
             </form>
           </Form>
         )}
+         {!searchedSocio && <DialogFooter className="pt-2"><DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose></DialogFooter>}
       </DialogContent>
     </Dialog>
   );
