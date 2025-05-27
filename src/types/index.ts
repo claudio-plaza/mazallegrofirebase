@@ -88,9 +88,9 @@ export interface MiembroFamiliar {
   direccion?: string; // Opcional
   telefono?: string; // Opcional
   email?: string; // Opcional
-  fotoPerfil?: FileList | null;
-  fotoDniFrente?: FileList | null;
-  fotoDniDorso?: FileList | null;
+  fotoPerfil?: FileList | null | string; // string for existing URLs
+  fotoDniFrente?: FileList | null | string;
+  fotoDniDorso?: FileList | null | string;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo; // Para familiares que también requieran apto
 }
@@ -122,9 +122,9 @@ export const signupTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
   confirmPassword: z.string(),
-  fotoDniFrente: dniFileSchemaShared("Se requiere foto del DNI (frente)."),
-  fotoDniDorso: dniFileSchemaShared("Se requiere foto del DNI (dorso)."),
-  fotoPerfil: profileFileSchemaShared("Se requiere foto de perfil."),
+  fotoDniFrente: dniFileSchemaShared("Se requiere foto del DNI (frente).").nullable(),
+  fotoDniDorso: dniFileSchemaShared("Se requiere foto del DNI (dorso).").nullable(),
+  fotoPerfil: profileFileSchemaShared("Se requiere foto de perfil.").nullable(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden.',
   path: ['confirmPassword'],
@@ -169,7 +169,7 @@ export interface Socio extends TitularData {
 export interface RevisionMedica {
   id: string; // UUID
   fechaRevision: string; // ISO date string
-  socioId: string; // numeroSocio or familiarId
+  socioId: string; // numeroSocio or familiarId (DNI for familiar)
   socioNombre: string;
   resultado: 'Apto' | 'No Apto';
   fechaVencimientoApto?: string; // ISO date string (ultimo dia valido)
@@ -183,9 +183,9 @@ export const familiarBaseSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido."),
   fechaNacimiento: z.date({ required_error: "Fecha de nacimiento es requerida.", invalid_type_error: "Fecha de nacimiento inválida."}),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: dniFileSchemaShared("Se requiere foto del DNI (frente) del familiar.").nullable(),
-  fotoDniDorso: dniFileSchemaShared("Se requiere foto del DNI (dorso) del familiar.").nullable(),
-  fotoPerfil: profileFileSchemaShared("Se requiere foto de perfil del familiar.").nullable(),
+  fotoDniFrente: dniFileSchemaShared("Se requiere foto del DNI (frente) del familiar.").nullable().or(z.string().url().optional()),
+  fotoDniDorso: dniFileSchemaShared("Se requiere foto del DNI (dorso) del familiar.").nullable().or(z.string().url().optional()),
+  fotoPerfil: profileFileSchemaShared("Se requiere foto de perfil del familiar.").nullable().or(z.string().url().optional()),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -224,45 +224,63 @@ export const agregarFamiliaresSchema = z.object({
   const { tipoGrupoFamiliar, familiares } = data;
   const { conyuge, hijos, padres } = familiares || {};
 
-  if (tipoGrupoFamiliar === "conyugeEHijos") {
-    if (!conyuge && (!hijos || hijos.length === 0)) {
+  if (currentStep === 1) { // Assuming currentStep is available in this scope or passed
+    if (!tipoGrupoFamiliar) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Debe agregar al menos un cónyuge o un hijo/a.",
-        path: ["familiares"],
+        message: "Por favor, seleccione un tipo de grupo familiar para continuar.",
+        path: ["tipoGrupoFamiliar"],
       });
+      return;
     }
-    if (padres && padres.length > 0) {
+  }
+
+  if (currentStep === 2) { // Assuming currentStep is available
+    if (tipoGrupoFamiliar === "conyugeEHijos") {
+      if (!conyuge && (!hijos || hijos.length === 0)) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "No puede agregar padres/madres cuando selecciona 'Cónyuge e Hijos/as'.",
-            path: ["familiares.padres"],
+          code: z.ZodIssueCode.custom,
+          message: "Debe agregar al menos un cónyuge o un hijo/a.",
+          path: ["familiares"], 
         });
-    }
-  } else if (tipoGrupoFamiliar === "padresMadres") {
-    if (!padres || padres.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Debe agregar al menos un padre/madre.",
-        path: ["familiares.padres"],
-      });
-    }
-     if (conyuge) {
+      }
+      if (padres && padres.length > 0) {
+          ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "No puede agregar padres/madres cuando selecciona 'Cónyuge e Hijos/as'.",
+              path: ["familiares.padres"],
+          });
+      }
+    } else if (tipoGrupoFamiliar === "padresMadres") {
+      if (!padres || padres.length === 0) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "No puede agregar cónyuge cuando selecciona 'Padres/Madres'.",
-            path: ["familiares.conyuge"],
+          code: z.ZodIssueCode.custom,
+          message: "Debe agregar al menos un padre/madre.",
+          path: ["familiares.padres"],
         });
-    }
-    if (hijos && hijos.length > 0) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "No puede agregar hijos/as cuando selecciona 'Padres/Madres'.",
-            path: ["familiares.hijos"],
-        });
+      }
+       if (conyuge) {
+          ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "No puede agregar cónyuge cuando selecciona 'Padres/Madres'.",
+              path: ["familiares.conyuge"],
+          });
+      }
+      if (hijos && hijos.length > 0) {
+          ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "No puede agregar hijos/as cuando selecciona 'Padres/Madres'.",
+              path: ["familiares.hijos"],
+          });
+      }
     }
   }
 });
+// Placeholder for currentStep if needed for schema refinement, otherwise remove.
+// This might be better handled in form logic rather than directly in Zod schema if currentStep is React state.
+let currentStep = 1; 
+export const setCurrentStepForSchema = (step: number) => { currentStep = step; };
+
 export type AgregarFamiliaresData = z.infer<typeof agregarFamiliaresSchema>;
 
 
@@ -287,22 +305,32 @@ export const invitadoCumpleanosSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  telefono: z.string().optional(), // Opcional, validar formato si se desea
+  telefono: z.string().optional(), 
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
-  esMayor: z.boolean().optional(), // Para lógica de teléfono obligatorio
   ingresado: z.boolean().default(false),
 });
 export type InvitadoCumpleanos = z.infer<typeof invitadoCumpleanosSchema>;
 
 export const solicitudCumpleanosSchema = z.object({
   id: z.string().default(() => `evt-${Date.now().toString(36)}`),
-  idSocioTitular: z.string(),
-  nombreSocioTitular: z.string(),
+  idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
+  nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
+  idCumpleanero: z.string({ required_error: "Debe seleccionar quién cumple años." }), // DNI de la persona
+  nombreCumpleanero: z.string({ required_error: "Nombre del cumpleañero es requerido." }),
   fechaEvento: z.date({required_error: "La fecha del evento es obligatoria."}),
-  listaInvitados: z.array(invitadoCumpleanosSchema).min(1, "Debe agregar al menos un invitado.").max(MAX_INVITADOS_CUMPLEANOS, `No puede agregar más de ${MAX_INVITADOS_CUMPLEANOS} invitados.`),
-  estado: z.nativeEnum(EstadoSolicitudCumpleanos).default(EstadoSolicitudCumpleanos.PENDIENTE_APROBACION),
+  listaInvitados: z.array(invitadoCumpleanosSchema)
+    .min(1, "Debe agregar al menos un invitado.")
+    .max(MAX_INVITADOS_CUMPLEANOS, `No puede agregar más de ${MAX_INVITADOS_CUMPLEANOS} invitados.`),
+  estado: z.nativeEnum(EstadoSolicitudCumpleanos).default(EstadoSolicitudCumpleanos.APROBADA), // Defaulting to APROBADA for now
   fechaSolicitud: z.string().default(() => new Date().toISOString()),
   titularIngresadoEvento: z.boolean().default(false),
 });
 export type SolicitudCumpleanos = z.infer<typeof solicitudCumpleanosSchema>;
+
+// Helper to pass currentStep to schema if needed, this is a simplified approach
+// A more robust way might involve different schemas per step or conditional validation in the resolver.
+export const getStepSpecificValidationSchema = (step: number) => {
+  setCurrentStepForSchema(step); // Update the global step variable
+  return agregarFamiliaresSchema;
+};
 

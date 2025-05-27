@@ -1,37 +1,75 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { SolicitudCumpleanos, InvitadoCumpleanos } from '@/types';
+import type { SolicitudCumpleanos, InvitadoCumpleanos, Socio } from '@/types';
 import { solicitudCumpleanosSchema, MAX_INVITADOS_CUMPLEANOS, EstadoSolicitudCumpleanos } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, CalendarIcon, Users, Cake, Edit2, Eye, ListChecks } from 'lucide-react';
+import { PlusCircle, Trash2, CalendarIcon, Users, Cake, Edit2, Eye, ListChecks, UserCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const STORAGE_KEY = 'cumpleanosDB';
+const SOCIO_DB_KEY = 'sociosDB';
+
+interface BirthdayPersonOption {
+  value: string; // DNI of the person
+  label: string; // Name and relation
+  fullName: string; // Full name for nombreCumpleanero
+}
 
 export function GestionCumpleanos() {
   const [solicitudes, setSolicitudes] = useState<SolicitudCumpleanos[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSolicitud, setEditingSolicitud] = useState<SolicitudCumpleanos | null>(null);
+  const [birthdayPeopleOptions, setBirthdayPeopleOptions] = useState<BirthdayPersonOption[]>([]);
+  const [currentTitular, setCurrentTitular] = useState<Socio | null>(null);
+
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, userName } = useAuth();
+
+  const loadTitularData = useCallback(() => {
+    if (!loggedInUserNumeroSocio) return;
+    const storedSocios = localStorage.getItem(SOCIO_DB_KEY);
+    if (storedSocios) {
+      const socios: Socio[] = JSON.parse(storedSocios);
+      const titular = socios.find(s => s.numeroSocio === loggedInUserNumeroSocio);
+      if (titular) {
+        setCurrentTitular(titular);
+        const options: BirthdayPersonOption[] = [
+          { value: titular.dni, label: `${titular.nombre} ${titular.apellido} (Titular)`, fullName: `${titular.nombre} ${titular.apellido}` },
+          ...(titular.grupoFamiliar?.map(fam => ({
+            value: fam.dni,
+            label: `${fam.nombre} ${fam.apellido} (${fam.relacion})`,
+            fullName: `${fam.nombre} ${fam.apellido}`
+          })) || [])
+        ];
+        setBirthdayPeopleOptions(options);
+      }
+    }
+  }, [loggedInUserNumeroSocio]);
+
+  useEffect(() => {
+    loadTitularData();
+  }, [loadTitularData]);
+
 
   const loadSolicitudes = useCallback(() => {
     if (!loggedInUserNumeroSocio) return;
@@ -42,7 +80,7 @@ export function GestionCumpleanos() {
         .filter(s => s.idSocioTitular === loggedInUserNumeroSocio)
         .map(s => ({
           ...s,
-          fechaEvento: new Date(s.fechaEvento), // Asegurar que sea Date
+          fechaEvento: new Date(s.fechaEvento), 
         }))
         .sort((a,b) => new Date(b.fechaEvento).getTime() - new Date(a.fechaEvento).getTime());
       setSolicitudes(userSolicitudes);
@@ -51,6 +89,10 @@ export function GestionCumpleanos() {
 
   useEffect(() => {
     loadSolicitudes();
+    window.addEventListener('cumpleanosDBUpdated', loadSolicitudes);
+    return () => {
+      window.removeEventListener('cumpleanosDBUpdated', loadSolicitudes);
+    }
   }, [loadSolicitudes]);
 
   const form = useForm<SolicitudCumpleanos>({
@@ -59,15 +101,17 @@ export function GestionCumpleanos() {
       id: generateId(),
       idSocioTitular: loggedInUserNumeroSocio || '',
       nombreSocioTitular: userName || '',
+      idCumpleanero: '',
+      nombreCumpleanero: '',
       fechaEvento: new Date(),
       listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
-      estado: EstadoSolicitudCumpleanos.APROBADA, // Por ahora se aprueba por defecto
+      estado: EstadoSolicitudCumpleanos.APROBADA, 
       fechaSolicitud: new Date().toISOString(),
       titularIngresadoEvento: false,
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "listaInvitados",
   });
@@ -76,22 +120,46 @@ export function GestionCumpleanos() {
     if (loggedInUserNumeroSocio && userName) {
       form.setValue('idSocioTitular', loggedInUserNumeroSocio);
       form.setValue('nombreSocioTitular', userName);
+      if (!editingSolicitud && birthdayPeopleOptions.length > 0 && currentTitular) {
+        form.setValue('idCumpleanero', currentTitular.dni); // Default to titular
+        form.setValue('nombreCumpleanero', `${currentTitular.nombre} ${currentTitular.apellido}`);
+      }
     }
-  }, [loggedInUserNumeroSocio, userName, form]);
+  }, [loggedInUserNumeroSocio, userName, form, editingSolicitud, birthdayPeopleOptions, currentTitular]);
 
   const onSubmit = (data: SolicitudCumpleanos) => {
-    const allSolicitudes: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const allSolicitudesFromStorage: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    
+    // Validation: One celebration per person per year
+    const yearOfEvent = new Date(data.fechaEvento).getFullYear();
+    const existingRequestForPersonInYear = allSolicitudesFromStorage.find(req => 
+      req.idCumpleanero === data.idCumpleanero &&
+      new Date(req.fechaEvento).getFullYear() === yearOfEvent &&
+      (!editingSolicitud || req.id !== editingSolicitud.id) // Exclude current if editing
+    );
+
+    if (existingRequestForPersonInYear) {
+      toast({
+        title: "Solicitud Duplicada",
+        description: `${data.nombreCumpleanero} ya tiene un festejo solicitado para el año ${yearOfEvent}. Solo se permite un festejo por persona al año.`,
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+
     if (editingSolicitud) {
-      const index = allSolicitudes.findIndex(s => s.id === editingSolicitud.id);
+      const index = allSolicitudesFromStorage.findIndex(s => s.id === editingSolicitud.id);
       if (index > -1) {
-        allSolicitudes[index] = { ...data, fechaEvento: data.fechaEvento };
+        allSolicitudesFromStorage[index] = { ...data, fechaEvento: data.fechaEvento };
       }
       toast({ title: "Solicitud Actualizada", description: "El festejo de cumpleaños ha sido actualizado." });
     } else {
-      allSolicitudes.push({ ...data, fechaEvento: data.fechaEvento });
+      allSolicitudesFromStorage.push({ ...data, fechaEvento: data.fechaEvento });
       toast({ title: "Solicitud Guardada", description: "Tu festejo de cumpleaños ha sido registrado." });
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allSolicitudes));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allSolicitudesFromStorage));
+    window.dispatchEvent(new Event('cumpleanosDBUpdated'));
     loadSolicitudes();
     setIsFormOpen(false);
     setEditingSolicitud(null);
@@ -99,6 +167,8 @@ export function GestionCumpleanos() {
       id: generateId(),
       idSocioTitular: loggedInUserNumeroSocio || '',
       nombreSocioTitular: userName || '',
+      idCumpleanero: currentTitular?.dni || '',
+      nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}`: '',
       fechaEvento: new Date(),
       listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
       estado: EstadoSolicitudCumpleanos.APROBADA,
@@ -108,11 +178,12 @@ export function GestionCumpleanos() {
   };
 
   const handleOpenForm = (solicitud?: SolicitudCumpleanos) => {
+    loadTitularData(); // Ensure options are fresh
     if (solicitud) {
       setEditingSolicitud(solicitud);
       form.reset({
         ...solicitud,
-        fechaEvento: new Date(solicitud.fechaEvento), // Asegurar que es Date
+        fechaEvento: new Date(solicitud.fechaEvento),
         listaInvitados: solicitud.listaInvitados.length > 0 ? solicitud.listaInvitados : [{ nombre: '', apellido: '', dni: ''}]
       });
     } else {
@@ -121,6 +192,8 @@ export function GestionCumpleanos() {
         id: generateId(),
         idSocioTitular: loggedInUserNumeroSocio || '',
         nombreSocioTitular: userName || '',
+        idCumpleanero: currentTitular?.dni || '',
+        nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}` : '',
         fechaEvento: new Date(),
         listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
         estado: EstadoSolicitudCumpleanos.APROBADA,
@@ -148,6 +221,20 @@ export function GestionCumpleanos() {
     }
   };
 
+  const selectedIdCumpleanero = form.watch('idCumpleanero');
+  const selectedFechaEvento = form.watch('fechaEvento');
+  const yearOfSelectedEvent = selectedFechaEvento ? new Date(selectedFechaEvento).getFullYear() : null;
+
+  const hasExistingRequestForYear = useMemo(() => {
+    if (!selectedIdCumpleanero || !yearOfSelectedEvent) return false;
+    const allSolicitudesFromStorage: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return allSolicitudesFromStorage.some(req => 
+      req.idCumpleanero === selectedIdCumpleanero &&
+      new Date(req.fechaEvento).getFullYear() === yearOfSelectedEvent &&
+      (!editingSolicitud || req.id !== editingSolicitud.id)
+    );
+  }, [selectedIdCumpleanero, yearOfSelectedEvent, editingSolicitud]);
+
 
   return (
     <FormProvider {...form}>
@@ -160,7 +247,7 @@ export function GestionCumpleanos() {
             </Button>
           </div>
           <CardDescription>
-            Aquí puedes solicitar el espacio para tu festejo de cumpleaños y gestionar tu lista de hasta {MAX_INVITADOS_CUMPLEANOS} invitados.
+            Aquí puedes solicitar el espacio para tu festejo de cumpleaños (uno por persona del grupo familiar al año) y gestionar tu lista de hasta {MAX_INVITADOS_CUMPLEANOS} invitados.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -177,7 +264,7 @@ export function GestionCumpleanos() {
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle className="text-lg">Festejo del {formatDate(solicitud.fechaEvento, "dd 'de' MMMM yyyy")}</CardTitle>
+                            <CardTitle className="text-lg">Festejo de {solicitud.nombreCumpleanero} el {formatDate(solicitud.fechaEvento, "dd 'de' MMMM yyyy")}</CardTitle>
                             <CardDescription>
                                 {solicitud.listaInvitados.length} invitado(s) - Solicitado el: {formatDate(solicitud.fechaSolicitud, "dd/MM/yy HH:mm")}
                             </CardDescription>
@@ -189,7 +276,6 @@ export function GestionCumpleanos() {
                     <Button variant="outline" size="sm" onClick={() => handleOpenForm(solicitud)}>
                       <Edit2 className="mr-2 h-4 w-4" /> Ver / Editar
                     </Button>
-                     {/* Agregar botón para cancelar o ver detalle si es necesario */}
                   </CardFooter>
                 </Card>
               ))}
@@ -206,6 +292,8 @@ export function GestionCumpleanos() {
                 id: generateId(),
                 idSocioTitular: loggedInUserNumeroSocio || '',
                 nombreSocioTitular: userName || '',
+                idCumpleanero: currentTitular?.dni || '',
+                nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}`: '',
                 fechaEvento: new Date(),
                 listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
                 estado: EstadoSolicitudCumpleanos.APROBADA,
@@ -216,14 +304,52 @@ export function GestionCumpleanos() {
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="text-xl">{editingSolicitud ? 'Editar Solicitud de Cumpleaños' : 'Nueva Solicitud de Cumpleaños'}</DialogTitle>
+            <DialogTitle className="text-xl">{editingSolicitud ? `Editar Festejo de ${editingSolicitud.nombreCumpleanero}` : 'Nueva Solicitud de Cumpleaños'}</DialogTitle>
             <DialogDescription>
-              {editingSolicitud ? 'Modifica los detalles de tu festejo.' : `Completa la fecha y la lista de tus ${MAX_INVITADOS_CUMPLEANOS} invitados.`}
+              {editingSolicitud ? 'Modifica los detalles de tu festejo.' : `Completa los datos del festejo. Recuerda: un festejo por persona del grupo familiar al año.`}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-200px)] p-1 -mx-1">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 pr-6">
+                {!editingSolicitud ? (
+                  <FormField
+                    control={form.control}
+                    name="idCumpleanero"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><UserCheck className="mr-2 h-4 w-4 text-primary"/>¿Quién cumple años?</FormLabel>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            const selectedPerson = birthdayPeopleOptions.find(p => p.value === value);
+                            if (selectedPerson) {
+                              form.setValue('nombreCumpleanero', selectedPerson.fullName);
+                            }
+                          }}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione quién cumple años" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {birthdayPeopleOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <p className="text-sm"><strong>Cumpleañero/a:</strong> {form.getValues('nombreCumpleanero')}</p>
+                )}
+
                 <FormField
                   control={form.control}
                   name="fechaEvento"
@@ -241,7 +367,7 @@ export function GestionCumpleanos() {
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "PPP", { locale: es })
+                                format(new Date(field.value), "PPP", { locale: es })
                               ) : (
                                 <span>Seleccione una fecha</span>
                               )}
@@ -252,7 +378,7 @@ export function GestionCumpleanos() {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={field.value}
+                            selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) || date < new Date("1900-01-01")}
                             initialFocus
@@ -264,6 +390,16 @@ export function GestionCumpleanos() {
                     </FormItem>
                   )}
                 />
+
+                {hasExistingRequestForYear && !editingSolicitud && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Advertencia</AlertTitle>
+                    <AlertDescription>
+                      {form.getValues('nombreCumpleanero')} ya tiene un festejo solicitado para el año {yearOfSelectedEvent}. Solo se permite un festejo por persona al año.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
 
                 <Separator />
                 
@@ -372,7 +508,7 @@ export function GestionCumpleanos() {
                 </div>
                 <DialogFooter className="pt-4">
                   <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                  <Button type="submit" disabled={form.formState.isSubmitting || (hasExistingRequestForYear && !editingSolicitud)}>
                     {form.formState.isSubmitting ? 'Guardando...' : (editingSolicitud ? 'Actualizar Solicitud' : 'Guardar Solicitud')}
                   </Button>
                 </DialogFooter>
