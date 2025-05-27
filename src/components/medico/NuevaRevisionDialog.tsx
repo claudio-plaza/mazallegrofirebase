@@ -74,6 +74,11 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       if (socioFound) {
         setSearchedSocio(socioFound);
         setSearchMessage('');
+        form.reset({ // Reset form fields related to revision, but keep socio
+            fechaRevision: new Date(), 
+            resultado: undefined, 
+            observaciones: '' 
+        });
       } else {
         setSearchedSocio(null);
         setSearchMessage('Socio no encontrado.');
@@ -107,7 +112,6 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     };
 
     if (data.resultado === 'Apto') {
-      // Válido por 15 días, incluyendo el día de la revisión. Se guarda el último día de validez.
       aptoMedicoUpdate.fechaVencimiento = formatISO(addDays(data.fechaRevision, 14)); 
       nuevaRevision.fechaVencimientoApto = aptoMedicoUpdate.fechaVencimiento;
     } else {
@@ -199,119 +203,117 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           )}
         </div>
 
-        {searchedSocio && (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="fechaRevision"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal text-muted-foreground",
-                              !field.value && "text-muted-foreground",
-                              field.value && "text-foreground"
-                            )}
-                          >
-                            <CalendarDays className="mr-2 h-4 w-4" />
-                            {field.value ? (
-                              format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                            ) : (
-                              <span>Seleccione fecha</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                          locale={es}
-                          captionLayout="dropdown-buttons"
-                          fromYear={new Date().getFullYear() - 100}
-                          toYear={new Date().getFullYear()}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="resultado"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-sm font-medium">Resultado de la Revisión</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex space-x-4"
-                      >
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="Apto" id="apto" />
-                          </FormControl>
-                          <Label htmlFor="apto" className="font-normal flex items-center cursor-pointer">
-                            <Check className="mr-1 h-4 w-4 text-green-600" />Apto
-                          </Label>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="No Apto" id="no-apto"/>
-                          </FormControl>
-                          <Label htmlFor="no-apto" className="font-normal flex items-center cursor-pointer">
-                            <X className="mr-1 h-4 w-4 text-red-600" />No Apto
-                          </Label>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="observaciones"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
-                        {...field} 
-                        className="min-h-[100px]"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="fechaRevision"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal text-muted-foreground",
+                            !field.value && "text-muted-foreground",
+                            field.value && "text-foreground"
+                          )}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {field.value ? (
+                            format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
+                          ) : (
+                            <span>Seleccione fecha</span>
+                          )}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                        locale={es}
+                        captionLayout="dropdown-buttons"
+                        fromYear={new Date().getFullYear() - 100}
+                        toYear={new Date().getFullYear()}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter className="pt-2">
-                <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                <Button type="submit" disabled={!searchedSocio || form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        )}
-         {!searchedSocio && <DialogFooter className="pt-2"><DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose></DialogFooter>}
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="resultado"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel className="text-sm font-medium">Resultado de la Revisión</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="Apto" id="apto" />
+                        </FormControl>
+                        <Label htmlFor="apto" className="font-normal flex items-center cursor-pointer">
+                          <Check className="mr-1 h-4 w-4 text-green-600" />Apto
+                        </Label>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="No Apto" id="no-apto"/>
+                        </FormControl>
+                        <Label htmlFor="no-apto" className="font-normal flex items-center cursor-pointer">
+                          <X className="mr-1 h-4 w-4 text-red-600" />No Apto
+                        </Label>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="observaciones"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
+                      {...field} 
+                      className="min-h-[100px]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter className="pt-2">
+              <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+              <Button type="submit" disabled={!searchedSocio || form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
 }
+
