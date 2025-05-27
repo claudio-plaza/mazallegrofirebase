@@ -100,7 +100,6 @@ export function ControlAcceso() {
 
   const handleRegistrarIngreso = (member: DisplayableMember) => {
     const aptoStatus = getAptoMedicoStatus(member.aptoMedico);
-    // El ingreso SÓLO depende del estado del socio titular.
     const socioTitularActivo = socioEncontrado?.estadoSocio === 'Activo';
 
     if (socioTitularActivo) {
@@ -144,7 +143,6 @@ export function ControlAcceso() {
         fotoUrl: fotoFamiliar,
         aptoMedico: fam.aptoMedico,
         relacion: fam.relacion,
-        // estadoSocio no es relevante aquí para el familiar individualmente para el ingreso, depende del titular
       });
     });
   }
@@ -157,18 +155,17 @@ export function ControlAcceso() {
 
 
   if (socioEncontrado) {
-    const titularAptoStatus = getAptoMedicoStatus(socioEncontrado.aptoMedico);
     const titularActivo = socioEncontrado.estadoSocio === 'Activo';
+    const titularAptoStatus = getAptoMedicoStatus(socioEncontrado.aptoMedico); // Get apto status for display
 
     if (titularActivo) {
       accesoGeneralPermitido = true;
-      mensajeAccesoGeneral = `Socio titular ACTIVO. Observación Apto: ${titularAptoStatus.status}.`;
+      mensajeAccesoGeneral = `Socio titular ACTIVO. Apto Médico (Obs.): ${titularAptoStatus.status}.`;
       colorClaseAccesoGeneral = 'bg-green-500/10 hover:bg-green-500/20 border-green-500';
       iconoAccesoGeneral = <CheckCircle className="h-8 w-8 text-green-600 mr-3" />;
       textoColorAccesoGeneral = 'text-green-700';
     } else {
-      mensajeAccesoGeneral = `Socio titular ${socioEncontrado.estadoSocio.toUpperCase()}. Observación Apto: ${titularAptoStatus.status}.`;
-      // Colores y icono ya son los de denegado por defecto.
+      mensajeAccesoGeneral = `Socio titular ${socioEncontrado.estadoSocio.toUpperCase()}. Apto Médico (Obs.): ${titularAptoStatus.status}.`;
     }
   }
 
@@ -182,7 +179,7 @@ export function ControlAcceso() {
         <div className="flex space-x-2">
           <Input
             type="text"
-            placeholder="N° Socio, DNI o Nombre del Titular"
+            placeholder="N° Socio, DNI, Nombre o Apellido del Titular"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -230,7 +227,6 @@ export function ControlAcceso() {
                         const aptoStatus = getAptoMedicoStatus(member.aptoMedico);
                         const esTitular = member.relacion === 'Titular';
                         const fotoMember = member.fotoUrl || `https://placehold.co/60x60.png?text=${member.nombreCompleto[0]}${member.nombreCompleto.split(' ')[1]?.[0] || ''}`;
-                        // Puede ingresar si el socio titular está activo. El borde de la tarjeta refleja esto.
                         const puedeIngresarVisual = socioEncontrado.estadoSocio === 'Activo';
 
                         return (
@@ -248,7 +244,11 @@ export function ControlAcceso() {
                                   <Badge variant="outline" className="ml-2 align-middle">{member.relacion}</Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
-                                {esTitular && <p className="text-sm text-muted-foreground">N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>{socioEncontrado.estadoSocio}</Badge></p>}
+                                {esTitular && (
+                                  <div className="text-sm text-muted-foreground">
+                                    N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>{socioEncontrado.estadoSocio}</Badge>
+                                  </div>
+                                )}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-stretch pt-2 sm:pt-0">
                                 <Button variant="outline" size="sm" onClick={() => handleVerCarnet(member.nombreCompleto)} className="w-full sm:w-auto">
@@ -259,7 +259,7 @@ export function ControlAcceso() {
                                   size="sm" 
                                   onClick={() => handleRegistrarIngreso(member)} 
                                   className="w-full sm:w-auto"
-                                  disabled={socioEncontrado.estadoSocio !== 'Activo'} // Deshabilitar si el titular no está activo
+                                  disabled={socioEncontrado.estadoSocio !== 'Activo'}
                                 >
                                 <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso
                                 </Button>
