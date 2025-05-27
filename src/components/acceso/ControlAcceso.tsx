@@ -37,7 +37,7 @@ export function ControlAcceso() {
 
   const handleSearch = useCallback(() => {
     if (!searchTerm.trim()) {
-      setMensajeBusqueda('Por favor, ingrese un N° Socio o DNI para buscar.');
+      setMensajeBusqueda('Por favor, ingrese un N° Socio, DNI o Nombre para buscar.');
       setSocioEncontrado(null);
       return;
     }
@@ -46,7 +46,14 @@ export function ControlAcceso() {
     const storedSocios = localStorage.getItem('sociosDB');
     if (storedSocios) {
       const socios: Socio[] = JSON.parse(storedSocios);
-      const socio = socios.find(s => s.numeroSocio === searchTerm.trim() || s.dni === searchTerm.trim());
+      const searchTermLower = searchTerm.trim().toLowerCase();
+      const socio = socios.find(s => 
+        s.numeroSocio === searchTerm.trim() || 
+        s.dni === searchTerm.trim() ||
+        s.nombre.toLowerCase().includes(searchTermLower) ||
+        s.apellido.toLowerCase().includes(searchTermLower) ||
+        `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(searchTermLower)
+      );
       if (socio) {
         setSocioEncontrado(socio);
         setMensajeBusqueda('');
@@ -131,11 +138,18 @@ export function ControlAcceso() {
       relacion: 'Titular',
     });
     socioEncontrado.grupoFamiliar?.forEach(fam => {
+      let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
+      if (fam.fotoPerfil && fam.fotoPerfil.length > 0 && fam.fotoPerfil[0] instanceof File) {
+         fotoFamiliar = URL.createObjectURL(fam.fotoPerfil[0]);
+      } else if (typeof fam.fotoPerfil === 'string') { // Assuming string means it's a URL already
+         fotoFamiliar = fam.fotoPerfil;
+      }
+
       displayableMembers.push({
         id: fam.id || fam.dni, // Usar DNI como fallback si no hay ID
         nombreCompleto: `${fam.nombre} ${fam.apellido}`,
         dni: fam.dni,
-        fotoUrl: (fam.fotoPerfil && fam.fotoPerfil.length > 0 ? URL.createObjectURL(fam.fotoPerfil[0]) : `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`),
+        fotoUrl: fotoFamiliar,
         aptoMedico: fam.aptoMedico,
         relacion: fam.relacion,
       });
@@ -165,13 +179,13 @@ export function ControlAcceso() {
     <Card className="w-full max-w-3xl mx-auto shadow-xl">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><ShieldCheck className="mr-3 h-7 w-7 text-primary" /> Control de Acceso</CardTitle>
-        <CardDescription>Busque un socio titular para verificar su estado y el de su grupo familiar. Registre ingresos.</CardDescription>
+        <CardDescription>Busque un socio titular (por N° Socio, DNI o Nombre) para verificar su estado y el de su grupo familiar. Registre ingresos.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex space-x-2">
           <Input
             type="text"
-            placeholder="N° Socio o DNI del Titular"
+            placeholder="N° Socio, DNI o Nombre del Titular"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}
