@@ -14,7 +14,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Vista general y accesos rápidos.',
     icon: Home,
     href: '/dashboard',
-    roles: ['socio', 'portero', 'medico', 'administrador'],
+    roles: ['portero', 'medico'], // Removed 'socio' and 'administrador'
   },
   {
     id: 'carnet-digital',

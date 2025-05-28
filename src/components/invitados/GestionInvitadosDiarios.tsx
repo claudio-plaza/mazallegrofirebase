@@ -145,7 +145,7 @@ export function GestionInvitadosDiarios() {
                   <Info className="h-4 w-4" />
                   <AlertTitle>Importante</AlertTitle>
                   <AlertDescription>
-                    Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder.
+                    Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
                   </AlertDescription>
                 </Alert>
               
