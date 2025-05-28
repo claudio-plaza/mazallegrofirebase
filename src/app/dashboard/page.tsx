@@ -24,13 +24,22 @@ export default function DashboardPage() {
   }, [isLoggedIn, isLoading, router]);
 
   useEffect(() => {
-    if (userRole) {
-      const features = allFeatures.filter(feature => feature.roles.includes(userRole));
-      setAccessibleFeatures(features);
+    if (!isLoading && isLoggedIn && userRole) {
+      if (userRole === 'portero') {
+        router.push('/control-acceso');
+      } else if (userRole === 'medico') {
+        router.push('/medico/panel');
+      } else {
+        // For 'socio' and 'administrador', or any other roles, populate accessible features
+        const features = allFeatures.filter(feature => feature.roles.includes(userRole));
+        setAccessibleFeatures(features);
+      }
     }
-  }, [userRole]);
+  }, [isLoading, isLoggedIn, userRole, router]);
 
-  if (isLoading) {
+
+  if (isLoading || (isLoggedIn && (userRole === 'portero' || userRole === 'medico'))) {
+    // Show a more generic loading state if redirecting or still loading
     return (
       <div className="space-y-8">
         <Skeleton className="h-10 w-1/2" />
@@ -54,63 +63,71 @@ export default function DashboardPage() {
   }
 
   if (!isLoggedIn) {
+    // This case should ideally be handled by the first useEffect redirecting to /login
+    // but as a fallback, return null or a minimal loader.
     return null; 
   }
+  
+  // Only render dashboard for roles not being redirected (e.g., socio, administrador)
+  if (userRole !== 'portero' && userRole !== 'medico') {
+    return (
+      <div className="space-y-8">
+        <header>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Bienvenido, {userName || 'Usuario'}
+          </h1>
+          <p className="text-muted-foreground">
+            Tu rol actual es: <span className="font-semibold text-primary">{userRole}</span>. Aquí tienes tus accesos rápidos.
+          </p>
+        </header>
 
-  return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Bienvenido, {userName || 'Usuario'}
-        </h1>
-        <p className="text-muted-foreground">
-          Tu rol actual es: <span className="font-semibold text-primary">{userRole}</span>. Aquí tienes tus accesos rápidos.
-        </p>
-      </header>
-
-      {accessibleFeatures.length > 0 ? (
-        <section>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-6">Accesos Rápidos</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {accessibleFeatures.map((feature) => (
-              <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl">
-                    <feature.icon className="mr-3 h-6 w-6 text-primary" />
-                    {feature.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-                <div className="p-6 pt-0">
-                  <Link href={feature.href} passHref>
-                    <Button className="w-full">
-                      Ir a {feature.title}
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <p className="text-muted-foreground">No tienes accesos rápidos configurados para tu rol.</p>
-      )}
-       <Card className="mt-8 bg-secondary/30">
-          <CardHeader>
-            <CardTitle>Información del Club</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Mantente al día con las últimas novedades y eventos de {siteConfig.name}. 
-              Visita nuestro tablón de anuncios o contáctanos para más información.
-            </p>
-            <div className="mt-4 p-4 border border-dashed rounded-md">
-              <p className="text-sm text-center text-muted-foreground">Próximamente: Novedades del club aquí.</p>
+        {accessibleFeatures.length > 0 ? (
+          <section>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-6">Accesos Rápidos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {accessibleFeatures.map((feature) => (
+                <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl">
+                      <feature.icon className="mr-3 h-6 w-6 text-primary" />
+                      {feature.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardContent>
+                  <div className="p-6 pt-0">
+                    <Link href={feature.href} passHref>
+                      <Button className="w-full">
+                        Ir a {feature.title}
+                      </Button>
+                    </Link>
+                  </div>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-    </div>
-  );
+          </section>
+        ) : (
+          <p className="text-muted-foreground">No tienes accesos rápidos configurados para tu rol.</p>
+        )}
+        <Card className="mt-8 bg-secondary/30">
+            <CardHeader>
+              <CardTitle>Información del Club</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Mantente al día con las últimas novedades y eventos de {siteConfig.name}. 
+                Visita nuestro tablón de anuncios o contáctanos para más información.
+              </p>
+              <div className="mt-4 p-4 border border-dashed rounded-md">
+                <p className="text-sm text-center text-muted-foreground">Próximamente: Novedades del club aquí.</p>
+              </div>
+            </CardContent>
+          </Card>
+      </div>
+    );
+  }
+
+  // Fallback for roles being redirected, though they should be caught by the loading condition above.
+  return null;
 }
