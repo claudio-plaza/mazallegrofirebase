@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label'; // Added import for Label
 
 const INVITADOS_DIARIOS_DB_KEY = 'invitadosDiariosDB';
 
@@ -74,10 +75,11 @@ export function AdminInvitadosDiariosDashboard() {
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-grow">
-              <FormLabel>Seleccionar Fecha:</FormLabel>
+              <Label htmlFor="date-picker-invitados-diarios">Seleccionar Fecha:</Label> {/* Changed FormLabel to Label and added htmlFor */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="date-picker-invitados-diarios" // Added id for the Label
                     variant={"outline"}
                     className={cn(
                       "w-full sm:w-[280px] justify-start text-left font-normal mt-1",
