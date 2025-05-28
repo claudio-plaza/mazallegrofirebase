@@ -71,6 +71,7 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
 
 export const initializeMockDatabases = () => {
   if (typeof window !== 'undefined') {
+    // Always update sociosDB with the latest mockSocios data
     localStorage.setItem('sociosDB', JSON.stringify(mockSocios));
 
     const storedRevisiones = localStorage.getItem('revisionesDB');
@@ -80,8 +81,12 @@ export const initializeMockDatabases = () => {
 
     const storedCumpleanos = localStorage.getItem('cumpleanosDB');
     if (!storedCumpleanos) {
-        localStorage.setItem('cumpleanosDB', JSON.stringify([])); // Initialize as empty array
+        localStorage.setItem('cumpleanosDB', JSON.stringify([])); 
+    }
+
+    const storedInvitadosDiarios = localStorage.getItem('invitadosDiariosDB');
+    if (!storedInvitadosDiarios) {
+        localStorage.setItem('invitadosDiariosDB', JSON.stringify([]));
     }
   }
 };
-

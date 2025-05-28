@@ -7,6 +7,7 @@ export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 export const MAX_INVITADOS_CUMPLEANOS = 15;
+export const MAX_INVITADOS_DIARIOS = 10; // Límite para invitados diarios
 
 // Updated list of companies
 export enum EmpresaTitular {
@@ -215,17 +216,17 @@ export const familiaresDetallesSchema = z.object({
 });
 export type FamiliaresDetallesData = z.infer<typeof familiaresDetallesSchema>;
 
+let currentStepForSchemaValidation = 1; 
+export const setCurrentStepForSchema = (step: number) => { currentStepForSchemaValidation = step; };
+
 export const agregarFamiliaresSchema = z.object({
   tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
     required_error: "Debe seleccionar un tipo de grupo familiar.",
   }),
   familiares: familiaresDetallesSchema,
 }).superRefine((data, ctx) => {
-  const { tipoGrupoFamiliar, familiares } = data;
-  const { conyuge, hijos, padres } = familiares || {};
-
-  if (currentStep === 1) { // Assuming currentStep is available in this scope or passed
-    if (!tipoGrupoFamiliar) {
+  if (currentStepForSchemaValidation === 1) {
+    if (!data.tipoGrupoFamiliar) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Por favor, seleccione un tipo de grupo familiar para continuar.",
@@ -235,7 +236,10 @@ export const agregarFamiliaresSchema = z.object({
     }
   }
 
-  if (currentStep === 2) { // Assuming currentStep is available
+  if (currentStepForSchemaValidation === 2) {
+    const { tipoGrupoFamiliar, familiares } = data;
+    const { conyuge, hijos, padres } = familiares || {};
+
     if (tipoGrupoFamiliar === "conyugeEHijos") {
       if (!conyuge && (!hijos || hijos.length === 0)) {
         ctx.addIssue({
@@ -276,10 +280,7 @@ export const agregarFamiliaresSchema = z.object({
     }
   }
 });
-// Placeholder for currentStep if needed for schema refinement, otherwise remove.
-// This might be better handled in form logic rather than directly in Zod schema if currentStep is React state.
-let currentStep = 1; 
-export const setCurrentStepForSchema = (step: number) => { currentStep = step; };
+
 
 export type AgregarFamiliaresData = z.infer<typeof agregarFamiliaresSchema>;
 
@@ -321,11 +322,34 @@ export const solicitudCumpleanosSchema = z.object({
   listaInvitados: z.array(invitadoCumpleanosSchema)
     .min(1, "Debe agregar al menos un invitado.")
     .max(MAX_INVITADOS_CUMPLEANOS, `No puede agregar más de ${MAX_INVITADOS_CUMPLEANOS} invitados.`),
-  estado: z.nativeEnum(EstadoSolicitudCumpleanos).default(EstadoSolicitudCumpleanos.APROBADA), // Defaulting to APROBADA for now
+  estado: z.nativeEnum(EstadoSolicitudCumpleanos).default(EstadoSolicitudCumpleanos.APROBADA), 
   fechaSolicitud: z.string().default(() => new Date().toISOString()),
   titularIngresadoEvento: z.boolean().default(false),
 });
 export type SolicitudCumpleanos = z.infer<typeof solicitudCumpleanosSchema>;
+
+
+// Invitados Diarios
+export const invitadoDiarioSchema = z.object({
+  id: z.string().optional(),
+  nombre: z.string().min(1, "Nombre es requerido."),
+  apellido: z.string().min(1, "Apellido es requerido."),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
+  ingresado: z.boolean().default(false),
+});
+export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
+
+export const solicitudInvitadosDiariosSchema = z.object({
+  id: z.string().default(() => `invd-${Date.now().toString(36)}`),
+  idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
+  nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
+  fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }), // ISO date string 'yyyy-MM-dd'
+  listaInvitadosDiarios: z.array(invitadoDiarioSchema)
+    .min(1, "Debe agregar al menos un invitado.")
+    .max(MAX_INVITADOS_DIARIOS, `No puede agregar más de ${MAX_INVITADOS_DIARIOS} invitados diarios.`),
+  titularIngresadoEvento: z.boolean().default(false), // Para rastrear si el titular ingresó para este lote de invitados
+});
+export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
 
 // Helper to pass currentStep to schema if needed, this is a simplified approach
 // A more robust way might involve different schemas per step or conditional validation in the resolver.
@@ -333,4 +357,3 @@ export const getStepSpecificValidationSchema = (step: number) => {
   setCurrentStepForSchema(step); // Update the global step variable
   return agregarFamiliaresSchema;
 };
-

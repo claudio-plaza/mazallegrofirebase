@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download } from 'lucide-react'; // Added CalendarDays, Download
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter } from 'lucide-react'; // Added UserPlus, ListFilter
 
 export const siteConfig = {
   name: 'MazAllegro',
@@ -41,6 +41,14 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['socio'],
   },
   {
+    id: 'invitados-diarios',
+    title: 'Cargar Invitados del Día',
+    description: 'Registra tus invitados para el acceso diario.',
+    icon: UserPlus,
+    href: '/invitados-diarios',
+    roles: ['socio'],
+  },
+  {
     id: 'panel-medico',
     title: 'Panel Médico',
     description: 'Gestiona revisiones médicas y aptos físicos.',
@@ -70,14 +78,22 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Recomendaciones de IA para gestión de socios.',
     icon: Sparkles,
     href: '/admin/ai-suggestions',
-    roles: ['administrador'], // Kept for admin as per previous logic, can be removed if needed
+    roles: [], 
   },
   {
     id: 'gestion-eventos',
-    title: 'Gestión de Eventos',
-    description: 'Administra y descarga listas de eventos.',
+    title: 'Gestión de Eventos (Cumpleaños)',
+    description: 'Administra y descarga listas de cumpleaños.',
     icon: CalendarDays,
     href: '/admin/gestion-eventos',
+    roles: ['administrador'],
+  },
+  {
+    id: 'gestion-invitados-diarios-admin',
+    title: 'Gestión de Invitados Diarios',
+    description: 'Revisa y descarga listas de invitados diarios.',
+    icon: ListFilter,
+    href: '/admin/gestion-invitados-diarios',
     roles: ['administrador'],
   }
 ];

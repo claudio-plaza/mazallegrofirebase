@@ -1,18 +1,28 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { SolicitudCumpleanos } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Download, CalendarDays, ListChecks } from 'lucide-react';
+import { Download, CalendarDays, ListChecks, Search } from 'lucide-react';
 import { formatDate } from '@/lib/helpers';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, parseISO, isValid, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 
 const CUMPLEANOS_DB_KEY = 'cumpleanosDB';
 
 export function AdminEventosDashboard() {
-  const [solicitudes, setSolicitudes] = useState<SolicitudCumpleanos[]>([]);
+  const [todasLasSolicitudes, setTodasLasSolicitudes] = useState<SolicitudCumpleanos[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -20,63 +30,147 @@ export function AdminEventosDashboard() {
     setLoading(true);
     const storedData = localStorage.getItem(CUMPLEANOS_DB_KEY);
     if (storedData) {
-      const allSolicitudes: SolicitudCumpleanos[] = JSON.parse(storedData);
-      setSolicitudes(allSolicitudes.map(s => ({ ...s, fechaEvento: new Date(s.fechaEvento)})));
+      const allSolicitudesRaw: SolicitudCumpleanos[] = JSON.parse(storedData);
+      // Ensure fechaEvento is a Date object for consistent filtering
+      const allSolicitudesProcessed = allSolicitudesRaw.map(s => ({
+        ...s,
+        fechaEvento: s.fechaEvento ? parseISO(s.fechaEvento as unknown as string) : new Date(0) // handle invalid or missing dates
+      }));
+      setTodasLasSolicitudes(allSolicitudesProcessed);
     }
     setLoading(false);
   }, []);
 
+  const solicitudesFiltradas = useMemo(() => {
+    if (!selectedDate) return todasLasSolicitudes; // Show all if no date is selected
+    return todasLasSolicitudes.filter(s => 
+        s.fechaEvento && isValid(s.fechaEvento) && isSameDay(s.fechaEvento, selectedDate)
+    );
+  }, [selectedDate, todasLasSolicitudes]);
+
   const handleDescargarListaCumpleanos = () => {
-    if (solicitudes.length === 0) {
+    const targetSolicitudes = selectedDate ? solicitudesFiltradas : todasLasSolicitudes;
+    if (targetSolicitudes.length === 0) {
       toast({
         title: "Lista de Cumpleaños Vacía",
-        description: "No hay solicitudes de cumpleaños registradas para descargar.",
+        description: `No hay solicitudes de cumpleaños ${selectedDate ? `para el ${formatDate(selectedDate, "dd/MM/yyyy")}` : 'registradas'} para descargar.`,
         variant: "default",
       });
       return;
     }
 
-    console.log("Simulando generación de PDF para las siguientes solicitudes de cumpleaños:", solicitudes);
+    console.log(`Simulando generación de PDF para ${selectedDate ? `cumpleaños del ${formatDate(selectedDate, "dd/MM/yyyy")}` : 'todos los cumpleaños'}:`, targetSolicitudes);
     toast({
       title: "Descarga de Cumpleaños Iniciada (Simulada)",
-      description: `Se está generando un PDF con ${solicitudes.length} solicitud(es) de cumpleaños. (Ver consola para datos).`,
+      description: `Se está generando un PDF con ${targetSolicitudes.length} solicitud(es) de cumpleaños. (Ver consola para datos).`,
     });
-    // In a real scenario, you would use a library like jsPDF or react-pdf here.
   };
 
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold flex items-center">
-        <CalendarDays className="mr-3 h-8 w-8 text-primary" /> Gestión de Eventos del Club
+        <CalendarDays className="mr-3 h-8 w-8 text-primary" /> Gestión de Eventos (Cumpleaños)
       </h1>
 
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle>Lista de Cumpleaños Solicitados</CardTitle>
           <CardDescription>
-            Aquí puedes ver un resumen y descargar la lista completa de todas las solicitudes de cumpleaños.
+            Selecciona una fecha para filtrar los cumpleaños o descarga la lista completa.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Button onClick={handleDescargarListaCumpleanos} disabled={loading || solicitudes.length === 0}>
-            <Download className="mr-2 h-4 w-4" /> 
-            {loading ? 'Cargando...' : 'Descargar Lista de Cumpleaños (PDF)'}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex-grow">
+              <Label htmlFor="date-picker-cumpleanos">Filtrar por Fecha de Evento (Opcional):</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date-picker-cumpleanos"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full sm:w-[280px] justify-start text-left font-normal mt-1",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Todas las fechas</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => setSelectedDate(date)} // Allow unselecting
+                    initialFocus
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+               {selectedDate && (
+                <Button variant="link" size="sm" onClick={() => setSelectedDate(undefined)} className="pl-2 text-xs">Limpiar filtro</Button>
+              )}
+            </div>
+            <Button 
+                onClick={handleDescargarListaCumpleanos} 
+                disabled={loading || (selectedDate && solicitudesFiltradas.length === 0) || (!selectedDate && todasLasSolicitudes.length === 0) }
+                className="w-full sm:w-auto mt-2 sm:mt-0 self-end sm:self-center"
+            >
+              <Download className="mr-2 h-4 w-4" /> 
+              {loading ? 'Cargando...' : 'Descargar Lista de Cumpleaños (PDF)'}
+            </Button>
+          </div>
 
-          {loading && <p>Cargando solicitudes...</p>}
+          {loading && <p className="text-center py-4">Cargando solicitudes...</p>}
           
-          {!loading && solicitudes.length === 0 && (
+          {!loading && solicitudesFiltradas.length === 0 && (
             <div className="text-center py-10 px-6 border border-dashed rounded-md mt-6">
                 <ListChecks className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-xl font-medium text-foreground">No hay solicitudes de cumpleaños.</p>
-                <p className="text-muted-foreground mt-1">Cuando los socios creen solicitudes, aparecerán aquí.</p>
+                <p className="text-muted-foreground mt-1">
+                  {selectedDate ? `No se encontraron cumpleaños para el ${formatDate(selectedDate, "dd/MM/yyyy")}.` : 'Cuando los socios creen solicitudes, aparecerán aquí.'}
+                </p>
             </div>
           )}
 
-          {!loading && solicitudes.length > 0 && (
+          {!loading && solicitudesFiltradas.length > 0 && (
             <div className="mt-6 space-y-3">
-              <p className="text-sm text-muted-foreground">Se encontraron {solicitudes.length} solicitudes de cumpleaños.</p>
-              {/* Podríamos mostrar un resumen aquí si fuera necesario, pero el foco es la descarga */}
+              <h3 className="text-lg font-semibold">
+                {selectedDate 
+                    ? `Solicitudes para el ${formatDate(selectedDate, "dd 'de' MMMM 'de' yyyy")}` 
+                    : `Todas las Solicitudes (${todasLasSolicitudes.length})`
+                }
+              </h3>
+              <ScrollArea className="h-[500px] w-full border rounded-md">
+                 <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha Evento</TableHead>
+                      <TableHead>Cumpleañero/a</TableHead>
+                      <TableHead>Socio Titular</TableHead>
+                      <TableHead>N° Invitados</TableHead>
+                      <TableHead>Estado Solicitud</TableHead>
+                      <TableHead>Titular Ingresó</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {solicitudesFiltradas.map(solicitud => (
+                      <TableRow key={solicitud.id}>
+                        <TableCell>{formatDate(solicitud.fechaEvento, "dd/MM/yy")}</TableCell>
+                        <TableCell className="font-medium">{solicitud.nombreCumpleanero}</TableCell>
+                        <TableCell>{solicitud.nombreSocioTitular} (N°: {solicitud.idSocioTitular})</TableCell>
+                        <TableCell className="text-center">{solicitud.listaInvitados.length}</TableCell>
+                        <TableCell><Badge variant={solicitud.estado === 'Aprobada' ? 'default' : 'secondary'} className={solicitud.estado === 'Aprobada' ? 'bg-green-500' : ''}>{solicitud.estado}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={solicitud.titularIngresadoEvento ? 'default' : 'outline'} className={solicitud.titularIngresadoEvento ? 'bg-green-600' : ''}>
+                            {solicitud.titularIngresadoEvento ? 'Sí' : 'No'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             </div>
           )}
         </CardContent>

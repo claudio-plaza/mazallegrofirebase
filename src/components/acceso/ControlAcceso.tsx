@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos } from '@/types';
+import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2 } from 'lucide-react'; // Added Users2
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { format, isToday, parseISO } from 'date-fns';
+import { format, isToday, parseISO, formatISO } from 'date-fns';
 
 
 type DisplayableMember = {
@@ -45,9 +45,14 @@ export function ControlAcceso() {
   const [invitadosCumpleanosSocioBuscado, setInvitadosCumpleanosSocioBuscado] = useState<InvitadoCumpleanos[]>([]);
   const [titularIngresadoHoyEventoSocioBuscado, setTitularIngresadoHoyEventoSocioBuscado] = useState(false);
 
+  const [solicitudInvitadosDiariosHoySocioBuscado, setSolicitudInvitadosDiariosHoySocioBuscado] = useState<SolicitudInvitadosDiarios | null>(null);
+  const [invitadosDiariosSocioBuscado, setInvitadosDiariosSocioBuscado] = useState<InvitadoDiario[]>([]);
+  const [titularIngresadoHoyInvitadosDiarios, setTitularIngresadoHoyInvitadosDiarios] = useState(false);
+
   const [festejosDelDia, setFestejosDelDia] = useState<FestejoHoy[]>([]);
   const [loadingFestejos, setLoadingFestejos] = useState(true);
-  const [expandedFestejoId, setExpandedFestejoId] = useState<string | null>(null);
+  
+  const todayISO = formatISO(new Date(), { representation: 'date' });
 
 
   const loadFestejosDelDia = useCallback(() => {
@@ -80,7 +85,7 @@ export function ControlAcceso() {
   useEffect(() => {
     loadFestejosDelDia();
     window.addEventListener('cumpleanosDBUpdated', loadFestejosDelDia);
-    window.addEventListener('sociosDBUpdated', loadFestejosDelDia); // Festejos pueden depender de nombres de socios
+    window.addEventListener('sociosDBUpdated', loadFestejosDelDia); 
     return () => {
       window.removeEventListener('cumpleanosDBUpdated', loadFestejosDelDia);
       window.removeEventListener('sociosDBUpdated', loadFestejosDelDia);
@@ -95,6 +100,9 @@ export function ControlAcceso() {
       setSolicitudCumpleanosHoySocioBuscado(null);
       setInvitadosCumpleanosSocioBuscado([]);
       setTitularIngresadoHoyEventoSocioBuscado(false);
+      setSolicitudInvitadosDiariosHoySocioBuscado(null);
+      setInvitadosDiariosSocioBuscado([]);
+      setTitularIngresadoHoyInvitadosDiarios(false);
       setAccordionValue(undefined);
       return;
     }
@@ -103,6 +111,9 @@ export function ControlAcceso() {
     setSolicitudCumpleanosHoySocioBuscado(null);
     setInvitadosCumpleanosSocioBuscado([]);
     setTitularIngresadoHoyEventoSocioBuscado(false);
+    setSolicitudInvitadosDiariosHoySocioBuscado(null);
+    setInvitadosDiariosSocioBuscado([]);
+    setTitularIngresadoHoyInvitadosDiarios(false);
     setAccordionValue(undefined);
 
     const storedSocios = localStorage.getItem('sociosDB');
@@ -121,20 +132,37 @@ export function ControlAcceso() {
         setMensajeBusqueda('');
         setAccordionValue("socio-info");
 
+        // Cumpleaños
         const storedCumpleanos = localStorage.getItem('cumpleanosDB');
         if (storedCumpleanos) {
-          const todasSolicitudes: SolicitudCumpleanos[] = JSON.parse(storedCumpleanos);
-          const solicitudHoy = todasSolicitudes.find(sol =>
+          const todasSolicitudesCumple: SolicitudCumpleanos[] = JSON.parse(storedCumpleanos);
+          const solicitudHoyCumple = todasSolicitudesCumple.find(sol =>
             sol.idSocioTitular === socio.numeroSocio &&
             isToday(parseISO(sol.fechaEvento as unknown as string)) &&
             sol.estado === 'Aprobada'
           );
-          if (solicitudHoy) {
-            setSolicitudCumpleanosHoySocioBuscado(solicitudHoy);
-            setInvitadosCumpleanosSocioBuscado(solicitudHoy.listaInvitados.map(inv => ({...inv, id: inv.dni })));
-            setTitularIngresadoHoyEventoSocioBuscado(solicitudHoy.titularIngresadoEvento || false);
+          if (solicitudHoyCumple) {
+            setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
+            setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
+            setTitularIngresadoHoyEventoSocioBuscado(solicitudHoyCumple.titularIngresadoEvento || false);
           }
         }
+        
+        // Invitados Diarios
+        const storedInvitadosDiarios = localStorage.getItem('invitadosDiariosDB');
+        if (storedInvitadosDiarios) {
+            const todasSolicitudesDiarias: SolicitudInvitadosDiarios[] = JSON.parse(storedInvitadosDiarios);
+            const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol => 
+                sol.idSocioTitular === socio.numeroSocio &&
+                sol.fecha === todayISO
+            );
+            if (solicitudHoyDiaria) {
+                setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
+                setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios.map(inv => ({...inv, id: inv.dni})));
+                setTitularIngresadoHoyInvitadosDiarios(solicitudHoyDiaria.titularIngresadoEvento || false);
+            }
+        }
+
 
       } else {
         setMensajeBusqueda('Socio no encontrado.');
@@ -143,7 +171,7 @@ export function ControlAcceso() {
       setMensajeBusqueda('No hay datos de socios disponibles.');
     }
     setLoading(false);
-  }, [searchTerm]);
+  }, [searchTerm, todayISO]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -154,15 +182,17 @@ export function ControlAcceso() {
   useEffect(() => {
     const handleDBUpdates = () => {
       if (socioEncontrado) {
-          handleSearch();
+          handleSearch(); // Re-fetch all related data for the searched socio
       }
-      loadFestejosDelDia(); // Recargar festejos del día también
+      loadFestejosDelDia(); 
     };
     window.addEventListener('sociosDBUpdated', handleDBUpdates);
     window.addEventListener('cumpleanosDBUpdated', handleDBUpdates);
+    window.addEventListener('invitadosDiariosDBUpdated', handleDBUpdates);
     return () => {
       window.removeEventListener('sociosDBUpdated', handleDBUpdates);
       window.removeEventListener('cumpleanosDBUpdated', handleDBUpdates);
+      window.removeEventListener('invitadosDiariosDBUpdated', handleDBUpdates);
     };
   }, [socioEncontrado, handleSearch, loadFestejosDelDia]);
 
@@ -181,17 +211,35 @@ export function ControlAcceso() {
         variant: 'default',
       });
 
-      if (member.id === socioEncontrado.id && solicitudCumpleanosHoySocioBuscado && !titularIngresadoHoyEventoSocioBuscado) {
-        setTitularIngresadoHoyEventoSocioBuscado(true);
-        const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
-        setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud);
-        
-        const todasSolicitudes: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem('cumpleanosDB') || '[]');
-        const index = todasSolicitudes.findIndex(s => s.id === updatedSolicitud.id);
-        if (index > -1) {
-            todasSolicitudes[index] = updatedSolicitud;
-            localStorage.setItem('cumpleanosDB', JSON.stringify(todasSolicitudes));
-            window.dispatchEvent(new Event('cumpleanosDBUpdated'));
+      // Si el que ingresa es el titular, marcarlo como ingresado para sus eventos del día
+      if (member.id === socioEncontrado.id) {
+        // Para cumpleaños
+        if (solicitudCumpleanosHoySocioBuscado && !titularIngresadoHoyEventoSocioBuscado) {
+            setTitularIngresadoHoyEventoSocioBuscado(true);
+            const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
+            setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud);
+            
+            const todasSolicitudes: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem('cumpleanosDB') || '[]');
+            const index = todasSolicitudes.findIndex(s => s.id === updatedSolicitud.id);
+            if (index > -1) {
+                todasSolicitudes[index] = updatedSolicitud;
+                localStorage.setItem('cumpleanosDB', JSON.stringify(todasSolicitudes));
+                window.dispatchEvent(new Event('cumpleanosDBUpdated'));
+            }
+        }
+        // Para invitados diarios
+        if (solicitudInvitadosDiariosHoySocioBuscado && !titularIngresadoHoyInvitadosDiarios) {
+            setTitularIngresadoHoyInvitadosDiarios(true);
+            const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
+            setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
+
+            const todasSolicitudesDiarias: SolicitudInvitadosDiarios[] = JSON.parse(localStorage.getItem('invitadosDiariosDB') || '[]');
+            const indexDiaria = todasSolicitudesDiarias.findIndex(s => s.id === updatedSolicitudDiaria.id);
+            if (indexDiaria > -1) {
+                todasSolicitudesDiarias[indexDiaria] = updatedSolicitudDiaria;
+                localStorage.setItem('invitadosDiariosDB', JSON.stringify(todasSolicitudesDiarias));
+                window.dispatchEvent(new Event('invitadosDiariosDBUpdated'));
+            }
         }
       }
     } else {
@@ -203,24 +251,19 @@ export function ControlAcceso() {
     }
   };
 
-  const handleRegistrarIngresoInvitado = (invitadoDni: string, festejoId: string) => {
+  const handleRegistrarIngresoInvitadoCumpleanos = (invitadoDni: string, festejoId: string) => {
     let targetFestejo: SolicitudCumpleanos | FestejoHoy | null = null;
-    let setTargetFestejo: Function | null = null;
     let targetInvitados: InvitadoCumpleanos[] = [];
-    let setTargetInvitados: Function | null = null;
     let targetTitularIngresado: boolean = false;
 
     if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
         targetFestejo = solicitudCumpleanosHoySocioBuscado;
-        setTargetFestejo = setSolicitudCumpleanosHoySocioBuscado;
         targetInvitados = invitadosCumpleanosSocioBuscado;
-        setTargetInvitados = setInvitadosCumpleanosSocioBuscado;
         targetTitularIngresado = titularIngresadoHoyEventoSocioBuscado;
     } else {
         const generalFestejo = festejosDelDia.find(f => f.id === festejoId);
         if (generalFestejo) {
             targetFestejo = generalFestejo;
-            // For general festejos, we need to update them in the festejosDelDia list directly
             targetInvitados = generalFestejo.listaInvitados;
             targetTitularIngresado = generalFestejo.titularIngresadoEvento || false;
         }
@@ -230,8 +273,8 @@ export function ControlAcceso() {
 
     if (!targetTitularIngresado) {
       toast({
-        title: 'Acceso Denegado (Invitado)',
-        description: 'El socio titular del evento debe registrar su ingreso primero para que los invitados puedan acceder.',
+        title: 'Acceso Denegado (Invitado Cumpleaños)',
+        description: 'El socio titular del evento de cumpleaños debe registrar su ingreso primero.',
         variant: 'destructive',
       });
       return;
@@ -240,24 +283,64 @@ export function ControlAcceso() {
     const updatedInvitados = targetInvitados.map(inv =>
         inv.dni === invitadoDni ? { ...inv, ingresado: !inv.ingresado } : inv
     );
-
-    if (setTargetInvitados) setTargetInvitados(updatedInvitados);
+    
+    if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
+        setInvitadosCumpleanosSocioBuscado(updatedInvitados);
+    }
 
     const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
     toast({
-        title: `Ingreso Invitado ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
+        title: `Ingreso Invitado Cumpleaños ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
         description: `${invitado?.nombre} ${invitado?.apellido} (${invitado?.dni}) ha sido ${invitado?.ingresado ? 'marcado como ingresado' : 'desmarcado'}.`,
     });
 
     const updatedFestejo = { ...targetFestejo, listaInvitados: updatedInvitados };
-    if (setTargetFestejo) setTargetFestejo(updatedFestejo);
+    if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
+        setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
+    }
+
 
     const todasSolicitudes: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem('cumpleanosDB') || '[]');
     const index = todasSolicitudes.findIndex(s => s.id === updatedFestejo.id);
     if (index > -1) {
         todasSolicitudes[index] = updatedFestejo;
         localStorage.setItem('cumpleanosDB', JSON.stringify(todasSolicitudes));
-        window.dispatchEvent(new Event('cumpleanosDBUpdated')); // This will also trigger reload of festejosDelDia
+        window.dispatchEvent(new Event('cumpleanosDBUpdated')); 
+    }
+  };
+
+  const handleRegistrarIngresoInvitadoDiario = (invitadoDni: string) => {
+    if (!solicitudInvitadosDiariosHoySocioBuscado) return;
+
+    if (!titularIngresadoHoyInvitadosDiarios) {
+      toast({
+        title: 'Acceso Denegado (Invitado Diario)',
+        description: 'El socio titular debe registrar su ingreso primero para que los invitados diarios puedan acceder.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const updatedInvitados = invitadosDiariosSocioBuscado.map(inv =>
+        inv.dni === invitadoDni ? { ...inv, ingresado: !inv.ingresado } : inv
+    );
+    setInvitadosDiariosSocioBuscado(updatedInvitados);
+
+    const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
+    toast({
+        title: `Ingreso Invitado Diario ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
+        description: `${invitado?.nombre} ${invitado?.apellido} (${invitado?.dni}) ha sido ${invitado?.ingresado ? 'marcado como ingresado' : 'desmarcado'}.`,
+    });
+
+    const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, listaInvitadosDiarios: updatedInvitados };
+    setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+
+    const todasSolicitudes: SolicitudInvitadosDiarios[] = JSON.parse(localStorage.getItem('invitadosDiariosDB') || '[]');
+    const index = todasSolicitudes.findIndex(s => s.id === updatedSolicitud.id);
+    if (index > -1) {
+        todasSolicitudes[index] = updatedSolicitud;
+        localStorage.setItem('invitadosDiariosDB', JSON.stringify(todasSolicitudes));
+        window.dispatchEvent(new Event('invitadosDiariosDBUpdated'));
     }
   };
 
@@ -390,7 +473,7 @@ export function ControlAcceso() {
                                 <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
                                 {esTitular && (
                                   <div className="text-sm text-muted-foreground">
-                                    N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600' : 'bg-red-600'}>{socioEncontrado.estadoSocio}</Badge>
+                                    N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado.estadoSocio}</Badge>
                                   </div>
                                 )}
                               </div>
@@ -427,12 +510,12 @@ export function ControlAcceso() {
                       </h4>
                       {!titularIngresadoHoyEventoSocioBuscado && (
                           <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
-                              <ShieldAlert className="inline mr-1 h-4 w-4" /> El socio titular ({socioEncontrado.nombre} {socioEncontrado.apellido}) debe registrar su ingreso primero para habilitar el registro de invitados.
+                              <ShieldAlert className="inline mr-1 h-4 w-4" /> El socio titular ({socioEncontrado.nombre} {socioEncontrado.apellido}) debe registrar su ingreso primero para habilitar el registro de invitados de cumpleaños.
                           </p>
                       )}
                        {titularIngresadoHoyEventoSocioBuscado && (
                           <p className="text-sm text-green-600 bg-green-100 p-2 rounded-md mb-3">
-                              <UserCheck className="inline mr-1 h-4 w-4" /> El socio titular ya registró su ingreso para el evento. Puede proceder con los invitados.
+                              <UserCheck className="inline mr-1 h-4 w-4" /> El titular ya registró su ingreso para el evento de cumpleaños. Puede proceder con los invitados.
                           </p>
                       )}
                       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
@@ -445,22 +528,66 @@ export function ControlAcceso() {
                               </div>
                               <div className="flex items-center space-x-2">
                                  <Checkbox
-                                   id={`guest-socio-${invitado.dni}`}
+                                   id={`guest-cumple-${invitado.dni}`}
                                    checked={invitado.ingresado}
-                                   onCheckedChange={() => handleRegistrarIngresoInvitado(invitado.dni, solicitudCumpleanosHoySocioBuscado!.id)}
+                                   onCheckedChange={() => handleRegistrarIngresoInvitadoCumpleanos(invitado.dni, solicitudCumpleanosHoySocioBuscado!.id)}
                                    disabled={!titularIngresadoHoyEventoSocioBuscado}
                                  />
-                                 <Label htmlFor={`guest-socio-${invitado.dni}`} className="text-xs cursor-pointer">
+                                 <Label htmlFor={`guest-cumple-${invitado.dni}`} className="text-xs cursor-pointer">
                                   {invitado.ingresado ? "Ingresado" : "Marcar Ingreso"}
                                  </Label>
                               </div>
                             </div>
                           </Card>
                         ))}
-                        {invitadosCumpleanosSocioBuscado.length === 0 && <p className="text-sm text-muted-foreground">No hay invitados registrados para este evento del socio buscado.</p>}
+                        {invitadosCumpleanosSocioBuscado.length === 0 && <p className="text-sm text-muted-foreground">No hay invitados de cumpleaños registrados para este socio hoy.</p>}
                       </div>
                     </div>
                   )}
+
+                  {solicitudInvitadosDiariosHoySocioBuscado && (
+                    <div className="border-t border-border px-4 py-4 mt-6">
+                      <h4 className="text-lg font-semibold mb-3 flex items-center">
+                          <Users2 className="mr-2 h-5 w-5 text-blue-500" />
+                          Invitados Diarios (Hoy: {format(parseISO(todayISO), "dd/MM/yyyy")})
+                      </h4>
+                      {!titularIngresadoHoyInvitadosDiarios && (
+                          <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
+                              <ShieldAlert className="inline mr-1 h-4 w-4" /> El socio titular ({socioEncontrado.nombre} {socioEncontrado.apellido}) debe registrar su ingreso primero para habilitar el registro de invitados diarios.
+                          </p>
+                      )}
+                       {titularIngresadoHoyInvitadosDiarios && (
+                          <p className="text-sm text-green-600 bg-green-100 p-2 rounded-md mb-3">
+                              <UserCheck className="inline mr-1 h-4 w-4" /> El titular ya registró su ingreso. Puede proceder con los invitados diarios.
+                          </p>
+                      )}
+                      <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                        {invitadosDiariosSocioBuscado.map(invitado => (
+                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-50' : 'bg-card'}`}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
+                                <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                 <Checkbox
+                                   id={`guest-diario-${invitado.dni}`}
+                                   checked={invitado.ingresado}
+                                   onCheckedChange={() => handleRegistrarIngresoInvitadoDiario(invitado.dni)}
+                                   disabled={!titularIngresadoHoyInvitadosDiarios}
+                                 />
+                                 <Label htmlFor={`guest-diario-${invitado.dni}`} className="text-xs cursor-pointer">
+                                  {invitado.ingresado ? "Ingresado" : "Marcar Ingreso"}
+                                 </Label>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                        {invitadosDiariosSocioBuscado.length === 0 && <p className="text-sm text-muted-foreground">No hay invitados diarios registrados para este socio hoy.</p>}
+                      </div>
+                    </div>
+                  )}
+
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -511,7 +638,7 @@ export function ControlAcceso() {
                                             <Info className="inline mr-1 h-3 w-3" /> El socio titular de este evento aún no ha registrado su ingreso. Los invitados no pueden ingresar hasta que el titular lo haga.
                                         </p>
                                     )}
-                                    <h5 className="text-xs font-medium text-muted-foreground mb-2">Invitados:</h5>
+                                    <h5 className="text-xs font-medium text-muted-foreground mb-2">Invitados Cumpleaños:</h5>
                                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                         {festejo.listaInvitados.map(invitado => (
                                             <Card key={invitado.dni} className={`p-2 text-xs ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
@@ -522,12 +649,12 @@ export function ControlAcceso() {
                                                     </div>
                                                     <div className="flex items-center space-x-2">
                                                         <Checkbox
-                                                            id={`guest-general-${festejo.id}-${invitado.dni}`}
+                                                            id={`guest-general-cumple-${festejo.id}-${invitado.dni}`}
                                                             checked={invitado.ingresado}
-                                                            onCheckedChange={() => handleRegistrarIngresoInvitado(invitado.dni, festejo.id)}
+                                                            onCheckedChange={() => handleRegistrarIngresoInvitadoCumpleanos(invitado.dni, festejo.id)}
                                                             disabled={!festejo.titularIngresadoEvento}
                                                         />
-                                                        <Label htmlFor={`guest-general-${festejo.id}-${invitado.dni}`} className="text-xs cursor-pointer">
+                                                        <Label htmlFor={`guest-general-cumple-${festejo.id}-${invitado.dni}`} className="text-xs cursor-pointer">
                                                             {invitado.ingresado ? "Ingresó" : "Marcar"}
                                                         </Label>
                                                     </div>
