@@ -174,14 +174,14 @@ export function ControlAcceso() {
         await loadFestejosDelDia();
     };
     
-    window.addEventListener('cumpleanosDBUpdated', refreshData);
-    window.addEventListener('invitadosDiariosDBUpdated', refreshData);
-    window.addEventListener('sociosDBUpdated', refreshData); 
+    window.addEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
+    window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
+    window.addEventListener('firestore/sociosUpdated', refreshData); 
     
     return () => {
-        window.removeEventListener('cumpleanosDBUpdated', refreshData);
-        window.removeEventListener('invitadosDiariosDBUpdated', refreshData);
-        window.removeEventListener('sociosDBUpdated', refreshData);
+        window.removeEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
+        window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
+        window.removeEventListener('firestore/sociosUpdated', refreshData);
     };
   }, [loadFestejosDelDia, socioEncontrado, handleSearch]);
 
@@ -667,3 +667,5 @@ export function ControlAcceso() {
     </div>
   );
 }
+
+    
