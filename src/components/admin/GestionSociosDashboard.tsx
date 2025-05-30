@@ -14,10 +14,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { getSocios as fetchSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb } from '@/lib/firebase/firestoreService';
+import { GestionAdherentesDialog } from './GestionAdherentesDialog';
+
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
 
@@ -27,87 +30,115 @@ export function GestionSociosDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoSocioFiltro>('Todos');
   const { toast } = useToast();
+  const [selectedSocioForAdherentes, setSelectedSocioForAdherentes] = useState<Socio | null>(null);
+  const [isAdherentesDialogOpen, setIsAdherentesDialogOpen] = useState(false);
 
-  const loadSocios = useCallback(() => {
+  const loadSocios = useCallback(async () => {
     setLoading(true);
-    const storedSocios = localStorage.getItem('sociosDB');
-    const sociosData: Socio[] = storedSocios ? JSON.parse(storedSocios) : [];
-    setSocios(sociosData);
-    setLoading(false);
-  }, []);
+    try {
+      const sociosData = await fetchSocios();
+      setSocios(sociosData);
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudieron cargar los socios.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     loadSocios();
-    window.addEventListener('sociosDBUpdated', loadSocios);
-    return () => {
-      window.removeEventListener('sociosDBUpdated', loadSocios);
-    };
+    // Listener for external updates (e.g., from firestoreService if events were dispatched more globally)
+    // window.addEventListener('sociosDBUpdated', loadSocios); // If using localStorage directly elsewhere
+    // return () => {
+    //   window.removeEventListener('sociosDBUpdated', loadSocios);
+    // };
   }, [loadSocios]);
 
-  const updateSocioData = (updatedSocio: Socio) => {
-    const updatedSocios = socios.map(s => s.id === updatedSocio.id ? updatedSocio : s);
-    setSocios(updatedSocios);
-    localStorage.setItem('sociosDB', JSON.stringify(updatedSocios));
-    window.dispatchEvent(new Event('sociosDBUpdated')); // Notify other components
+  const updateSocioData = async (updatedSocio: Socio) => {
+    const result = await updateSocioInDb(updatedSocio);
+    if (result) {
+      setSocios(prevSocios => prevSocios.map(s => s.id === updatedSocio.id ? updatedSocio : s));
+      return result;
+    }
+    throw new Error("Failed to update socio in DB");
   };
-  
-  const handleToggleEstadoSocio = (socioId: string) => {
+
+  const handleToggleEstadoSocio = async (socioId: string) => {
     const socio = socios.find(s => s.id === socioId);
     if (socio) {
       const nuevoEstado = socio.estadoSocio === 'Activo' ? 'Inactivo' : 'Activo';
-      updateSocioData({ ...socio, estadoSocio: nuevoEstado });
-      toast({ title: 'Estado Actualizado', description: `Socio ${socio.nombre} ${socio.apellido} ahora está ${nuevoEstado.toLowerCase()}.` });
+      try {
+        await updateSocioData({ ...socio, estadoSocio: nuevoEstado });
+        toast({ title: 'Estado Actualizado', description: `Socio ${socio.nombre} ${socio.apellido} ahora está ${nuevoEstado.toLowerCase()}.` });
+      } catch (error) {
+        toast({ title: "Error", description: "No se pudo actualizar el estado del socio.", variant: "destructive" });
+      }
     }
   };
 
-  const handleMarcarApto = (socioId: string, esValido: boolean) => {
+  const handleMarcarApto = async (socioId: string, esValido: boolean) => {
     const socio = socios.find(s => s.id === socioId);
     if (socio) {
       const hoy = new Date();
-      const nuevaInfoApto: AptoMedicoInfo = esValido 
+      const nuevaInfoApto: AptoMedicoInfo = esValido
         ? { valido: true, fechaEmision: formatISO(hoy), fechaVencimiento: formatISO(addDays(hoy, 14)), observaciones: 'Apto marcado manualmente por admin.' }
-        : { valido: false, razonInvalidez: 'Marcado como no apto/vencido por admin.', fechaEmision: formatISO(socio.aptoMedico?.fechaEmision || subDays(hoy, 15)), fechaVencimiento: formatISO(subDays(hoy,1)) }; // Vencido ayer
-      
-      updateSocioData({ ...socio, aptoMedico: nuevaInfoApto, ultimaRevisionMedica: formatISO(hoy) });
-      toast({ title: 'Apto Médico Actualizado', description: `El apto médico de ${socio.nombre} ${socio.apellido} fue actualizado.` });
+        : { valido: false, razonInvalidez: 'Marcado como no apto/vencido por admin.', fechaEmision: formatISO(socio.aptoMedico?.fechaEmision || subDays(hoy, 15)), fechaVencimiento: formatISO(subDays(hoy,1)) };
+
+      try {
+        await updateSocioData({ ...socio, aptoMedico: nuevaInfoApto, ultimaRevisionMedica: formatISO(hoy) });
+        toast({ title: 'Apto Médico Actualizado', description: `El apto médico de ${socio.nombre} ${socio.apellido} fue actualizado.` });
+      } catch (error) {
+         toast({ title: "Error", description: "No se pudo actualizar el apto médico.", variant: "destructive" });
+      }
     }
   };
 
-  const handleEliminarSocio = (socioId: string) => {
+  const handleEliminarSocio = async (socioId: string) => {
     const socio = socios.find(s => s.id === socioId);
     if (socio) {
-      const updatedSocios = socios.filter(s => s.id !== socioId);
-      setSocios(updatedSocios);
-      localStorage.setItem('sociosDB', JSON.stringify(updatedSocios));
-      window.dispatchEvent(new Event('sociosDBUpdated'));
-      toast({ title: 'Socio Eliminado', description: `Socio ${socio.nombre} ${socio.apellido} ha sido eliminado (simulado).`, variant: 'destructive' });
+      const success = await deleteSocioInDb(socioId);
+      if (success) {
+        setSocios(prevSocios => prevSocios.filter(s => s.id !== socioId));
+        toast({ title: 'Socio Eliminado', description: `Socio ${socio.nombre} ${socio.apellido} ha sido eliminado.`, variant: 'destructive' });
+      } else {
+        toast({ title: "Error", description: "No se pudo eliminar el socio.", variant: "destructive" });
+      }
     }
   };
 
   const handleNuevoMiembro = () => {
      toast({ title: 'Función no implementada', description: 'La creación de nuevos miembros desde admin será implementada.' });
   };
-  
+
   const handleVerPerfil = (socioId: string) => {
      toast({ title: 'Función no implementada', description: `Ver perfil del socio ${socioId} (simulado).` });
+  };
+
+  const openAdherentesDialog = (socio: Socio) => {
+    if (socio.estadoSocio !== 'Activo') {
+      toast({ title: "Acción no permitida", description: "El socio debe estar activo para gestionar adherentes.", variant: "default"});
+      return;
+    }
+    setSelectedSocioForAdherentes(socio);
+    setIsAdherentesDialogOpen(true);
   };
 
   const filteredSocios = useMemo(() => {
     return socios.filter(socio => {
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         socio.nombre.toLowerCase().includes(searchLower) ||
         socio.apellido.toLowerCase().includes(searchLower) ||
         socio.numeroSocio.includes(searchLower) ||
         socio.dni.includes(searchLower);
-      
-      const matchesEstado = 
+
+      const matchesEstado =
         filtroEstado === 'Todos' || socio.estadoSocio === filtroEstado;
-        
+
       return matchesSearch && matchesEstado;
     });
   }, [socios, searchTerm, filtroEstado]);
-  
+
   const handleDescargarListaPdf = () => {
     if (filteredSocios.length === 0) {
       toast({
@@ -117,15 +148,11 @@ export function GestionSociosDashboard() {
       });
       return;
     }
-    
-    // Simulate PDF generation
     console.log("Simulando generación de PDF para los siguientes socios:", filteredSocios);
     toast({
       title: "Descarga Iniciada (Simulada)",
       description: `Se está generando un PDF con ${filteredSocios.length} socio(s). (Esta es una simulación, ver consola para datos).`,
     });
-    // In a real scenario, you would use a library like jsPDF or react-pdf here
-    // to generate and trigger the download of the PDF.
   };
 
   const stats = useMemo(() => {
@@ -147,7 +174,7 @@ export function GestionSociosDashboard() {
       </div>
     );
   }
-  
+
   const statCards = [
     { title: "Total Miembros", value: stats.total, icon: Users, color: "text-blue-500" },
     { title: "Miembros Activos", value: stats.activos, icon: UserCheck, color: "text-green-500" },
@@ -190,7 +217,7 @@ export function GestionSociosDashboard() {
           <div className="mt-4 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-grow">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
+              <Input
                 placeholder="Buscar por Nombre, N° Socio, DNI..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -221,10 +248,9 @@ export function GestionSociosDashboard() {
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead>N° Socio</TableHead>
                   <TableHead>DNI</TableHead>
-                  <TableHead>Fecha Nac.</TableHead>
+                  <TableHead>Adherentes</TableHead>
                   <TableHead>Estado Club</TableHead>
                   <TableHead>Apto Médico</TableHead>
-                  <TableHead>Venc. Apto</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -243,7 +269,7 @@ export function GestionSociosDashboard() {
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido}</TableCell>
                       <TableCell>{socio.numeroSocio}</TableCell>
                       <TableCell>{socio.dni}</TableCell>
-                      <TableCell>{formatDate(socio.fechaNacimiento, 'dd/MM/yyyy')}</TableCell>
+                       <TableCell className="text-center">{socio.adherentes?.length || 0}</TableCell>
                       <TableCell>
                         <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
                                className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
@@ -257,20 +283,21 @@ export function GestionSociosDashboard() {
                           {aptoStatus.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {aptoStatus.status === 'Válido' && socio.aptoMedico?.fechaVencimiento ? formatDate(socio.aptoMedico.fechaVencimiento, 'dd/MM/yy') : aptoStatus.razonInvalidez || '-'}
-                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleVerPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver Perfil</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleToggleEstadoSocio(socio.id)}>
                               {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                               {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem onClick={() => openAdherentesDialog(socio)} disabled={socio.estadoSocio !== 'Activo'}>
+                                <Users2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
@@ -311,7 +338,15 @@ export function GestionSociosDashboard() {
           </ScrollArea>
         </CardContent>
       </Card>
+       {selectedSocioForAdherentes && (
+        <GestionAdherentesDialog
+          socio={selectedSocioForAdherentes}
+          open={isAdherentesDialogOpen}
+          onOpenChange={setIsAdherentesDialogOpen}
+          onAdherentesUpdated={loadSocios} // Refresca la lista de socios principal
+        />
+      )}
     </div>
   );
 }
-
+```

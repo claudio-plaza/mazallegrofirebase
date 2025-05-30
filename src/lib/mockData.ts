@@ -1,6 +1,6 @@
 
-import type { Socio, RevisionMedica, UserRole, MiembroFamiliar, AptoMedicoInfo } from '@/types';
-import { RelacionFamiliar, EmpresaTitular } from '@/types'; // Added EmpresaTitular
+import type { Socio, RevisionMedica, MiembroFamiliar, Adherente } from '@/types';
+import { RelacionFamiliar, EmpresaTitular, EstadoCambioGrupoFamiliar } from '@/types';
 import { addDays, subDays, formatISO, subMonths, subYears } from 'date-fns';
 
 const today = new Date();
@@ -11,27 +11,26 @@ const mockFamiliaresJuan: MiembroFamiliar[] = [
     nombre: 'Maria',
     apellido: 'Gonzalez',
     dni: '12345679',
-    fechaNacimiento: subYears(today, 28),
+    fechaNacimiento: formatISO(subYears(today, 28)),
     relacion: RelacionFamiliar.CONYUGE,
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 5)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 5), 14)), // Vence en 9 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 5), 14)),
       observaciones: 'Apta.',
     },
-    // Fotos opcionales para mock
   },
   {
     id: 'fam-jp-2',
     nombre: 'Pedro',
     apellido: 'Pérez',
     dni: '55667788',
-    fechaNacimiento: subYears(today, 5),
+    fechaNacimiento: formatISO(subYears(today, 5)),
     relacion: RelacionFamiliar.HIJO_A,
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 2)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 2), 14)), // Vence en 12 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 2), 14)),
       observaciones: 'Apto para deportes infantiles.',
     },
   }
@@ -43,12 +42,12 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Marcos',
     apellido: 'Diaz',
     dni: '21223344',
-    fechaNacimiento: subYears(today, 33),
+    fechaNacimiento: formatISO(subYears(today, 33)),
     relacion: RelacionFamiliar.CONYUGE,
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 7)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 7), 14)), // Vence en 7 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 7), 14)),
       observaciones: 'Apto.',
     },
   },
@@ -57,9 +56,9 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Sofia',
     apellido: 'Diaz',
     dni: '66778899',
-    fechaNacimiento: subYears(today, 6),
+    fechaNacimiento: formatISO(subYears(today, 6)),
     relacion: RelacionFamiliar.HIJO_A,
-    aptoMedico: { // Pendiente
+    aptoMedico: {
       valido: false,
       razonInvalidez: 'Pendiente de presentación',
     },
@@ -69,12 +68,12 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Lucas',
     apellido: 'Diaz',
     dni: '77889900',
-    fechaNacimiento: subYears(today, 4),
+    fechaNacimiento: formatISO(subYears(today, 4)),
     relacion: RelacionFamiliar.HIJO_A,
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 1)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)), // Vence en 13 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)),
       observaciones: 'Apto.',
     },
   }
@@ -87,13 +86,13 @@ export const mockSocios: Socio[] = [
     nombre: 'Juan',
     apellido: 'Pérez',
     dni: '12345678',
-    fechaNacimiento: subYears(today, 30), 
+    fechaNacimiento: subYears(today, 30),
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 10)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 10), 14)), // Vence en 4 dias
+      fechaVencimiento: formatISO(addDays(subDays(today, 10), 14)),
       observaciones: 'Apto para actividad física moderada.',
     },
     email: 'juan.perez@example.com',
@@ -103,7 +102,9 @@ export const mockSocios: Socio[] = [
     miembroDesde: formatISO(subMonths(today, 6)),
     ultimaRevisionMedica: formatISO(subDays(today, 10)),
     grupoFamiliar: mockFamiliaresJuan,
+    adherentes: [],
     role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
   {
     id: '1002',
@@ -117,7 +118,7 @@ export const mockSocios: Socio[] = [
     aptoMedico: {
       valido: false,
       fechaEmision: formatISO(subDays(today, 20)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 20), 14)), // Vencido hace 6 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 20), 14)),
       razonInvalidez: 'Vencido',
       observaciones: 'Requiere nueva evaluación.',
     },
@@ -128,7 +129,11 @@ export const mockSocios: Socio[] = [
     miembroDesde: formatISO(subMonths(today, 12)),
     ultimaRevisionMedica: formatISO(subDays(today, 20)),
     grupoFamiliar: [],
+    adherentes: [
+      { id: 'adh-ana-1', nombre: 'Carlos', apellido: 'Santana', dni: '99887766', estadoAdherente: 'Activo'},
+    ],
     role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
   {
     id: '1003',
@@ -149,7 +154,9 @@ export const mockSocios: Socio[] = [
     empresa: EmpresaTitular.GALENO,
     miembroDesde: formatISO(subMonths(today, 24)),
     grupoFamiliar: [],
+    adherentes: [],
     role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
   {
     id: '1004',
@@ -163,7 +170,7 @@ export const mockSocios: Socio[] = [
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 3)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 3), 14)), // Vence en 11 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 3), 14)),
       observaciones: 'Sin restricciones.',
     },
     email: 'laura.martinez@example.com',
@@ -173,7 +180,22 @@ export const mockSocios: Socio[] = [
     miembroDesde: formatISO(subMonths(today, 3)),
     ultimaRevisionMedica: formatISO(subDays(today, 3)),
     grupoFamiliar: [],
+    adherentes: [],
     role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.PENDIENTE,
+    cambiosPendientesGrupoFamiliar: {
+      tipoGrupoFamiliar: 'conyugeEHijos',
+      familiares: {
+        hijos: [{
+          id: 'temp-hijo-laura',
+          nombre: 'Martin',
+          apellido: 'Martínez',
+          dni: '12121212',
+          fechaNacimiento: formatISO(subYears(today, 2)),
+          relacion: RelacionFamiliar.HIJO_A,
+        }]
+      }
+    }
   },
   {
     id: '1005',
@@ -187,7 +209,7 @@ export const mockSocios: Socio[] = [
     aptoMedico: {
       valido: true,
       fechaEmision: formatISO(subDays(today, 4)),
-      fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)), // Vence en 10 días
+      fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)),
       observaciones: 'Apta.',
     },
     email: 'laura.gomez@example.com',
@@ -197,7 +219,9 @@ export const mockSocios: Socio[] = [
     miembroDesde: formatISO(subMonths(today, 18)),
     ultimaRevisionMedica: formatISO(subDays(today, 4)),
     grupoFamiliar: mockFamiliaresLaura,
+    adherentes: [],
     role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
 ];
 
@@ -217,7 +241,7 @@ export const mockRevisiones: RevisionMedica[] = [
     fechaRevision: formatISO(subDays(today, 20)),
     socioId: '1002',
     socioNombre: 'Ana García',
-    resultado: 'Apto', 
+    resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 20), 14)),
     observaciones: 'Requiere nueva evaluación.',
     medicoResponsable: 'Dra. Quinn',
@@ -235,7 +259,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-jp-1',
     fechaRevision: formatISO(subDays(today, 5)),
-    socioId: 'fam-jp-1', 
+    socioId: 'fam-jp-1',
     socioNombre: 'Maria Gonzalez',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 5), 14)),
@@ -255,7 +279,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-lg-1',
     fechaRevision: formatISO(subDays(today, 4)),
-    socioId: '1005', // Titular Laura Gomez
+    socioId: '1005', 
     socioNombre: 'Laura Gomez',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 4), 14)),
@@ -265,7 +289,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-lg-1',
     fechaRevision: formatISO(subDays(today, 7)),
-    socioId: 'fam-lg-1', // Conyuge Marcos Diaz
+    socioId: 'fam-lg-1', 
     socioNombre: 'Marcos Diaz',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 7), 14)),
@@ -273,9 +297,9 @@ export const mockRevisiones: RevisionMedica[] = [
     medicoResponsable: 'Dr. House',
   },
   {
-    id: 'rev-fam-lg-3', // Para Lucas Diaz (Sofia está pendiente)
+    id: 'rev-fam-lg-3', 
     fechaRevision: formatISO(subDays(today, 1)),
-    socioId: 'fam-lg-3', 
+    socioId: 'fam-lg-3',
     socioNombre: 'Lucas Diaz',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 1), 14)),
