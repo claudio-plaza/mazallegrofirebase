@@ -17,6 +17,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { format, isToday, parseISO, formatISO } from 'date-fns';
+// Attempting to import using the alias again.
+// If this fails, please ensure the file exists at: src/lib/firebase/firestoreService.ts
 import { 
   getSocioByNumeroSocioOrDNI, 
   getAllSolicitudesCumpleanos, 
@@ -54,7 +56,6 @@ export function ControlAcceso() {
   const [solicitudInvitadosDiariosHoySocioBuscado, setSolicitudInvitadosDiariosHoySocioBuscado] = useState<SolicitudInvitadosDiarios | null>(null);
   const [invitadosDiariosSocioBuscado, setInvitadosDiariosSocioBuscado] = useState<InvitadoDiario[]>([]);
 
-  // Este estado ahora refleja si *algún miembro del grupo familiar del titular del evento* ha ingresado.
   const [eventoHabilitadoPorIngresoFamiliarCumple, setEventoHabilitadoPorIngresoFamiliarCumple] = useState(false);
   const [eventoHabilitadoPorIngresoFamiliarDiario, setEventoHabilitadoPorIngresoFamiliarDiario] = useState(false);
   
@@ -65,45 +66,33 @@ export function ControlAcceso() {
 
   const loadFestejosDelDia = useCallback(async () => {
     setLoadingFestejos(true);
-    const todasSolicitudes = await getAllSolicitudesCumpleanos();
-    const festejosHoyPromises = todasSolicitudes
-      .filter(sol => isToday(parseISO(sol.fechaEvento as unknown as string)) && sol.estado === 'Aprobada')
-      .map(async (festejo) => {
-        const titularDelFestejo = await getSocioByNumeroSocioOrDNI(festejo.idSocioTitular);
-        return {
-          ...festejo,
-          socioTitularNombreCompleto: titularDelFestejo ? `${titularDelFestejo.nombre} ${titularDelFestejo.apellido}` : 'Socio no encontrado',
-          listaInvitados: festejo.listaInvitados.map(inv => ({ ...inv, id: inv.dni }))
-        };
-      });
-    const festejosHoy = await Promise.all(festejosHoyPromises);
-    setFestejosDelDia(festejosHoy);
-    setLoadingFestejos(false);
-  }, []);
-
-  useEffect(() => {
-    loadFestejosDelDia();
-    const refreshData = () => {
-        if (socioEncontrado) handleSearch(true); // Re-search if a socio was being displayed
-        loadFestejosDelDia();
-    };
-    window.addEventListener('cumpleanosDBUpdated', refreshData);
-    window.addEventListener('invitadosDiariosDBUpdated', refreshData);
-    window.addEventListener('sociosDBUpdated', refreshData);
-    return () => {
-        window.removeEventListener('cumpleanosDBUpdated', refreshData);
-        window.removeEventListener('invitadosDiariosDBUpdated', refreshData);
-        window.removeEventListener('sociosDBUpdated', refreshData);
-    };
-  }, [loadFestejosDelDia, socioEncontrado]);
-
+    try {
+      const todasSolicitudes = await getAllSolicitudesCumpleanos();
+      const festejosHoyPromises = todasSolicitudes
+        .filter(sol => sol.fechaEvento && isToday(parseISO(sol.fechaEvento as unknown as string)) && sol.estado === 'Aprobada')
+        .map(async (festejo) => {
+          const titularDelFestejo = await getSocioByNumeroSocioOrDNI(festejo.idSocioTitular);
+          return {
+            ...festejo,
+            socioTitularNombreCompleto: titularDelFestejo ? `${titularDelFestejo.nombre} ${titularDelFestejo.apellido}` : 'Socio no encontrado',
+            listaInvitados: festejo.listaInvitados.map(inv => ({ ...inv, id: inv.dni }))
+          };
+        });
+      const festejosHoy = await Promise.all(festejosHoyPromises);
+      setFestejosDelDia(festejosHoy);
+    } catch (error) {
+      console.error("Error cargando festejos del dia:", error);
+      toast({ title: "Error", description: "No se pudieron cargar los festejos del día.", variant: "destructive" });
+    } finally {
+      setLoadingFestejos(false);
+    }
+  }, [toast]);
 
   const handleSearch = useCallback(async (isRefresh = false) => {
     const currentSearchTerm = isRefresh && socioEncontrado ? (socioEncontrado.numeroSocio || socioEncontrado.dni) : searchTerm;
     if (!currentSearchTerm.trim()) {
       setMensajeBusqueda('Por favor, ingrese un N° Socio, DNI o Nombre para buscar.');
       setSocioEncontrado(null);
-      // Reset all related states
       setSolicitudCumpleanosHoySocioBuscado(null);
       setInvitadosCumpleanosSocioBuscado([]);
       setEventoHabilitadoPorIngresoFamiliarCumple(false);
@@ -114,7 +103,7 @@ export function ControlAcceso() {
       return;
     }
     setLoading(true);
-    if(!isRefresh) { // only reset if not a refresh
+    if(!isRefresh) { 
       setSocioEncontrado(null);
       setSolicitudCumpleanosHoySocioBuscado(null);
       setInvitadosCumpleanosSocioBuscado([]);
@@ -124,50 +113,78 @@ export function ControlAcceso() {
       setEventoHabilitadoPorIngresoFamiliarDiario(false);
       setAccordionValue(undefined);
     }
-
-    const socio = await getSocioByNumeroSocioOrDNI(currentSearchTerm.trim());
     
-    if (socio) {
-      setSocioEncontrado(socio);
-      setMensajeBusqueda('');
-      setAccordionValue("socio-info");
-
-      const todasSolicitudesCumple = await getAllSolicitudesCumpleanos();
-      const solicitudHoyCumple = todasSolicitudesCumple.find(sol =>
-        sol.idSocioTitular === socio.numeroSocio &&
-        isToday(parseISO(sol.fechaEvento as unknown as string)) &&
-        sol.estado === 'Aprobada'
-      );
-      if (solicitudHoyCumple) {
-        setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
-        setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
-        setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
-      } else {
-        setSolicitudCumpleanosHoySocioBuscado(null);
-        setInvitadosCumpleanosSocioBuscado([]);
-        setEventoHabilitadoPorIngresoFamiliarCumple(false);
-      }
+    try {
+      const socio = await getSocioByNumeroSocioOrDNI(currentSearchTerm.trim());
       
-      const todasSolicitudesDiarias = await getAllSolicitudesInvitadosDiarios();
-      const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol => 
+      if (socio) {
+        setSocioEncontrado(socio);
+        setMensajeBusqueda('');
+        setAccordionValue("socio-info");
+
+        const todasSolicitudesCumple = await getAllSolicitudesCumpleanos();
+        const solicitudHoyCumple = todasSolicitudesCumple.find(sol =>
           sol.idSocioTitular === socio.numeroSocio &&
-          sol.fecha === todayISO
-      );
-      if (solicitudHoyDiaria) {
-          setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
-          setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios.map(inv => ({...inv, id: inv.dni})));
-          setEventoHabilitadoPorIngresoFamiliarDiario(solicitudHoyDiaria.titularIngresadoEvento || false);
+          sol.fechaEvento && isToday(parseISO(sol.fechaEvento as unknown as string)) &&
+          sol.estado === 'Aprobada'
+        );
+        if (solicitudHoyCumple) {
+          setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
+          setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
+          setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
+
+
+        } else {
+          setSolicitudCumpleanosHoySocioBuscado(null);
+          setInvitadosCumpleanosSocioBuscado([]);
+          setEventoHabilitadoPorIngresoFamiliarCumple(false);
+        }
+        
+        const todasSolicitudesDiarias = await getAllSolicitudesInvitadosDiarios();
+        const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol => 
+            sol.idSocioTitular === socio.numeroSocio &&
+            sol.fecha === todayISO
+        );
+        if (solicitudHoyDiaria) {
+            setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
+            setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios.map(inv => ({...inv, id: inv.dni})));
+             setEventoHabilitadoPorIngresoFamiliarDiario(solicitudHoyDiaria.titularIngresadoEvento || false);
+        } else {
+          setSolicitudInvitadosDiariosHoySocioBuscado(null);
+          setInvitadosDiariosSocioBuscado([]);
+          setEventoHabilitadoPorIngresoFamiliarDiario(false);
+        }
       } else {
-        setSolicitudInvitadosDiariosHoySocioBuscado(null);
-        setInvitadosDiariosSocioBuscado([]);
-        setEventoHabilitadoPorIngresoFamiliarDiario(false);
+        setMensajeBusqueda('Socio no encontrado.');
+        setSocioEncontrado(null); 
       }
-    } else {
-      setMensajeBusqueda('Socio no encontrado.');
-      setSocioEncontrado(null); // Ensure socio is cleared if not found
+    } catch (error) {
+      console.error("Error buscando socio:", error);
+      toast({ title: "Error de Búsqueda", description: "No se pudo completar la búsqueda.", variant: "destructive"});
+      setSocioEncontrado(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [searchTerm, todayISO, socioEncontrado]);
+  }, [searchTerm, todayISO, socioEncontrado, toast]);
+  
+  useEffect(() => {
+    loadFestejosDelDia();
+    const refreshData = async () => {
+        if (socioEncontrado) await handleSearch(true); 
+        await loadFestejosDelDia();
+    };
+    
+    window.addEventListener('cumpleanosDBUpdated', refreshData);
+    window.addEventListener('invitadosDiariosDBUpdated', refreshData);
+    window.addEventListener('sociosDBUpdated', refreshData); 
+    
+    return () => {
+        window.removeEventListener('cumpleanosDBUpdated', refreshData);
+        window.removeEventListener('invitadosDiariosDBUpdated', refreshData);
+        window.removeEventListener('sociosDBUpdated', refreshData);
+    };
+  }, [loadFestejosDelDia, socioEncontrado, handleSearch]);
+
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -192,41 +209,38 @@ export function ControlAcceso() {
       return;
     }
     
-    // Check if the member trying to enter has a valid individual medical cert
-    // For simplicity here, we assume family members' medical certs stored with them are checked.
-    // The main check is the TITULAR's status for enabling family/guest entry.
-    
     toast({
       title: 'Ingreso Registrado (Socio/Familiar)',
       description: `Acceso permitido para ${member.nombreCompleto}. Observación Apto Médico (Individual): ${getAptoMedicoStatus(member.aptoMedico).status}.`,
       variant: 'default',
     });
 
-    // Si CUALQUIER miembro del grupo familiar del titular del evento (socioEncontrado) ingresa,
-    // se habilita el evento del TITULAR.
-    // Este check se hace aquí porque 'member' es quien está físicamente ingresando.
-    // 'socioEncontrado' es el titular cuya cuenta se buscó.
-    // Si 'member.dni' es parte del grupo de 'socioEncontrado' o es el mismo 'socioEncontrado', entonces se procede.
-
-    let isPartOfGroup = member.isTitular; // True if 'member' is the 'socioEncontrado'
-    if (!isPartOfGroup && socioEncontrado.grupoFamiliar) {
-        isPartOfGroup = socioEncontrado.grupoFamiliar.some(fam => fam.dni === member.dni);
+    let isMemberOfSearchedSocioGroup = false;
+    if (socioEncontrado) {
+        if (member.isTitular && member.id === socioEncontrado.id) {
+            isMemberOfSearchedSocioGroup = true;
+        } else if (socioEncontrado.grupoFamiliar?.some(fam => fam.dni === member.dni)) { 
+            isMemberOfSearchedSocioGroup = true;
+        }
     }
 
-    if (isPartOfGroup) {
-      // Para cumpleaños
-      if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
-          setEventoHabilitadoPorIngresoFamiliarCumple(true);
-          const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
-          await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); // Update local state for immediate UI feedback
-      }
-      // Para invitados diarios
-      if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
-          setEventoHabilitadoPorIngresoFamiliarDiario(true);
-          const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
-          await updateSolicitudInvitadosDiarios(updatedSolicitudDiaria);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria); // Update local state
+    if (isMemberOfSearchedSocioGroup) {
+      try {
+        if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
+            const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
+            await updateSolicitudCumpleanos(updatedSolicitud);
+            setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
+            setEventoHabilitadoPorIngresoFamiliarCumple(true); 
+        }
+        if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
+            const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
+            await updateSolicitudInvitadosDiarios(updatedSolicitudDiaria);
+            setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
+            setEventoHabilitadoPorIngresoFamiliarDiario(true); 
+        }
+      } catch (error) {
+        console.error("Error actualizando estado de ingreso del grupo para evento/lista:", error);
+        toast({ title: "Error", description: "No se pudo actualizar el estado del evento/lista.", variant: "destructive" });
       }
     }
   };
@@ -240,14 +254,14 @@ export function ControlAcceso() {
     if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
         targetFestejo = solicitudCumpleanosHoySocioBuscado;
         targetInvitados = invitadosCumpleanosSocioBuscado;
-        targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple;
+        targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple; 
         isFestejoDelSocioBuscado = true;
     } else {
         const generalFestejo = festejosDelDia.find(f => f.id === festejoId);
         if (generalFestejo) {
             targetFestejo = generalFestejo;
             targetInvitados = generalFestejo.listaInvitados;
-            targetEventoHabilitado = generalFestejo.titularIngresadoEvento || false; // Usa el flag del objeto festejo general
+            targetEventoHabilitado = generalFestejo.titularIngresadoEvento || false; 
         }
     }
     
@@ -273,14 +287,20 @@ export function ControlAcceso() {
     });
 
     const updatedFestejo = { ...targetFestejo, listaInvitados: updatedInvitados };
-    await updateSolicitudCumpleanos(updatedFestejo as SolicitudCumpleanos);
-    
-    if (isFestejoDelSocioBuscado) {
-        setInvitadosCumpleanosSocioBuscado(updatedInvitados);
-        setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
-    } else {
-      // Refresh general list of festejos if change was made there
-      loadFestejosDelDia();
+    try {
+      await updateSolicitudCumpleanos(updatedFestejo as SolicitudCumpleanos);
+      
+      if (isFestejoDelSocioBuscado) {
+          setInvitadosCumpleanosSocioBuscado(updatedInvitados);
+          setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
+      } else {
+        setFestejosDelDia(prevFestejos => 
+            prevFestejos.map(f => f.id === festejoId ? (updatedFestejo as FestejoHoy) : f)
+        );
+      }
+    } catch (error) {
+      console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
+      toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
     }
   };
 
@@ -307,10 +327,14 @@ export function ControlAcceso() {
     });
     
     const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, listaInvitadosDiarios: updatedInvitados };
-    await updateSolicitudInvitadosDiarios(updatedSolicitud);
-    
-    setInvitadosDiariosSocioBuscado(updatedInvitados); // Update local state for immediate UI feedback
-    setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+    try {
+      await updateSolicitudInvitadosDiarios(updatedSolicitud);
+      setInvitadosDiariosSocioBuscado(updatedInvitados); 
+      setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+    } catch (error) {
+      console.error("Error actualizando ingreso de invitado diario:", error);
+      toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
+    }
   };
 
 
@@ -328,9 +352,9 @@ export function ControlAcceso() {
     });
     socioEncontrado.grupoFamiliar?.forEach(fam => {
       let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
-      if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') { // Assuming URL string for existing
+      if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') { 
          fotoFamiliar = fam.fotoPerfil;
-      } // FileList logic for local preview if needed can be added later
+      } 
 
       displayableMembers.push({
         id: fam.id || fam.dni,
@@ -338,7 +362,7 @@ export function ControlAcceso() {
         dni: fam.dni,
         fotoUrl: fotoFamiliar,
         aptoMedico: fam.aptoMedico,
-        estadoSocioTitular: socioEncontrado.estadoSocio, // Important: family member access depends on titular's status
+        estadoSocioTitular: socioEncontrado.estadoSocio, 
         relacion: fam.relacion,
         isTitular: false,
       });
@@ -389,7 +413,7 @@ export function ControlAcceso() {
 
           {mensajeBusqueda && <p className="text-sm text-center text-muted-foreground">{mensajeBusqueda}</p>}
 
-          {loading && !socioEncontrado && ( // Show main loading only if no socio is displayed yet
+          {loading && !socioEncontrado && ( 
               <div className="pt-4 space-y-3">
                   <Skeleton className="h-24 w-24 rounded-full mx-auto" />
                   <Skeleton className="h-6 w-3/4 mx-auto" />
@@ -475,7 +499,7 @@ export function ControlAcceso() {
                     <div className="border-t border-border px-4 py-4 mt-6">
                       <h4 className="text-lg font-semibold mb-3 flex items-center">
                           <Cake className="mr-2 h-5 w-5 text-pink-500" />
-                          Invitados Cumpleaños (Hoy: {formatDate(solicitudCumpleanosHoySocioBuscado.fechaEvento as unknown as string)})
+                          Invitados Cumpleaños (Hoy: {solicitudCumpleanosHoySocioBuscado.fechaEvento ? formatDate(solicitudCumpleanosHoySocioBuscado.fechaEvento as unknown as string) : 'Fecha Invalida'})
                       </h4>
                       {!eventoHabilitadoPorIngresoFamiliarCumple && (
                           <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
@@ -643,5 +667,3 @@ export function ControlAcceso() {
     </div>
   );
 }
-
-    
