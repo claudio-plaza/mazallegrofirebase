@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,36 +10,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   type AgregarFamiliaresData, agregarFamiliaresSchema,
-  RelacionFamiliar, MAX_HIJOS, MAX_PADRES
+  RelacionFamiliar, MAX_HIJOS, MAX_PADRES, type Socio
 } from '@/types';
 import { getFileUrl } from '@/lib/helpers';
+import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const totalSteps = 3;
 
 export function AltaSocioMultiStepForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const { toast } = useToast();
-  const auth = useAuth(); 
+  const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
+  const [socioData, setSocioData] = useState<Socio | null>(null);
+  const [loadingSocio, setLoadingSocio] = useState(true);
+  const [existingGroupType, setExistingGroupType] = useState<'conyugeEHijos' | 'padresMadres' | null>(null);
 
   const form = useForm<AgregarFamiliaresData>({
     resolver: async (data, context, options) => {
       let result;
       if (currentStep === 1) {
-        // Define step1Schema directly to avoid issues with agregarFamiliaresSchema.shape
         const step1Schema = z.object({
           tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
-            required_error: "Debe seleccionar un tipo de grupo familiar.", // Matching error message from main schema
+            required_error: "Debe seleccionar un tipo de grupo familiar.",
           }),
         });
         result = await zodResolver(step1Schema)(data, context, options);
-      } else if (currentStep === 2) { 
-        result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
-      } else { // currentStep === 3
+      } else { 
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
       }
       return result;
@@ -69,15 +71,68 @@ export function AltaSocioMultiStepForm() {
   
   const tipoGrupoFamiliar = watch("tipoGrupoFamiliar");
 
+  const fetchSocioData = useCallback(async () => {
+    if (!loggedInUserNumeroSocio || authLoading) return;
+    setLoadingSocio(true);
+    const data = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
+    setSocioData(data);
+    if (data) {
+      // Determine existing group type
+      let groupType: 'conyugeEHijos' | 'padresMadres' | null = null;
+      if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.CONYUGE) || data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.HIJO_A)) {
+        groupType = 'conyugeEHijos';
+      } else if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.PADRE_MADRE)) {
+        groupType = 'padresMadres';
+      }
+      setExistingGroupType(groupType);
+      
+      // Pre-fill form if data exists
+      setValue('tipoGrupoFamiliar', groupType || undefined);
+      const conyugeData = data.grupoFamiliar?.find(f => f.relacion === RelacionFamiliar.CONYUGE);
+      const hijosData = data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.HIJO_A);
+      const padresData = data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.PADRE_MADRE);
+
+      setValue('familiares.conyuge', conyugeData ? {
+        ...conyugeData, 
+        fechaNacimiento: conyugeData.fechaNacimiento ? parseISO(conyugeData.fechaNacimiento as unknown as string) : new Date(),
+        // file fields will remain null/string URL, not FileList, unless re-uploaded
+        fotoDniFrente: typeof conyugeData.fotoDniFrente === 'string' ? conyugeData.fotoDniFrente : null,
+        fotoDniDorso: typeof conyugeData.fotoDniDorso === 'string' ? conyugeData.fotoDniDorso : null,
+        fotoPerfil: typeof conyugeData.fotoPerfil === 'string' ? conyugeData.fotoPerfil : null,
+      } : null);
+      setValue('familiares.hijos', hijosData?.map(h => ({
+        ...h, 
+        fechaNacimiento: h.fechaNacimiento ? parseISO(h.fechaNacimiento as unknown as string) : new Date(),
+        fotoDniFrente: typeof h.fotoDniFrente === 'string' ? h.fotoDniFrente : null,
+        fotoDniDorso: typeof h.fotoDniDorso === 'string' ? h.fotoDniDorso : null,
+        fotoPerfil: typeof h.fotoPerfil === 'string' ? h.fotoPerfil : null,
+      })) || []);
+      setValue('familiares.padres', padresData?.map(p => ({
+        ...p, 
+        fechaNacimiento: p.fechaNacimiento ? parseISO(p.fechaNacimiento as unknown as string) : new Date(),
+        fotoDniFrente: typeof p.fotoDniFrente === 'string' ? p.fotoDniFrente : null,
+        fotoDniDorso: typeof p.fotoDniDorso === 'string' ? p.fotoDniDorso : null,
+        fotoPerfil: typeof p.fotoPerfil === 'string' ? p.fotoPerfil : null,
+      })) || []);
+    }
+    setLoadingSocio(false);
+  }, [loggedInUserNumeroSocio, authLoading, setValue]);
+
+  useEffect(() => {
+    fetchSocioData();
+  }, [fetchSocioData]);
+
+
   const nextStep = async () => {
     let isValidStep = false;
     if (currentStep === 1) {
+      if (existingGroupType && tipoGrupoFamiliar !== existingGroupType) {
+         toast({ title: "Cambio Bloqueado", description: "No puede cambiar el tipo de grupo familiar. Contacte a administración.", variant: "destructive" });
+         return; // Prevent proceeding if trying to change locked type
+      }
       isValidStep = await trigger(["tipoGrupoFamiliar"]);
     } else if (currentStep === 2) {
       isValidStep = await trigger(["familiares"]); 
-      if (errors.familiares && (errors.familiares as any).message && !isValidStep) {
-        // Error handled by the general toast below
-      }
     } else { 
       isValidStep = true; 
     }
@@ -88,10 +143,12 @@ export function AltaSocioMultiStepForm() {
       }
     } else {
       let description = "Por favor, corrija los errores en el formulario.";
-      if (currentStep === 1 && errors.tipoGrupoFamiliar) {
+       if (currentStep === 1 && errors.tipoGrupoFamiliar) {
         description = errors.tipoGrupoFamiliar.message || "Por favor, seleccione un tipo de grupo familiar para continuar.";
       } else if (currentStep === 2 && errors.familiares && (errors.familiares as any).message) {
         description = (errors.familiares as any).message;
+      } else if (currentStep === 2 && errors.familiares) {
+        description = "Verifique los datos de los familiares.";
       }
       
       toast({
@@ -109,19 +166,58 @@ export function AltaSocioMultiStepForm() {
     }
   };
   
-  const onSubmit = (data: AgregarFamiliaresData) => {
-    console.log('Datos Familiares para Agregar:', data);
-    toast({
-      title: 'Familiares Agregados',
-      description: 'Los datos de los familiares han sido enviados exitosamente (simulación).',
-    });
-    // Optionally reset form and go to first step or a success page
-    // reset(); 
-    // setCurrentStep(1);
+  const onSubmit = async (data: AgregarFamiliaresData) => {
+    if (!socioData) {
+      toast({ title: "Error", description: "No se pudieron cargar los datos del socio titular.", variant: "destructive" });
+      return;
+    }
+
+    const nuevosFamiliares: any[] = [];
+    if (data.tipoGrupoFamiliar === 'conyugeEHijos') {
+      if (data.familiares.conyuge) nuevosFamiliares.push(data.familiares.conyuge);
+      if (data.familiares.hijos) nuevosFamiliares.push(...data.familiares.hijos);
+    } else if (data.tipoGrupoFamiliar === 'padresMadres') {
+      if (data.familiares.padres) nuevosFamiliares.push(...data.familiares.padres);
+    }
+    
+    // Here you would handle file uploads for each familiar and get URLs
+    // For simulation, we'll just pass the FileList objects or existing string URLs
+    
+    const socioActualizado: Socio = {
+      ...socioData,
+      grupoFamiliar: nuevosFamiliares.map(fam => ({
+        ...fam,
+        fechaNacimiento: format(new Date(fam.fechaNacimiento), 'yyyy-MM-dd'), // Ensure date is string for storage
+        // If foto fields are FileList, they'd be uploaded and replaced by URL string here
+        // If they are already string (URL), they are kept
+      })),
+    };
+
+    try {
+      await updateSocio(socioActualizado);
+      toast({
+        title: 'Familiares Actualizados',
+        description: 'Los datos del grupo familiar han sido actualizados.',
+      });
+      fetchSocioData(); // Refresh data to reflect changes and lock type
+      setCurrentStep(1); // Or go to a success/confirmation page
+    } catch (error) {
+      console.error("Error actualizando socio:", error);
+      toast({ title: "Error", description: "No se pudo actualizar el grupo familiar.", variant: "destructive" });
+    }
   };
 
- const renderFilePreview = (fileList: FileList | null | undefined, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
-    const url = getFileUrl(fileList);
+ const renderFilePreview = (fileList: FileList | null | undefined | string, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
+    if (typeof fileList === 'string') { // It's a URL
+      return (
+        <div className="mt-2 flex items-center space-x-2">
+          <FileIcon className="h-5 w-5 text-muted-foreground" />
+          <a href={fileList} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate max-w-[150px] sm:max-w-[200px]">Ver archivo</a>
+          {/* No remove button for existing URLs for simplicity in this simulation */}
+        </div>
+      );
+    }
+    const url = getFileUrl(fileList); // FileList
     if (url) {
       return (
         <div className="mt-2 flex items-center space-x-2">
@@ -136,11 +232,9 @@ export function AltaSocioMultiStepForm() {
     return null;
   };
 
-  // Effect to clear dependent fields when tipoGrupoFamiliar changes
   useEffect(() => {
     const subscription = watch((value, { name }) => {
-      if (name === 'tipoGrupoFamiliar') {
-        // When tipoGrupoFamiliar changes, reset the other group's data
+      if (name === 'tipoGrupoFamiliar' && !existingGroupType) { // Only reset if no existing type is locked
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
           setValue('familiares.padres', []);
         } else if (value.tipoGrupoFamiliar === 'padresMadres') {
@@ -150,14 +244,21 @@ export function AltaSocioMultiStepForm() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [watch, setValue]);
+  }, [watch, setValue, existingGroupType]);
+
+  if (loadingSocio || authLoading) {
+      return <p>Cargando datos del perfil...</p>
+  }
+  if (!socioData && !authLoading && !loadingSocio) {
+      return <p>Error al cargar datos del socio. Por favor, intente recargar.</p>
+  }
 
 
   return (
     <FormProvider {...form}>
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
-          <CardTitle>Agregar Grupo Familiar</CardTitle>
+          <CardTitle>Agregar/Modificar Grupo Familiar</CardTitle>
           <CardDescription>Paso {currentStep} de {totalSteps} - {
             currentStep === 1 ? "Selección de tipo de grupo" :
             currentStep === 2 ? "Detalles de familiares" :
@@ -169,23 +270,35 @@ export function AltaSocioMultiStepForm() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
-            {/* Paso 1: Selección de Tipo de Grupo Familiar */}
             {currentStep === 1 && ( 
               <section>
                 <h3 className="text-lg font-semibold mb-4">Tipo de Grupo Familiar</h3>
+                {existingGroupType && (
+                    <Alert variant="default" className="mb-4 bg-blue-500/10 border-blue-500 text-blue-700">
+                        <Lock className="h-5 w-5 text-blue-600" />
+                        <AlertTitle className="text-blue-700">Tipo de Grupo Establecido</AlertTitle>
+                        <AlertDescription>
+                            Ya tienes un grupo familiar de tipo: <strong>{existingGroupType === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 'Padres/Madres'}</strong>.
+                            <br />Para cambiar el tipo de grupo, por favor contacta a administración.
+                        </AlertDescription>
+                    </Alert>
+                )}
                  <FormField
                     control={control}
                     name="tipoGrupoFamiliar"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <FormLabel>¿Qué tipo de grupo familiar desea registrar?</FormLabel>
+                        <FormLabel className={existingGroupType ? 'text-muted-foreground' : ''}>
+                            {existingGroupType ? 'Tipo de grupo actual (no modificable aquí):' : '¿Qué tipo de grupo familiar desea registrar?'}
+                        </FormLabel>
                         <FormControl>
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Button 
                                     type="button" 
-                                    variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'} 
-                                    onClick={() => field.onChange('conyugeEHijos')} 
+                                    variant={(field.value === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') ? 'default' : 'outline'} 
+                                    onClick={() => !existingGroupType && field.onChange('conyugeEHijos')} 
                                     className="flex-1 justify-start p-6 text-left h-auto"
+                                    disabled={existingGroupType && existingGroupType !== 'conyugeEHijos'}
                                 >
                                     <div className="flex items-center">
                                         <Heart className="mr-3 h-6 w-6 text-red-500" /> 
@@ -197,9 +310,10 @@ export function AltaSocioMultiStepForm() {
                                 </Button>
                                 <Button 
                                     type="button" 
-                                    variant={field.value === 'padresMadres' ? 'default' : 'outline'} 
-                                    onClick={() => field.onChange('padresMadres')} 
+                                    variant={(field.value === 'padresMadres' || existingGroupType === 'padresMadres') ? 'default' : 'outline'} 
+                                    onClick={() => !existingGroupType && field.onChange('padresMadres')} 
                                     className="flex-1 justify-start p-6 text-left h-auto"
+                                    disabled={existingGroupType && existingGroupType !== 'padresMadres'}
                                 >
                                     <div className="flex items-center">
                                         <Users className="mr-3 h-6 w-6 text-blue-500" />
@@ -218,14 +332,12 @@ export function AltaSocioMultiStepForm() {
               </section>
             )}
             
-            {/* Paso 2: Detalles del Grupo Familiar */}
             {currentStep === 2 && ( 
               <section>
                 <h3 className="text-lg font-semibold mb-2">Datos del Grupo Familiar</h3>
-                {!tipoGrupoFamiliar && <p className="text-destructive">Por favor, regrese al paso anterior y seleccione un tipo de grupo familiar.</p>}
-
-                {/* Sección Cónyuge (Visible si tipoGrupoFamiliar es 'conyugeEHijos') */}
-                {tipoGrupoFamiliar === 'conyugeEHijos' && (
+                {!tipoGrupoFamiliar && !existingGroupType && <p className="text-destructive">Por favor, regrese al paso anterior y seleccione un tipo de grupo familiar.</p>}
+                {(tipoGrupoFamiliar === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') && (
+                    <>
                     <div className="mb-6 p-4 border rounded-md">
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="text-md font-semibold">Datos del Cónyuge</h4>
@@ -263,7 +375,7 @@ export function AltaSocioMultiStepForm() {
                                           <FormControl>
                                               <label className="cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary">
                                                   <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                                                  <span className="text-sm text-muted-foreground">{value && value.length > 0 ? value[0].name : "Subir"}</span>
+                                                  <span className="text-sm text-muted-foreground">{(value instanceof FileList && value.length > 0) ? value[0].name : (typeof value === 'string' ? "Archivo cargado" : "Subir")}</span>
                                                   <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
                                               </label>
                                           </FormControl>
@@ -276,10 +388,6 @@ export function AltaSocioMultiStepForm() {
                         </>
                        )}
                     </div>
-                )}
-
-                {/* Sección Hijos (Visible si tipoGrupoFamiliar es 'conyugeEHijos') */}
-                {tipoGrupoFamiliar === 'conyugeEHijos' && (
                     <div className="mb-6 p-4 border rounded-md">
                         <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta {MAX_HIJOS})</h4>
                         {hijosFields.map((item, index) => (
@@ -305,7 +413,7 @@ export function AltaSocioMultiStepForm() {
                                             <FormControl>
                                                 <label className="cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary">
                                                     <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                                                    <span className="text-sm text-muted-foreground">{value && value.length > 0 ? value[0].name : "Subir"}</span>
+                                                    <span className="text-sm text-muted-foreground">{(value instanceof FileList && value.length > 0) ? value[0].name : (typeof value === 'string' ? "Archivo cargado" : "Subir")}</span>
                                                     <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
                                                 </label>
                                             </FormControl>
@@ -323,10 +431,10 @@ export function AltaSocioMultiStepForm() {
                         </Button>
                         )}
                     </div>
+                    </>
                 )}
 
-                {/* Sección Padres/Madres (Visible si tipoGrupoFamiliar es 'padresMadres') */}
-                {tipoGrupoFamiliar === 'padresMadres' && (
+                {(tipoGrupoFamiliar === 'padresMadres' || existingGroupType === 'padresMadres') && (
                     <div className="mb-6 p-4 border rounded-md">
                         <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta {MAX_PADRES})</h4>
                         {padresFields.map((item, index) => (
@@ -352,7 +460,7 @@ export function AltaSocioMultiStepForm() {
                                             <FormControl>
                                                 <label className="cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary">
                                                     <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                                                    <span className="text-sm text-muted-foreground">{value && value.length > 0 ? value[0].name : "Subir"}</span>
+                                                    <span className="text-sm text-muted-foreground">{(value instanceof FileList && value.length > 0) ? value[0].name : (typeof value === 'string' ? "Archivo cargado" : "Subir")}</span>
                                                     <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
                                                 </label>
                                             </FormControl>
@@ -386,24 +494,23 @@ export function AltaSocioMultiStepForm() {
               </section>
             )}
 
-            {/* Paso 3: Revisión Final */}
             {currentStep === 3 && ( 
               <section>
                 <h3 className="text-lg font-semibold mb-4">Revisar y Enviar Solicitud</h3>
                 <p className="text-muted-foreground mb-4">Por favor, revisa que toda la información sea correcta antes de enviar.</p>
                 <div className="space-y-2 p-4 border rounded-md bg-muted/30">
                   <p><strong>Tipo de Grupo Familiar:</strong> {
-                    watch("tipoGrupoFamiliar") === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 
-                    watch("tipoGrupoFamiliar") === 'padresMadres' ? 'Padres/Madres' : 'No seleccionado'
+                    (watch("tipoGrupoFamiliar") || existingGroupType) === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 
+                    (watch("tipoGrupoFamiliar") || existingGroupType) === 'padresMadres' ? 'Padres/Madres' : 'No seleccionado'
                   }</p>
                   
-                  {watch("tipoGrupoFamiliar") === 'conyugeEHijos' && (
+                  {(watch("tipoGrupoFamiliar") === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') && (
                     <>
                       {watch("familiares.conyuge") && <p className="pl-4"><strong>Cónyuge:</strong> {watch("familiares.conyuge.nombre")} {watch("familiares.conyuge.apellido")}</p>}
                       {watch("familiares.hijos")?.map((h, i) => <p key={`hijo-rev-${i}`} className="pl-4"><strong>Hijo/a {i+1}:</strong> {h.nombre} {h.apellido}</p>)}
                     </>
                   )}
-                  {watch("tipoGrupoFamiliar") === 'padresMadres' && (
+                  {(watch("tipoGrupoFamiliar") === 'padresMadres' || existingGroupType === 'padresMadres') && (
                     <>
                       {watch("familiares.padres")?.map((p, i) => <p key={`padre-rev-${i}`} className="pl-4"><strong>Padre/Madre {i+1}:</strong> {p.nombre} {p.apellido}</p>)}
                     </>
@@ -433,3 +540,5 @@ export function AltaSocioMultiStepForm() {
   );
 }
 
+
+    
