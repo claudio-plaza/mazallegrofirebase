@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { 
@@ -77,7 +77,6 @@ export function AltaSocioMultiStepForm() {
     const data = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
     setSocioData(data);
     if (data) {
-      // Determine existing group type
       let groupType: 'conyugeEHijos' | 'padresMadres' | null = null;
       if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.CONYUGE) || data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.HIJO_A)) {
         groupType = 'conyugeEHijos';
@@ -86,7 +85,6 @@ export function AltaSocioMultiStepForm() {
       }
       setExistingGroupType(groupType);
       
-      // Pre-fill form if data exists
       setValue('tipoGrupoFamiliar', groupType || undefined);
       const conyugeData = data.grupoFamiliar?.find(f => f.relacion === RelacionFamiliar.CONYUGE);
       const hijosData = data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.HIJO_A);
@@ -95,7 +93,6 @@ export function AltaSocioMultiStepForm() {
       setValue('familiares.conyuge', conyugeData ? {
         ...conyugeData, 
         fechaNacimiento: conyugeData.fechaNacimiento ? parseISO(conyugeData.fechaNacimiento as unknown as string) : new Date(),
-        // file fields will remain null/string URL, not FileList, unless re-uploaded
         fotoDniFrente: typeof conyugeData.fotoDniFrente === 'string' ? conyugeData.fotoDniFrente : null,
         fotoDniDorso: typeof conyugeData.fotoDniDorso === 'string' ? conyugeData.fotoDniDorso : null,
         fotoPerfil: typeof conyugeData.fotoPerfil === 'string' ? conyugeData.fotoPerfil : null,
@@ -128,7 +125,7 @@ export function AltaSocioMultiStepForm() {
     if (currentStep === 1) {
       if (existingGroupType && tipoGrupoFamiliar !== existingGroupType) {
          toast({ title: "Cambio Bloqueado", description: "No puede cambiar el tipo de grupo familiar. Contacte a administración.", variant: "destructive" });
-         return; // Prevent proceeding if trying to change locked type
+         return;
       }
       isValidStep = await trigger(["tipoGrupoFamiliar"]);
     } else if (currentStep === 2) {
@@ -156,7 +153,6 @@ export function AltaSocioMultiStepForm() {
         description: description,
         variant: "destructive",
       });
-      console.log(`Validation errors (Step ${currentStep}):`, JSON.stringify(form.formState.errors, null, 2));
     }
   };
 
@@ -180,16 +176,11 @@ export function AltaSocioMultiStepForm() {
       if (data.familiares.padres) nuevosFamiliares.push(...data.familiares.padres);
     }
     
-    // Here you would handle file uploads for each familiar and get URLs
-    // For simulation, we'll just pass the FileList objects or existing string URLs
-    
     const socioActualizado: Socio = {
       ...socioData,
       grupoFamiliar: nuevosFamiliares.map(fam => ({
         ...fam,
-        fechaNacimiento: format(new Date(fam.fechaNacimiento), 'yyyy-MM-dd'), // Ensure date is string for storage
-        // If foto fields are FileList, they'd be uploaded and replaced by URL string here
-        // If they are already string (URL), they are kept
+        fechaNacimiento: format(new Date(fam.fechaNacimiento), 'yyyy-MM-dd'),
       })),
     };
 
@@ -199,8 +190,8 @@ export function AltaSocioMultiStepForm() {
         title: 'Familiares Actualizados',
         description: 'Los datos del grupo familiar han sido actualizados.',
       });
-      fetchSocioData(); // Refresh data to reflect changes and lock type
-      setCurrentStep(1); // Or go to a success/confirmation page
+      fetchSocioData(); 
+      setCurrentStep(1);
     } catch (error) {
       console.error("Error actualizando socio:", error);
       toast({ title: "Error", description: "No se pudo actualizar el grupo familiar.", variant: "destructive" });
@@ -208,16 +199,15 @@ export function AltaSocioMultiStepForm() {
   };
 
  const renderFilePreview = (fileList: FileList | null | undefined | string, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
-    if (typeof fileList === 'string') { // It's a URL
+    if (typeof fileList === 'string') { 
       return (
         <div className="mt-2 flex items-center space-x-2">
           <FileIcon className="h-5 w-5 text-muted-foreground" />
           <a href={fileList} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate max-w-[150px] sm:max-w-[200px]">Ver archivo</a>
-          {/* No remove button for existing URLs for simplicity in this simulation */}
         </div>
       );
     }
-    const url = getFileUrl(fileList); // FileList
+    const url = getFileUrl(fileList); 
     if (url) {
       return (
         <div className="mt-2 flex items-center space-x-2">
@@ -234,7 +224,7 @@ export function AltaSocioMultiStepForm() {
 
   useEffect(() => {
     const subscription = watch((value, { name }) => {
-      if (name === 'tipoGrupoFamiliar' && !existingGroupType) { // Only reset if no existing type is locked
+      if (name === 'tipoGrupoFamiliar' && !existingGroupType) { 
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
           setValue('familiares.padres', []);
         } else if (value.tipoGrupoFamiliar === 'padresMadres') {
@@ -253,17 +243,25 @@ export function AltaSocioMultiStepForm() {
       return <p>Error al cargar datos del socio. Por favor, intente recargar.</p>
   }
 
-
   return (
     <FormProvider {...form}>
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
-          <CardTitle>Agregar/Modificar Grupo Familiar</CardTitle>
+          <CardTitle>Gestionar Grupo Familiar</CardTitle>
           <CardDescription>Paso {currentStep} de {totalSteps} - {
             currentStep === 1 ? "Selección de tipo de grupo" :
             currentStep === 2 ? "Detalles de familiares" :
             "Revisión final"
           }</CardDescription>
+           <Alert variant="default" className="mt-4 bg-primary/10 border-primary/30 text-primary">
+              <Info className="h-5 w-5" />
+              <AlertTitle className="font-semibold">Información Importante</AlertTitle>
+              <AlertDescription>
+                Esta sección es para agregar o modificar los datos de su **grupo familiar**. 
+                <br />
+                Los datos personales del titular (incluida la foto de perfil) no se pueden cambiar desde este formulario. Para realizar cambios en sus datos personales, por favor, contacte a la administración del club.
+              </AlertDescription>
+            </Alert>
           <div className="w-full bg-muted rounded-full h-2.5 mt-2">
             <div className="bg-primary h-2.5 rounded-full" style={{ width: `${(currentStep / totalSteps) * 100}%` }}></div>
           </div>
@@ -530,7 +528,7 @@ export function AltaSocioMultiStepForm() {
               </Button>
             ) : (
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
+                {form.formState.isSubmitting ? 'Enviando...' : 'Guardar Cambios del Grupo Familiar'}
               </Button>
             )}
           </CardFooter>
@@ -539,6 +537,3 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
-
-
-    

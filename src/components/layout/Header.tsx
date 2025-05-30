@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 import { LogOut, UserCircle, Settings, LayoutDashboard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-// import Image from 'next/image'; // Image component can be added if a logo file is available
 
 const Header = () => {
   const { isLoggedIn, userRole, userName, logout } = useAuth();
@@ -22,7 +21,6 @@ const Header = () => {
     <header className="bg-card shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
-          {/* Placeholder for a logo - User should replace this with their actual logo */}
           <div className="flex items-center justify-center h-8 w-8 bg-primary-foreground/10 rounded-sm" data-ai-hint="logo">
             <span className="font-bold text-lg text-primary">MA</span>
           </div>
@@ -43,7 +41,7 @@ const Header = () => {
                 </Link>
               )}
               {userRole === 'socio' && (
-                <Link href="/perfil">
+                <Link href="/mi-perfil">
                   <Button variant="ghost" size="sm">
                     <UserCircle className="mr-0 sm:mr-2 h-4 w-4" /> 
                      <span className="hidden sm:inline">Mi Perfil</span>

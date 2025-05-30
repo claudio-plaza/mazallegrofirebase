@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter } from 'lucide-react'; // Added UserPlus, ListFilter
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter } from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',
@@ -14,7 +14,23 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Vista general y accesos rápidos.',
     icon: Home,
     href: '/dashboard',
-    roles: ['portero', 'medico'], // Removed 'socio' and 'administrador'
+    roles: ['portero', 'medico'], 
+  },
+  {
+    id: 'mi-perfil-vista',
+    title: 'Mi Perfil',
+    description: 'Visualiza tus datos personales y de membresía.',
+    icon: UserCircle,
+    href: '/mi-perfil',
+    roles: ['socio'],
+  },
+  {
+    id: 'gestionar-familiares',
+    title: 'Gestionar Grupo Familiar',
+    description: 'Agrega o modifica los datos de tu grupo familiar.',
+    icon: Users,
+    href: '/perfil',
+    roles: ['socio'],
   },
   {
     id: 'carnet-digital',
@@ -22,14 +38,6 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Accede a tu carnet de socio digital.',
     icon: FileText,
     href: '/carnet',
-    roles: ['socio'],
-  },
-  {
-    id: 'perfil-alta',
-    title: 'Mi Perfil / Familiares',
-    description: 'Completa o actualiza tus datos familiares.',
-    icon: UserCircle,
-    href: '/perfil',
     roles: ['socio'],
   },
   {
