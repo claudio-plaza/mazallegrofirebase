@@ -21,6 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Card } from '@/components/ui/card';
 
 interface GestionAdherentesDialogProps {
   socio: Socio | null;
@@ -256,4 +257,3 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     </Dialog>
   );
 }
-```

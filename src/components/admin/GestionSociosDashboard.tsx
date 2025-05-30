@@ -349,4 +349,3 @@ export function GestionSociosDashboard() {
     </div>
   );
 }
-```
