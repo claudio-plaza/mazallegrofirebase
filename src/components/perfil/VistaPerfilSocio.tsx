@@ -16,6 +16,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 export function VistaPerfilSocio() {
@@ -232,3 +233,4 @@ export function VistaPerfilSocio() {
     </div>
   );
 }
+
