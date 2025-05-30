@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
+import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2 } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -17,8 +17,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { format, isToday, parseISO, formatISO } from 'date-fns';
-// Attempting to import using the alias again.
-// If this fails, please ensure the file exists at: src/lib/firebase/firestoreService.ts
 import { 
   getSocioByNumeroSocioOrDNI, 
   getAllSolicitudesCumpleanos, 
@@ -27,15 +25,18 @@ import {
   updateSolicitudInvitadosDiarios
 } from '@/lib/firebase/firestoreService';
 
-type DisplayableMember = {
-  id: string; // DNI for familiar, Socio.id for titular
+type DisplayablePerson = {
+  id: string; 
   nombreCompleto: string;
   dni: string;
   fotoUrl?: string;
-  aptoMedico?: AptoMedicoInfo;
+  aptoMedico?: AptoMedicoInfo; // Solo para socios y familiares
   estadoSocioTitular?: Socio['estadoSocio']; // Estado del titular al que pertenece
   relacion?: string;
   isTitular: boolean;
+  isFamiliar: boolean;
+  isAdherente: boolean;
+  estadoAdherente?: Adherente['estadoAdherente']; // Solo para adherentes
 };
 
 type FestejoHoy = SolicitudCumpleanos & {
@@ -132,8 +133,6 @@ export function ControlAcceso() {
           setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
           setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
           setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
-
-
         } else {
           setSolicitudCumpleanosHoySocioBuscado(null);
           setInvitadosCumpleanosSocioBuscado([]);
@@ -148,7 +147,7 @@ export function ControlAcceso() {
         if (solicitudHoyDiaria) {
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
             setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios.map(inv => ({...inv, id: inv.dni})));
-             setEventoHabilitadoPorIngresoFamiliarDiario(solicitudHoyDiaria.titularIngresadoEvento || false);
+            setEventoHabilitadoPorIngresoFamiliarDiario(solicitudHoyDiaria.titularIngresadoEvento || false);
         } else {
           setSolicitudInvitadosDiariosHoySocioBuscado(null);
           setInvitadosDiariosSocioBuscado([]);
@@ -199,49 +198,64 @@ export function ControlAcceso() {
     });
   };
 
-  const handleRegistrarIngresoSocioOFamiliar = async (member: DisplayableMember) => {
-     if (!socioEncontrado || socioEncontrado.estadoSocio !== 'Activo') {
-      toast({
-        title: 'Acceso Denegado',
-        description: `No se puede registrar ingreso. El socio titular ${socioEncontrado?.nombre} ${socioEncontrado?.apellido} se encuentra ${socioEncontrado?.estadoSocio || 'Desconocido'}.`,
-        variant: 'destructive',
-      });
-      return;
+  const handleRegistrarIngreso = (member: DisplayablePerson) => {
+    if (!socioEncontrado) return;
+
+    let puedeIngresar = false;
+    let mensajeIngreso = '';
+
+    if (member.isTitular || member.isFamiliar) {
+      if (socioEncontrado.estadoSocio === 'Activo') {
+        puedeIngresar = true;
+        mensajeIngreso = `Acceso permitido para ${member.nombreCompleto} (${member.relacion}). Observación Apto Médico: ${getAptoMedicoStatus(member.aptoMedico).status}.`;
+      } else {
+        mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
+      }
+    } else if (member.isAdherente) {
+      if (socioEncontrado.estadoSocio === 'Activo' && member.estadoAdherente === 'Activo') {
+        puedeIngresar = true;
+        mensajeIngreso = `Acceso permitido para Adherente: ${member.nombreCompleto}.`;
+      } else if (socioEncontrado.estadoSocio !== 'Activo') {
+        mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
+      } else { // Titular activo, pero adherente inactivo
+        mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} está ${member.estadoAdherente}.`;
+      }
     }
-    
+
     toast({
-      title: 'Ingreso Registrado (Socio/Familiar)',
-      description: `Acceso permitido para ${member.nombreCompleto}. Observación Apto Médico (Individual): ${getAptoMedicoStatus(member.aptoMedico).status}.`,
-      variant: 'default',
+      title: puedeIngresar ? 'Ingreso Registrado' : 'Acceso Denegado',
+      description: mensajeIngreso,
+      variant: puedeIngresar ? 'default' : 'destructive',
     });
 
-    let isMemberOfSearchedSocioGroup = false;
-    if (socioEncontrado) {
-        if (member.isTitular && member.id === socioEncontrado.id) {
-            isMemberOfSearchedSocioGroup = true;
-        } else if (socioEncontrado.grupoFamiliar?.some(fam => fam.dni === member.dni)) { 
-            isMemberOfSearchedSocioGroup = true;
+    if (puedeIngresar && (member.isTitular || member.isFamiliar)) {
+        let isMemberOfSearchedSocioGroup = false;
+        if (socioEncontrado) {
+            if (member.isTitular && member.id === socioEncontrado.id) {
+                isMemberOfSearchedSocioGroup = true;
+            } else if (socioEncontrado.grupoFamiliar?.some(fam => fam.dni === member.dni)) { 
+                isMemberOfSearchedSocioGroup = true;
+            }
         }
-    }
-
-    if (isMemberOfSearchedSocioGroup) {
-      try {
-        if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
-            const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
-            await updateSolicitudCumpleanos(updatedSolicitud);
-            setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
-            setEventoHabilitadoPorIngresoFamiliarCumple(true); 
+        if (isMemberOfSearchedSocioGroup) {
+          try {
+            if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
+                const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
+                updateSolicitudCumpleanos(updatedSolicitud); // No need to await if not critical for immediate UI change
+                setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
+                setEventoHabilitadoPorIngresoFamiliarCumple(true); 
+            }
+            if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
+                const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
+                updateSolicitudInvitadosDiarios(updatedSolicitudDiaria); // No need to await
+                setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
+                setEventoHabilitadoPorIngresoFamiliarDiario(true); 
+            }
+          } catch (error) {
+            console.error("Error actualizando estado de ingreso del grupo para evento/lista:", error);
+            toast({ title: "Error", description: "No se pudo actualizar el estado del evento/lista.", variant: "destructive" });
+          }
         }
-        if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
-            const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
-            await updateSolicitudInvitadosDiarios(updatedSolicitudDiaria);
-            setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
-            setEventoHabilitadoPorIngresoFamiliarDiario(true); 
-        }
-      } catch (error) {
-        console.error("Error actualizando estado de ingreso del grupo para evento/lista:", error);
-        toast({ title: "Error", description: "No se pudo actualizar el estado del evento/lista.", variant: "destructive" });
-      }
     }
   };
 
@@ -338,9 +352,10 @@ export function ControlAcceso() {
   };
 
 
-  const displayableMembers: DisplayableMember[] = [];
+  const displayablePeople: DisplayablePerson[] = [];
   if (socioEncontrado) {
-    displayableMembers.push({
+    // Titular
+    displayablePeople.push({
       id: socioEncontrado.id,
       nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
       dni: socioEncontrado.dni,
@@ -349,14 +364,16 @@ export function ControlAcceso() {
       estadoSocioTitular: socioEncontrado.estadoSocio,
       relacion: 'Titular',
       isTitular: true,
+      isFamiliar: false,
+      isAdherente: false,
     });
+    // Familiares
     socioEncontrado.grupoFamiliar?.forEach(fam => {
       let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
       if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') { 
          fotoFamiliar = fam.fotoPerfil;
       } 
-
-      displayableMembers.push({
+      displayablePeople.push({
         id: fam.id || fam.dni,
         nombreCompleto: `${fam.nombre} ${fam.apellido}`,
         dni: fam.dni,
@@ -365,6 +382,23 @@ export function ControlAcceso() {
         estadoSocioTitular: socioEncontrado.estadoSocio, 
         relacion: fam.relacion,
         isTitular: false,
+        isFamiliar: true,
+        isAdherente: false,
+      });
+    });
+    // Adherentes
+    socioEncontrado.adherentes?.forEach(adh => {
+      displayablePeople.push({
+        id: adh.id,
+        nombreCompleto: `${adh.nombre} ${adh.apellido}`,
+        dni: adh.dni,
+        fotoUrl: `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`, // Adherentes no tienen fotoUrl definida en el tipo
+        estadoSocioTitular: socioEncontrado.estadoSocio,
+        relacion: 'Adherente',
+        isTitular: false,
+        isFamiliar: false,
+        isAdherente: true,
+        estadoAdherente: adh.estadoAdherente,
       });
     });
   }
@@ -388,6 +422,91 @@ export function ControlAcceso() {
       mensajeAccesoGeneral = `Socio titular ${socioEncontrado.estadoSocio.toUpperCase()}. NO PUEDE INGRESAR.`;
     }
   }
+
+  const renderPersonCard = (person: DisplayablePerson) => {
+    let statusBadge = null;
+    let aptoMedicoDisplay = null;
+    let cardBorderClass = 'border-gray-300';
+    let puedeIngresarIndividualmente = false;
+
+    if (person.isTitular) {
+        statusBadge = <Badge variant={socioEncontrado?.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado?.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado?.estadoSocio}</Badge>;
+        const aptoStatus = getAptoMedicoStatus(person.aptoMedico);
+        aptoMedicoDisplay = (
+            <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
+                <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
+            </div>
+        );
+        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-400' : 'border-red-400';
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
+    } else if (person.isFamiliar) {
+        const aptoStatus = getAptoMedicoStatus(person.aptoMedico);
+        aptoMedicoDisplay = (
+             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
+                <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
+            </div>
+        );
+        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-300' : 'border-red-300';
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
+    } else if (person.isAdherente) {
+        statusBadge = <Badge variant={person.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={person.estadoAdherente === 'Activo' ? 'bg-green-500' : 'bg-slate-500'}>{person.estadoAdherente}</Badge>;
+        cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo') ? 'border-green-300' : 'border-red-300';
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo';
+    }
+    
+    const fotoToShow = person.fotoUrl || `https://placehold.co/60x60.png?text=${person.nombreCompleto[0]}${person.nombreCompleto.split(' ')[1]?.[0] || ''}`;
+
+    return (
+      <Card key={person.id} className={`p-4 ${cardBorderClass} bg-card shadow-sm`}>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <Avatar className="h-16 w-16 border-2 border-muted">
+            <AvatarImage src={fotoToShow} alt={person.nombreCompleto} data-ai-hint="member photo"/>
+            <AvatarFallback className="text-xl">
+              {person.nombreCompleto.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 text-center sm:text-left">
+            <div className="font-semibold text-lg text-foreground flex items-center">
+              {person.nombreCompleto}
+              <Badge variant="outline" className="ml-2 align-middle">{person.relacion}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">DNI: {person.dni}</p>
+            {person.isTitular && socioEncontrado && (
+              <div className="text-sm text-muted-foreground">
+                N° Socio: {socioEncontrado.numeroSocio} | Estado Club: {statusBadge}
+              </div>
+            )}
+            {person.isAdherente && (
+                 <div className="text-sm text-muted-foreground">Estado Adherente: {statusBadge}</div>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-stretch pt-2 sm:pt-0">
+            {!person.isAdherente && (
+              <Button variant="outline" size="sm" onClick={() => handleVerCarnet(person.nombreCompleto)} className="w-full sm:w-auto">
+                <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
+              </Button>
+            )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => handleRegistrarIngreso(person)}
+              className="w-full sm:w-auto"
+              disabled={!puedeIngresarIndividualmente}
+            >
+              <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso
+            </Button>
+          </div>
+        </div>
+        {(person.isTitular || person.isFamiliar) && aptoMedicoDisplay && (
+          <>
+            <Separator className="my-3" />
+            {aptoMedicoDisplay}
+          </>
+        )}
+      </Card>
+    );
+  };
+
 
   return (
     <div className="space-y-8">
@@ -436,7 +555,6 @@ export function ControlAcceso() {
                               <div className={`text-sm ${accesoGeneralPermitido ? 'text-green-600' : 'text-red-600'}`}>
                               {mensajeAccesoGeneral}
                               </div>
-                              <div className="text-xs text-muted-foreground mt-1">Apto Médico Titular (Obs.): {getAptoMedicoStatus(socioEncontrado.aptoMedico).status}.</div>
                           </div>
                       </div>
                   </div>
@@ -445,53 +563,7 @@ export function ControlAcceso() {
                   <div className="border-t border-border px-4 py-4">
                       <p className="text-xs text-muted-foreground mb-4 text-center">Verifique el estado individual y registre el ingreso de cada miembro. El ingreso general depende del estado del socio titular.</p>
                       <div className="space-y-4">
-                      {displayableMembers.map((member) => {
-                          const aptoStatus = getAptoMedicoStatus(member.aptoMedico);
-                          const fotoMember = member.fotoUrl || `https://placehold.co/60x60.png?text=${member.nombreCompleto[0]}${member.nombreCompleto.split(' ')[1]?.[0] || ''}`;
-                          
-                          return (
-                          <Card key={member.id} className={`p-4 ${socioEncontrado.estadoSocio === 'Activo' ? 'border-green-300' : 'border-red-300'} bg-card shadow-sm`}>
-                              <div className="flex flex-col sm:flex-row items-center gap-4">
-                              <Avatar className="h-16 w-16 border-2 border-muted">
-                                  <AvatarImage src={fotoMember} alt={member.nombreCompleto} data-ai-hint="member photo"/>
-                                  <AvatarFallback className="text-xl">
-                                  {member.nombreCompleto.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                  </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 text-center sm:text-left">
-                                <div className="font-semibold text-lg text-foreground flex items-center">
-                                  {member.nombreCompleto}
-                                  <Badge variant="outline" className="ml-2 align-middle">{member.relacion}</Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
-                                {member.isTitular && (
-                                  <div className="text-sm text-muted-foreground">
-                                    N° Socio: {socioEncontrado.numeroSocio} | Estado: <Badge variant={socioEncontrado.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado.estadoSocio}</Badge>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-stretch pt-2 sm:pt-0">
-                                  <Button variant="outline" size="sm" onClick={() => handleVerCarnet(member.nombreCompleto)} className="w-full sm:w-auto">
-                                  <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => handleRegistrarIngresoSocioOFamiliar(member)}
-                                    className="w-full sm:w-auto"
-                                    disabled={socioEncontrado.estadoSocio !== 'Activo'}
-                                  >
-                                  <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso Socio/Familiar
-                                  </Button>
-                              </div>
-                              </div>
-                              <Separator className="my-3" />
-                              <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
-                              <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
-                              </div>
-                          </Card>
-                          );
-                      })}
+                      {displayablePeople.map((person) => renderPersonCard(person))}
                       </div>
                   </div>
                   

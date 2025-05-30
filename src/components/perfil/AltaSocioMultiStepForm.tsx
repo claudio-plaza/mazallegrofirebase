@@ -86,7 +86,6 @@ export function AltaSocioMultiStepForm() {
       }
       setExistingGroupType(groupTypeDetermined);
       
-      // If there are pending changes, load those. Otherwise, load the approved group.
       const dataToDisplayOrEdit = data.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && data.cambiosPendientesGrupoFamiliar
         ? data.cambiosPendientesGrupoFamiliar
         : { 
@@ -131,7 +130,6 @@ export function AltaSocioMultiStepForm() {
 
   useEffect(() => {
     fetchSocioData();
-    // Add listener for external updates to socioData (e.g. if admin approves/rejects)
     window.addEventListener('sociosDBUpdated', fetchSocioData);
     return () => {
       window.removeEventListener('sociosDBUpdated', fetchSocioData);
@@ -216,7 +214,7 @@ export function AltaSocioMultiStepForm() {
       ...socioData,
       cambiosPendientesGrupoFamiliar: cambiosPropuestos,
       estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.PENDIENTE,
-      motivoRechazoCambioGrupoFamiliar: undefined, // Clear previous rejection reason
+      motivoRechazoCambioGrupoFamiliar: undefined, 
     };
 
     try {
@@ -295,9 +293,11 @@ export function AltaSocioMultiStepForm() {
               <Info className="h-5 w-5" />
               <AlertTitle className="font-semibold">Información sobre Modificaciones</AlertTitle>
               <AlertDescription>
-                Una vez que los datos y fotos de tus familiares son cargados y aprobados, cualquier modificación futura (incluyendo cambios de fotos) deberá ser solicitada y aprobada por la administración del club.
+                Esta sección es para agregar o modificar los datos de su <strong>grupo familiar</strong>.
                 <br />
-                Los datos personales del titular (incluida la foto de perfil) no se pueden cambiar desde este formulario. Para ello, contacte a la administración.
+                Los datos personales del titular (incluida la foto de perfil) y el <strong>tipo de grupo familiar una vez establecido</strong>, no se pueden cambiar desde este formulario. Para realizar cambios en sus datos personales o en el tipo de grupo, por favor, contacte a la administración del club.
+                <br/>
+                Una vez que los datos y fotos de sus familiares son cargados y aprobados, cualquier modificación futura (incluyendo cambios de fotos) deberá ser solicitada y aprobada por la administración del club.
               </AlertDescription>
             </Alert>
             {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
@@ -352,8 +352,12 @@ export function AltaSocioMultiStepForm() {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Button 
                                     type="button" 
-                                    variant={(field.value === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') ? 'default' : 'outline'} 
-                                    onClick={() => !existingGroupType && field.onChange('conyugeEHijos')} 
+                                    variant={field.value === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos' ? 'default' : 'outline'} 
+                                    onClick={() => {
+                                        if (!existingGroupType && socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
+                                            field.onChange('conyugeEHijos');
+                                        }
+                                    }}
                                     className="flex-1 justify-start p-6 text-left h-auto"
                                     disabled={!!existingGroupType || socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
                                 >
@@ -367,8 +371,12 @@ export function AltaSocioMultiStepForm() {
                                 </Button>
                                 <Button 
                                     type="button" 
-                                    variant={(field.value === 'padresMadres' || existingGroupType === 'padresMadres') ? 'default' : 'outline'} 
-                                    onClick={() => !existingGroupType && field.onChange('padresMadres')} 
+                                    variant={field.value === 'padresMadres' || existingGroupType === 'padresMadres' ? 'default' : 'outline'} 
+                                    onClick={() => {
+                                        if (!existingGroupType && socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
+                                            field.onChange('padresMadres');
+                                        }
+                                    }} 
                                     className="flex-1 justify-start p-6 text-left h-auto"
                                     disabled={!!existingGroupType || socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
                                 >
@@ -598,3 +606,5 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
+
+    
