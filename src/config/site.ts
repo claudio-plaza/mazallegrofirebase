@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter } from 'lucide-react'; 
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake } from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',
@@ -52,8 +52,16 @@ export const allFeatures: QuickAccessFeature[] = [
     id: 'invitados-diarios',
     title: 'Cargar Invitados del Día',
     description: 'Registra tus invitados para el acceso diario.',
-    icon: UserPlus,
+    icon: UserPlus, 
     href: '/invitados-diarios',
+    roles: ['socio'],
+  },
+  {
+    id: 'mis-adherentes',
+    title: 'Mis Adherentes',
+    description: 'Gestiona tus adherentes y sus solicitudes.',
+    icon: Handshake, 
+    href: '/mis-adherentes',
     roles: ['socio'],
   },
   {
@@ -105,3 +113,4 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['administrador'],
   }
 ];
+

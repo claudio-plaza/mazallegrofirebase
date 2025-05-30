@@ -11,11 +11,14 @@ import { allFeatures, siteConfig } from '@/config/site';
 import type { QuickAccessFeature, UserRole } from '@/types';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService'; // Import direct service
 
 export default function DashboardPage() {
-  const { isLoggedIn, userRole, userName, isLoading } = useAuth();
+  const { isLoggedIn, userRole, userName, isLoading, loggedInUserNumeroSocio } = useAuth();
   const router = useRouter();
   const [accessibleFeatures, setAccessibleFeatures] = useState<QuickAccessFeature[]>([]);
+  const [currentSocioEstado, setCurrentSocioEstado] = useState<string | null>(null);
+  const [isSocioDataLoading, setIsSocioDataLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -24,22 +27,65 @@ export default function DashboardPage() {
   }, [isLoggedIn, isLoading, router]);
 
   useEffect(() => {
+    const fetchSocioStatus = async () => {
+      if (userRole === 'socio' && loggedInUserNumeroSocio) {
+        setIsSocioDataLoading(true);
+        try {
+          const socio = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
+          if (socio) {
+            setCurrentSocioEstado(socio.estadoSocio);
+          } else {
+            console.error('Socio no encontrado en localStorage para el dashboard');
+            setCurrentSocioEstado(null);
+          }
+        } catch (error) {
+          console.error('Error fetching socio status from localStorage:', error);
+          setCurrentSocioEstado(null);
+        } finally {
+          setIsSocioDataLoading(false);
+        }
+      } else if (userRole !== 'socio') {
+        // Si no es socio, no necesitamos cargar su estado, reseteamos.
+        setCurrentSocioEstado(null);
+      }
+    };
+
+    if (!isLoading && isLoggedIn) {
+      fetchSocioStatus();
+    }
+  }, [isLoading, isLoggedIn, userRole, loggedInUserNumeroSocio]);
+
+
+  useEffect(() => {
     if (!isLoading && isLoggedIn && userRole) {
       if (userRole === 'portero') {
         router.push('/control-acceso');
       } else if (userRole === 'medico') {
         router.push('/medico/panel');
       } else {
-        // For 'socio' and 'administrador', or any other roles, populate accessible features
-        const features = allFeatures.filter(feature => feature.roles.includes(userRole));
+        let features = allFeatures.filter(feature => feature.roles.includes(userRole));
+        
+        if (userRole === 'socio') {
+          // Solo filtrar 'mis-adherentes' si ya terminamos de cargar el estado del socio
+          if (!isSocioDataLoading) {
+            if (currentSocioEstado !== 'Activo') {
+              features = features.filter(feature => feature.id !== 'mis-adherentes');
+            }
+          } else {
+            // Si estamos cargando el estado del socio, temporalmente quitamos 'mis-adherentes'
+            // para evitar que flashee y luego desaparezca. Se añadirá si es 'Activo'.
+            features = features.filter(feature => feature.id !== 'mis-adherentes');
+          }
+        }
         setAccessibleFeatures(features);
       }
+    } else if (!isLoading && !isLoggedIn) {
+      setAccessibleFeatures([]); 
     }
-  }, [isLoading, isLoggedIn, userRole, router]);
+  }, [isLoading, isLoggedIn, userRole, currentSocioEstado, isSocioDataLoading, router]);
 
 
-  if (isLoading || (isLoggedIn && (userRole === 'portero' || userRole === 'medico'))) {
-    // Show a more generic loading state if redirecting or still loading
+  if (isLoading || (isLoggedIn && userRole === 'socio' && isSocioDataLoading) || (isLoggedIn && (userRole === 'portero' || userRole === 'medico'))) {
     return (
       <div className="space-y-8">
         <Skeleton className="h-10 w-1/2" />
@@ -63,12 +109,9 @@ export default function DashboardPage() {
   }
 
   if (!isLoggedIn) {
-    // This case should ideally be handled by the first useEffect redirecting to /login
-    // but as a fallback, return null or a minimal loader.
     return null; 
   }
   
-  // Only render dashboard for roles not being redirected (e.g., socio, administrador)
   if (userRole !== 'portero' && userRole !== 'medico') {
     return (
       <div className="space-y-8">
@@ -77,7 +120,9 @@ export default function DashboardPage() {
             Bienvenido, {userName || 'Usuario'}
           </h1>
           <p className="text-muted-foreground">
-            Tu rol actual es: <span className="font-semibold text-primary">{userRole}</span>. Aquí tienes tus accesos rápidos.
+            Tu rol actual es: <span className="font-semibold text-primary">{userRole}</span>.
+            {userRole === 'socio' && currentSocioEstado && ` (Estado Club: ${currentSocioEstado})`}
+            Aquí tienes tus accesos rápidos.
           </p>
         </header>
 
@@ -89,7 +134,7 @@ export default function DashboardPage() {
                 <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
                   <CardHeader>
                     <CardTitle className="flex items-center text-xl">
-                      <feature.icon className="mr-3 h-6 w-6 text-primary" />
+                      {feature.icon && <feature.icon className="mr-3 h-6 w-6 text-primary" />}
                       {feature.title}
                     </CardTitle>
                   </CardHeader>
@@ -108,7 +153,7 @@ export default function DashboardPage() {
             </div>
           </section>
         ) : (
-          <p className="text-muted-foreground">No tienes accesos rápidos configurados para tu rol.</p>
+          <p className="text-muted-foreground">No tienes accesos rápidos configurados para tu rol o estado actual.</p>
         )}
         <Card className="mt-8 bg-secondary/30">
             <CardHeader>
@@ -128,6 +173,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Fallback for roles being redirected, though they should be caught by the loading condition above.
   return null;
 }
+
