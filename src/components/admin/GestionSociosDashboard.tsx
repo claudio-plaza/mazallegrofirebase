@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import type { Socio, AptoMedicoInfo } from '@/types';
+import type { Socio, AptoMedicoInfo, EstadoCambioGrupoFamiliar } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +14,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2 } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { getSocios as fetchSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb } from '@/lib/firebase/firestoreService';
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
+import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliarDialog'; // Nueva importación
 
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
@@ -32,6 +33,9 @@ export function GestionSociosDashboard() {
   const { toast } = useToast();
   const [selectedSocioForAdherentes, setSelectedSocioForAdherentes] = useState<Socio | null>(null);
   const [isAdherentesDialogOpen, setIsAdherentesDialogOpen] = useState(false);
+  const [selectedSocioForRevision, setSelectedSocioForRevision] = useState<Socio | null>(null);
+  const [isRevisionDialogOpen, setIsRevisionDialogOpen] = useState(false);
+
 
   const loadSocios = useCallback(async () => {
     setLoading(true);
@@ -47,17 +51,21 @@ export function GestionSociosDashboard() {
 
   useEffect(() => {
     loadSocios();
-    // Listener for external updates (e.g., from firestoreService if events were dispatched more globally)
-    // window.addEventListener('sociosDBUpdated', loadSocios); // If using localStorage directly elsewhere
-    // return () => {
-    //   window.removeEventListener('sociosDBUpdated', loadSocios);
-    // };
+    const handleSociosUpdated = () => loadSocios();
+    window.addEventListener('sociosDBUpdated', handleSociosUpdated);
+    return () => {
+      window.removeEventListener('sociosDBUpdated', handleSociosUpdated);
+    };
   }, [loadSocios]);
 
   const updateSocioData = async (updatedSocio: Socio) => {
     const result = await updateSocioInDb(updatedSocio);
     if (result) {
-      setSocios(prevSocios => prevSocios.map(s => s.id === updatedSocio.id ? updatedSocio : s));
+      // No es necesario llamar a loadSocios() aquí si updateSocioInDb ya dispara el evento 'sociosDBUpdated'
+      // y el useEffect se encarga de recargar.
+      // Si no, podemos actualizar localmente y luego llamar a loadSocios() o disparar el evento manualmente.
+      // Por ahora, confiamos en el evento.
+      // setSocios(prevSocios => prevSocios.map(s => s.id === updatedSocio.id ? updatedSocio : s));
       return result;
     }
     throw new Error("Failed to update socio in DB");
@@ -98,7 +106,7 @@ export function GestionSociosDashboard() {
     if (socio) {
       const success = await deleteSocioInDb(socioId);
       if (success) {
-        setSocios(prevSocios => prevSocios.filter(s => s.id !== socioId));
+        // setSocios(prevSocios => prevSocios.filter(s => s.id !== socioId)); // El evento 'sociosDBUpdated' debería manejar esto
         toast({ title: 'Socio Eliminado', description: `Socio ${socio.nombre} ${socio.apellido} ha sido eliminado.`, variant: 'destructive' });
       } else {
         toast({ title: "Error", description: "No se pudo eliminar el socio.", variant: "destructive" });
@@ -122,6 +130,12 @@ export function GestionSociosDashboard() {
     setSelectedSocioForAdherentes(socio);
     setIsAdherentesDialogOpen(true);
   };
+
+  const openRevisionDialog = (socio: Socio) => {
+    setSelectedSocioForRevision(socio);
+    setIsRevisionDialogOpen(true);
+  };
+
 
   const filteredSocios = useMemo(() => {
     return socios.filter(socio => {
@@ -160,7 +174,8 @@ export function GestionSociosDashboard() {
     const activos = socios.filter(s => s.estadoSocio === 'Activo').length;
     const inactivos = socios.filter(s => s.estadoSocio === 'Inactivo').length;
     const aptosVigentes = socios.filter(s => getAptoMedicoStatus(s.aptoMedico).status === 'Válido').length;
-    return { total, activos, inactivos, aptosVigentes };
+    const cambiosPendientes = socios.filter(s => s.estadoCambioGrupoFamiliar === 'Pendiente').length;
+    return { total, activos, inactivos, aptosVigentes, cambiosPendientes };
   }, [socios]);
 
   if (loading) {
@@ -178,7 +193,7 @@ export function GestionSociosDashboard() {
   const statCards = [
     { title: "Total Miembros", value: stats.total, icon: Users, color: "text-blue-500" },
     { title: "Miembros Activos", value: stats.activos, icon: UserCheck, color: "text-green-500" },
-    { title: "Miembros Inactivos", value: stats.inactivos, icon: UserX, color: "text-orange-500" },
+    { title: "Cambios Pendientes GF", value: stats.cambiosPendientes, icon: MailQuestion, color: "text-purple-500" },
     { title: "Aptos Médicos Vigentes", value: stats.aptosVigentes, icon: ShieldCheck, color: "text-teal-500" },
   ];
 
@@ -247,9 +262,9 @@ export function GestionSociosDashboard() {
                   <TableHead className="w-[80px]">Foto</TableHead>
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead>N° Socio</TableHead>
-                  <TableHead>DNI</TableHead>
                   <TableHead>Adherentes</TableHead>
                   <TableHead>Estado Club</TableHead>
+                  <TableHead>Cambio GF</TableHead>
                   <TableHead>Apto Médico</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -268,13 +283,29 @@ export function GestionSociosDashboard() {
                       </TableCell>
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido}</TableCell>
                       <TableCell>{socio.numeroSocio}</TableCell>
-                      <TableCell>{socio.dni}</TableCell>
-                       <TableCell className="text-center">{socio.adherentes?.length || 0}</TableCell>
+                      <TableCell className="text-center">{socio.adherentes?.length || 0}</TableCell>
                       <TableCell>
                         <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
                                className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
                           {socio.estadoSocio}
                         </Badge>
+                      </TableCell>
+                       <TableCell>
+                        {socio.estadoCambioGrupoFamiliar === 'Pendiente' && (
+                          <Badge variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-500/10">
+                            <MailQuestion className="mr-1 h-3 w-3" /> Pendiente
+                          </Badge>
+                        )}
+                        {socio.estadoCambioGrupoFamiliar === 'Rechazado' && (
+                          <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+                            <XCircle className="mr-1 h-3 w-3" /> Rechazado
+                          </Badge>
+                        )}
+                        {(socio.estadoCambioGrupoFamiliar === 'Ninguno' || !socio.estadoCambioGrupoFamiliar) && (
+                           <Badge variant="outline" className="border-transparent text-muted-foreground">
+                            -
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>
@@ -295,6 +326,12 @@ export function GestionSociosDashboard() {
                               {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                               {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}
                             </DropdownMenuItem>
+                             <DropdownMenuItem 
+                                onClick={() => openRevisionDialog(socio)}
+                                disabled={socio.estadoCambioGrupoFamiliar !== 'Pendiente'}
+                              >
+                                <Edit className="mr-2 h-4 w-4" /> Revisar Cambios GF
+                              </DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <DropdownMenuItem onClick={() => openAdherentesDialog(socio)} disabled={socio.estadoSocio !== 'Activo'}>
                                 <Users2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
@@ -343,7 +380,15 @@ export function GestionSociosDashboard() {
           socio={selectedSocioForAdherentes}
           open={isAdherentesDialogOpen}
           onOpenChange={setIsAdherentesDialogOpen}
-          onAdherentesUpdated={loadSocios} // Refresca la lista de socios principal
+          onAdherentesUpdated={loadSocios} 
+        />
+      )}
+      {selectedSocioForRevision && (
+        <RevisarCambiosGrupoFamiliarDialog
+            socio={selectedSocioForRevision}
+            open={isRevisionDialogOpen}
+            onOpenChange={setIsRevisionDialogOpen}
+            onRevisionUpdated={loadSocios}
         />
       )}
     </div>

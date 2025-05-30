@@ -10,14 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info, MailQuestion, XSquare } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   type AgregarFamiliaresData, agregarFamiliaresSchema,
   RelacionFamiliar, MAX_HIJOS, MAX_PADRES, type Socio, EstadoCambioGrupoFamiliar, MiembroFamiliar
 } from '@/types';
-import { getFileUrl, generateId } from '@/lib/helpers'; // Added generateId
+import { getFileUrl, generateId } from '@/lib/helpers';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -77,46 +77,50 @@ export function AltaSocioMultiStepForm() {
     const data = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
     setSocioData(data);
     if (data) {
-      let groupType: 'conyugeEHijos' | 'padresMadres' | null = null;
-      // Determine existing group type from ACTUAL grupoFamiliar, not pending changes
+      let groupTypeDetermined: 'conyugeEHijos' | 'padresMadres' | null = null;
+      
       if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.CONYUGE) || data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.HIJO_A)) {
-        groupType = 'conyugeEHijos';
+        groupTypeDetermined = 'conyugeEHijos';
       } else if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.PADRE_MADRE)) {
-        groupType = 'padresMadres';
+        groupTypeDetermined = 'padresMadres';
       }
-      setExistingGroupType(groupType);
+      setExistingGroupType(groupTypeDetermined);
       
-      const dataToLoad = data.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && data.cambiosPendientesGrupoFamiliar
+      // If there are pending changes, load those. Otherwise, load the approved group.
+      const dataToDisplayOrEdit = data.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && data.cambiosPendientesGrupoFamiliar
         ? data.cambiosPendientesGrupoFamiliar
-        : { tipoGrupoFamiliar: groupType, familiares: {
-            conyuge: data.grupoFamiliar?.find(f => f.relacion === RelacionFamiliar.CONYUGE) || null,
-            hijos: data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.HIJO_A) || [],
-            padres: data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.PADRE_MADRE) || [],
-          }};
+        : { 
+            tipoGrupoFamiliar: groupTypeDetermined, 
+            familiares: {
+              conyuge: data.grupoFamiliar?.find(f => f.relacion === RelacionFamiliar.CONYUGE) || null,
+              hijos: data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.HIJO_A) || [],
+              padres: data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.PADRE_MADRE) || [],
+            }
+          };
 
-      setValue('tipoGrupoFamiliar', dataToLoad.tipoGrupoFamiliar || undefined);
+      setValue('tipoGrupoFamiliar', dataToDisplayOrEdit.tipoGrupoFamiliar || undefined);
       
-      const conyugeData = dataToLoad.familiares?.conyuge;
-      const hijosData = dataToLoad.familiares?.hijos;
-      const padresData = dataToLoad.familiares?.padres;
+      const conyugeData = dataToDisplayOrEdit.familiares?.conyuge;
+      const hijosData = dataToDisplayOrEdit.familiares?.hijos;
+      const padresData = dataToDisplayOrEdit.familiares?.padres;
 
       setValue('familiares.conyuge', conyugeData ? {
         ...conyugeData, 
-        fechaNacimiento: conyugeData.fechaNacimiento, // Already a Date object
+        fechaNacimiento: conyugeData.fechaNacimiento, 
         fotoDniFrente: typeof conyugeData.fotoDniFrente === 'string' ? conyugeData.fotoDniFrente : null,
         fotoDniDorso: typeof conyugeData.fotoDniDorso === 'string' ? conyugeData.fotoDniDorso : null,
         fotoPerfil: typeof conyugeData.fotoPerfil === 'string' ? conyugeData.fotoPerfil : null,
       } : null);
       setValue('familiares.hijos', hijosData?.map(h => ({
         ...h, 
-        fechaNacimiento: h.fechaNacimiento, // Already a Date object
+        fechaNacimiento: h.fechaNacimiento,
         fotoDniFrente: typeof h.fotoDniFrente === 'string' ? h.fotoDniFrente : null,
         fotoDniDorso: typeof h.fotoDniDorso === 'string' ? h.fotoDniDorso : null,
         fotoPerfil: typeof h.fotoPerfil === 'string' ? h.fotoPerfil : null,
       })) || []);
       setValue('familiares.padres', padresData?.map(p => ({
         ...p, 
-        fechaNacimiento: p.fechaNacimiento, // Already a Date object
+        fechaNacimiento: p.fechaNacimiento, 
         fotoDniFrente: typeof p.fotoDniFrente === 'string' ? p.fotoDniFrente : null,
         fotoDniDorso: typeof p.fotoDniDorso === 'string' ? p.fotoDniDorso : null,
         fotoPerfil: typeof p.fotoPerfil === 'string' ? p.fotoPerfil : null,
@@ -127,6 +131,11 @@ export function AltaSocioMultiStepForm() {
 
   useEffect(() => {
     fetchSocioData();
+    // Add listener for external updates to socioData (e.g. if admin approves/rejects)
+    window.addEventListener('sociosDBUpdated', fetchSocioData);
+    return () => {
+      window.removeEventListener('sociosDBUpdated', fetchSocioData);
+    };
   }, [fetchSocioData]);
 
 
@@ -177,6 +186,10 @@ export function AltaSocioMultiStepForm() {
       toast({ title: "Error", description: "No se pudieron cargar los datos del socio titular.", variant: "destructive" });
       return;
     }
+    if (socioData.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE) {
+      toast({ title: "Solicitud en Curso", description: "Ya tiene una solicitud pendiente de aprobación.", variant: "default" });
+      return;
+    }
 
     const cambiosPropuestos: Required<Socio>['cambiosPendientesGrupoFamiliar'] = {
       tipoGrupoFamiliar: data.tipoGrupoFamiliar,
@@ -184,17 +197,17 @@ export function AltaSocioMultiStepForm() {
         conyuge: data.familiares.conyuge ? {
           ...data.familiares.conyuge,
           id: data.familiares.conyuge.id || generateId(),
-          fechaNacimiento: format(new Date(data.familiares.conyuge.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date, // Stored as string
+          fechaNacimiento: format(new Date(data.familiares.conyuge.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
         } : null,
         hijos: data.familiares.hijos?.map(h => ({
           ...h,
           id: h.id || generateId(),
-          fechaNacimiento: format(new Date(h.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date, // Stored as string
+          fechaNacimiento: format(new Date(h.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date, 
         })) || [],
         padres: data.familiares.padres?.map(p => ({
           ...p,
           id: p.id || generateId(),
-          fechaNacimiento: format(new Date(p.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date, // Stored as string
+          fechaNacimiento: format(new Date(p.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
         })) || [],
       }
     };
@@ -203,6 +216,7 @@ export function AltaSocioMultiStepForm() {
       ...socioData,
       cambiosPendientesGrupoFamiliar: cambiosPropuestos,
       estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.PENDIENTE,
+      motivoRechazoCambioGrupoFamiliar: undefined, // Clear previous rejection reason
     };
 
     try {
@@ -211,8 +225,8 @@ export function AltaSocioMultiStepForm() {
         title: 'Solicitud de Cambio Enviada',
         description: 'Tus cambios en el grupo familiar han sido enviados para aprobación.',
       });
-      fetchSocioData(); // Reload to show current state
-      setCurrentStep(1); // Reset to first step
+      fetchSocioData(); 
+      setCurrentStep(1); 
     } catch (error) {
       console.error("Error actualizando socio con cambios pendientes:", error);
       toast({ title: "Error", description: "No se pudo enviar la solicitud de cambio.", variant: "destructive" });
@@ -234,7 +248,7 @@ export function AltaSocioMultiStepForm() {
         <div className="mt-2 flex items-center space-x-2">
           <FileIcon className="h-5 w-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground truncate max-w-[150px] sm:max-w-[200px]">{fileList![0].name}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => form.setValue(fieldName as any, null)}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => form.setValue(fieldName as any, null)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}>
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -246,7 +260,6 @@ export function AltaSocioMultiStepForm() {
   useEffect(() => {
     const subscription = watch((value, { name }) => {
       if (name === 'tipoGrupoFamiliar' && !existingGroupType) { 
-        // If not editing an existing group type, clear other group type fields
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
           setValue('familiares.padres', []);
         } else if (value.tipoGrupoFamiliar === 'padresMadres') {
@@ -272,16 +285,13 @@ export function AltaSocioMultiStepForm() {
         <CardHeader>
           <CardTitle>Gestionar Grupo Familiar</CardTitle>
            <CardDescription>
-            {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE 
-              ? "Hay cambios pendientes de aprobación. " 
-              : ""}
             Paso {currentStep} de {totalSteps} - {
             currentStep === 1 ? "Selección de tipo de grupo" :
             currentStep === 2 ? "Detalles de familiares" :
             "Revisión final"
           }</CardDescription>
           
-           <Alert variant="default" className="mt-4 bg-primary/10 border-primary/30 text-primary">
+            <Alert variant="default" className="mt-4 bg-primary/10 border-primary/30 text-primary">
               <Info className="h-5 w-5" />
               <AlertTitle className="font-semibold">Información sobre Modificaciones</AlertTitle>
               <AlertDescription>
@@ -290,9 +300,9 @@ export function AltaSocioMultiStepForm() {
                 Los datos personales del titular (incluida la foto de perfil) no se pueden cambiar desde este formulario. Para ello, contacte a la administración.
               </AlertDescription>
             </Alert>
-             {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
+            {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
                 <Alert variant="default" className="mt-4 bg-yellow-500/10 border-yellow-500/30 text-yellow-700">
-                    <Info className="h-5 w-5" />
+                    <MailQuestion className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud Pendiente</AlertTitle>
                     <AlertDescription>
                         Tiene una solicitud de cambio para su grupo familiar pendiente de aprobación. No podrá realizar nuevas solicitudes hasta que la actual sea procesada por administración.
@@ -302,7 +312,7 @@ export function AltaSocioMultiStepForm() {
             )}
             {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.RECHAZADO && (
                  <Alert variant="destructive" className="mt-4">
-                    <Info className="h-5 w-5" />
+                    <XSquare className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud Rechazada</AlertTitle>
                     <AlertDescription>
                         Su última solicitud de cambio fue rechazada. Motivo: {socioData.motivoRechazoCambioGrupoFamiliar || "No especificado"}.
@@ -508,7 +518,7 @@ export function AltaSocioMultiStepForm() {
                                                 <label className={`cursor-pointer w-full flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md ${socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary'}`}>
                                                     <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
                                                     <span className="text-sm text-muted-foreground">{(value instanceof FileList && value.length > 0) ? value[0].name : (typeof value === 'string' ? "Archivo cargado" : "Subir")}</span>
-                                                    <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}/>
+                                                    <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
                                                 </label>
                                             </FormControl>
                                             {renderFilePreview(value, `familiares.padres.${index}.${docType}`)}
@@ -574,7 +584,7 @@ export function AltaSocioMultiStepForm() {
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
             {currentStep < totalSteps ? (
-              <Button type="button" onClick={nextStep} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && currentStep === 1 /* Allow navigation if pending, but not submitting new data */}>
+              <Button type="button" onClick={nextStep} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && currentStep === 1}>
                 Siguiente <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
@@ -588,4 +598,3 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
-

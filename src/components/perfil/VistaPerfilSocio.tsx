@@ -4,13 +4,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Socio, MiembroFamiliar } from '@/types';
+import { EstadoCambioGrupoFamiliar } from '@/types';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, getAptoMedicoStatus, getFileUrl } from '@/lib/helpers';
-import { UserCircle, Users, Calendar, ShieldCheck, ShieldAlert, Mail, Phone, MapPin, Briefcase, LogInIcon, Info, UserSquare2 } from 'lucide-react';
+import { UserCircle, Users, Calendar, ShieldCheck, ShieldAlert, Mail, Phone, MapPin, Briefcase, LogInIcon, Info, UserSquare2, MailQuestion, XSquare } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Image from 'next/image';
@@ -26,7 +27,7 @@ export function VistaPerfilSocio() {
 
   const fetchSocioData = useCallback(async () => {
     if (authLoading || !loggedInUserNumeroSocio) {
-      if (!authLoading) setLoading(false); // If auth is done but no user, stop loading
+      if (!authLoading) setLoading(false); 
       return;
     }
     setLoading(true);
@@ -126,6 +127,26 @@ export function VistaPerfilSocio() {
         </CardHeader>
         <CardContent className="p-6 sm:p-8 space-y-8">
             
+            {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
+                <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-700">
+                    <MailQuestion className="h-5 w-5" />
+                    <AlertTitle className="font-semibold">Solicitud Pendiente</AlertTitle>
+                    <AlertDescription>
+                        Tiene una solicitud de cambio para su grupo familiar pendiente de aprobación por la administración.
+                    </AlertDescription>
+                </Alert>
+            )}
+            {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.RECHAZADO && (
+                 <Alert variant="destructive">
+                    <XSquare className="h-5 w-5" />
+                    <AlertTitle className="font-semibold">Solicitud de Cambio Rechazada</AlertTitle>
+                    <AlertDescription>
+                        Su última solicitud de cambio de grupo familiar fue rechazada. Motivo: {socio.motivoRechazoCambioGrupoFamiliar || "No especificado"}.
+                        Puede realizar una nueva solicitud desde "Gestionar Grupo Familiar".
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <ProfileSection title="Información Personal" icon={UserCircle}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <InfoItem icon={Mail} label="Email" value={socio.email} />
@@ -167,7 +188,7 @@ export function VistaPerfilSocio() {
             {socio.grupoFamiliar && socio.grupoFamiliar.length > 0 && (
                 <>
                 <Separator />
-                <ProfileSection title="Grupo Familiar" icon={Users}>
+                <ProfileSection title="Grupo Familiar Aprobado" icon={Users}>
                     <Accordion type="multiple" className="w-full">
                     {socio.grupoFamiliar.map((familiar, index) => {
                         const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico);
@@ -223,8 +244,8 @@ export function VistaPerfilSocio() {
                 <Info className="h-5 w-5" />
                 <AlertTitle>Información Importante</AlertTitle>
                 <AlertDescription>
-                    Para modificar tus datos personales (nombre, DNI, email, foto de perfil, etc.) o los de tus familiares, por favor, contacta a la administración del club.
-                    Este panel es solo para visualización. Puedes gestionar tu grupo familiar (agregar/quitar miembros) desde el botón de arriba.
+                    Para modificar tus datos personales (nombre, DNI, email, foto de perfil, etc.) o los de tus familiares ya aprobados, por favor, contacta a la administración del club.
+                    Puedes proponer cambios a tu grupo familiar (agregar/quitar miembros o modificar datos de miembros aún no validados) desde el botón "Gestionar Grupo Familiar". Estos cambios requerirán aprobación.
                 </AlertDescription>
             </Alert>
 
@@ -233,4 +254,3 @@ export function VistaPerfilSocio() {
     </div>
   );
 }
-
