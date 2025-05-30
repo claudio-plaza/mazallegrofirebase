@@ -64,7 +64,18 @@ export enum EstadoCambioGrupoFamiliar {
   RECHAZADO = "Rechazado", // Cambios rechazados por admin
 }
 
-export type EstadoAdherente = 'Activo' | 'Inactivo';
+export enum EstadoAdherente {
+  ACTIVO = "Activo",
+  INACTIVO = "Inactivo",
+}
+
+export enum EstadoSolicitudAdherente {
+  PENDIENTE = "Pendiente",
+  APROBADO = "Aprobado",
+  RECHAZADO = "Rechazado",
+  PENDIENTE_ELIMINACION = "Pendiente Eliminación",
+}
+
 
 export interface AptoMedicoInfo {
   valido: boolean;
@@ -106,11 +117,15 @@ export interface MiembroFamiliar {
 }
 
 export interface Adherente {
-  id: string;
+  id?: string;
   nombre: string;
   apellido: string;
   dni: string;
+  telefono?: string;
+  email?: string;
   estadoAdherente: EstadoAdherente;
+  estadoSolicitud: EstadoSolicitudAdherente;
+  motivoRechazo?: string;
 }
 
 const MAX_FILE_SIZE_MB = 5;
@@ -318,11 +333,15 @@ export const solicitudInvitadosDiariosSchema = z.object({
 export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
 
 export const adherenteSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   nombre: z.string().min(2, "Nombre es requerido."),
   apellido: z.string().min(2, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  estadoAdherente: z.enum(['Activo', 'Inactivo']),
+  telefono: z.string().optional().or(z.literal('')),
+  email: z.string().email("Email inválido.").optional().or(z.literal('')),
+  estadoAdherente: z.nativeEnum(EstadoAdherente),
+  estadoSolicitud: z.nativeEnum(EstadoSolicitudAdherente),
+  motivoRechazo: z.string().optional(),
 });
 export type AdherenteData = z.infer<typeof adherenteSchema>;
 
