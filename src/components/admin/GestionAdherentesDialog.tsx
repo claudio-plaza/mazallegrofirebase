@@ -17,7 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CheckCircle2, XCircle, Hourglass, ShieldAlert, UserCog, UserPlus, Trash2, MessageSquareWarning, UserCheck, UserX, Ban, Edit3 } from 'lucide-react';
+import { CheckCircle2, XCircle, Hourglass, ShieldAlert, UserCog, UserPlus, Trash2, MessageSquareWarning, UserCheck, UserX, Ban, Edit3, CalendarDays, Mail, Phone } from 'lucide-react';
+import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 
 interface GestionAdherentesDialogProps {
   socio: Socio | null;
@@ -49,7 +50,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     try {
       await updateSocio({ ...socio, adherentes: updatedAdherentesList });
       setCurrentAdherentes(updatedAdherentesList);
-      onAdherentesUpdated(); // Refreshes the main dashboard list
+      onAdherentesUpdated();
       return true;
     } catch (error) {
       toast({ title: "Error", description: "No se pudo actualizar el adherente.", variant: "destructive" });
@@ -57,7 +58,8 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     }
   };
 
-  const handleRemoveAdherenteById = async (adherenteId: string) => {
+  const handleRemoveAdherenteById = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     const adherenteToRemove = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherenteToRemove) return;
 
@@ -72,7 +74,8 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     }
   };
 
-  const handleAprobarSolicitud = async (adherenteId: string) => {
+  const handleAprobarSolicitud = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     const adherente = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherente) return;
 
@@ -84,16 +87,17 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     const success = await handleUpdateAdherente({
       ...adherente,
       estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
-      estadoAdherente: EstadoAdherente.ACTIVO, // Activate by default on approval
+      estadoAdherente: EstadoAdherente.ACTIVO,
       motivoRechazo: undefined,
-      aptoMedico: adherente.aptoMedico || initialAptoMedico, // Keep existing apto if any, else init
+      aptoMedico: adherente.aptoMedico || initialAptoMedico,
     });
     if (success) {
       toast({ title: "Solicitud Aprobada", description: `Adherente ${adherente.nombre} aprobado y activado.` });
     }
   };
 
-  const handleRechazarSolicitud = async (adherenteId: string) => {
+  const handleRechazarSolicitud = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     if (!motivoRechazoInput.trim()) {
       toast({ title: "Error", description: "El motivo de rechazo es obligatorio.", variant: "destructive" });
       return;
@@ -114,7 +118,8 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     }
   };
 
-  const handleToggleEstadoAdherente = async (adherenteId: string) => {
+  const handleToggleEstadoAdherente = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     const adherente = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherente || adherente.estadoSolicitud !== EstadoSolicitudAdherente.APROBADO) return;
 
@@ -125,19 +130,21 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     }
   };
   
-  const handleConfirmarEliminacionSocio = async (adherenteId: string) => {
+  const handleConfirmarEliminacionSocio = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     const adherente = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherente) return;
     await handleRemoveAdherenteById(adherenteId);
     toast({ title: "Eliminación Confirmada", description: `Adherente ${adherente.nombre} eliminado por solicitud del socio.` });
   };
 
-  const handleCancelarSolicitudEliminacion = async (adherenteId: string) => {
+  const handleCancelarSolicitudEliminacion = async (adherenteId?: string) => {
+    if (!adherenteId) return;
     const adherente = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherente) return;
     const success = await handleUpdateAdherente({
       ...adherente,
-      estadoSolicitud: EstadoSolicitudAdherente.APROBADO, // Revert to approved
+      estadoSolicitud: EstadoSolicitudAdherente.APROBADO, 
       motivoRechazo: undefined,
     });
     if (success) {
@@ -146,6 +153,9 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
   };
 
   const getStatusBadge = (adherente: Adherente) => {
+    if (!adherente.estadoSolicitud) {
+      return <Badge variant="secondary" className="bg-gray-400 text-white">Estado Inválido</Badge>;
+    }
     switch (adherente.estadoSolicitud) {
       case EstadoSolicitudAdherente.PENDIENTE:
         return <Badge variant="outline" className="border-yellow-500 text-yellow-600"><Hourglass className="mr-1.5 h-3 w-3" /> Pendiente Aprobación</Badge>;
@@ -156,7 +166,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
       case EstadoSolicitudAdherente.PENDIENTE_ELIMINACION:
         return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-700"><UserX className="mr-1.5 h-3 w-3" /> Eliminación Solicitada</Badge>;
       default:
-        return <Badge variant="secondary">Desconocido</Badge>;
+        return <Badge variant="secondary">Desconocido ({adherente.estadoSolicitud})</Badge>;
     }
   };
 
@@ -171,6 +181,9 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
           <DialogDescription>
             Revise solicitudes, active/desactive o elimine adherentes.
             {socio.estadoSocio !== 'Activo' && <span className="text-destructive font-semibold block mt-1">El socio titular está {socio.estadoSocio}. Algunas acciones pueden estar limitadas.</span>}
+            {!currentAdherentes.some(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE) && currentAdherentes.length > 0 &&
+              <span className="text-sm text-muted-foreground block mt-1">No hay nuevas solicitudes pendientes de adherentes para este socio.</span>
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -181,36 +194,38 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
             )}
 
             {currentAdherentes.map(adherente => (
-              <Card key={adherente.id} className="p-4 bg-card shadow-sm">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
-                  <div className="flex-grow">
-                    <p className="font-semibold text-lg text-foreground">{adherente.nombre} {adherente.apellido}</p>
-                    <p className="text-xs text-muted-foreground">DNI: {adherente.dni}</p>
-                    {adherente.email && <p className="text-xs text-muted-foreground">Email: {adherente.email}</p>}
-                    {adherente.telefono && <p className="text-xs text-muted-foreground">Tel: {adherente.telefono}</p>}
+              <Card key={adherente.id || adherente.dni} className="shadow-sm">
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                        <CardTitle className="text-lg text-foreground">{adherente.nombre} {adherente.apellido}</CardTitle>
+                        {getStatusBadge(adherente)}
+                    </div>
+                     <p className="text-xs text-muted-foreground pt-1">DNI: {adherente.dni}</p>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs pb-4">
+                    {adherente.email && <div className="flex items-center"><Mail className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/> {adherente.email}</div>}
+                    {adherente.telefono && <div className="flex items-center"><Phone className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/> {adherente.telefono}</div>}
+                    {adherente.fechaNacimiento && <div className="flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/> Nac: {formatDate(adherente.fechaNacimiento as unknown as string)}</div>}
+                    
                     {adherente.estadoSolicitud === EstadoSolicitudAdherente.APROBADO && adherente.aptoMedico && (
-                        <p className={`text-xs mt-1 ${adherente.aptoMedico.valido ? 'text-green-600' : 'text-red-600'}`}>
-                            Apto Médico: {adherente.aptoMedico.valido ? 'Válido' : (adherente.aptoMedico.razonInvalidez || 'Inválido')}
-                        </p>
+                        <div className={`flex items-center mt-1 p-1.5 rounded-sm text-xs ${getAptoMedicoStatus(adherente.aptoMedico).colorClass.replace('bg-', 'bg-opacity-20 ')}`}>
+                            {getAptoMedicoStatus(adherente.aptoMedico).status === 'Válido' ? <ShieldCheck className="mr-1.5 h-3.5 w-3.5"/> : <ShieldAlert className="mr-1.5 h-3.5 w-3.5"/>}
+                            Apto Médico: {getAptoMedicoStatus(adherente.aptoMedico).status} ({getAptoMedicoStatus(adherente.aptoMedico).message})
+                        </div>
                     )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 min-w-[200px]">
-                    {getStatusBadge(adherente)}
                     {adherente.motivoRechazo && (adherente.estadoSolicitud === EstadoSolicitudAdherente.RECHAZADO || adherente.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE_ELIMINACION) && (
-                      <p className="text-xs text-destructive mt-1 text-right">Motivo: {adherente.motivoRechazo}</p>
+                      <p className="text-xs text-destructive mt-1">Motivo: {adherente.motivoRechazo}</p>
                     )}
-                  </div>
-                </div>
+                </CardContent>
                 
-                {/* Actions */}
-                <CardFooter className="pt-4 px-0 pb-0 flex flex-wrap gap-2 justify-end">
+                <CardFooter className="pt-3 border-t flex flex-wrap gap-2 justify-end">
                   {adherente.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE && (
                     <>
-                      <Button size="sm" variant="default" onClick={() => handleAprobarSolicitud(adherente.id!)} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle2 className="mr-1.5 h-4 w-4" /> Aprobar
+                      <Button size="sm" variant="default" onClick={() => handleAprobarSolicitud(adherente.id)} className="bg-green-600 hover:bg-green-700">
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" /> Aprobar Solicitud
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => setEditingRechazoAdherenteId(adherente.id!)}>
-                        <XCircle className="mr-1.5 h-4 w-4" /> Rechazar
+                        <XCircle className="mr-1.5 h-4 w-4" /> Rechazar Solicitud
                       </Button>
                     </>
                   )}
@@ -219,11 +234,12 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                     <>
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleEstadoAdherente(adherente.id!)}
+                        variant={adherente.estadoAdherente === EstadoAdherente.ACTIVO ? "outline" : "default"}
+                        onClick={() => handleToggleEstadoAdherente(adherente.id)}
+                        className={adherente.estadoAdherente === EstadoAdherente.ACTIVO ? "" : "bg-green-500 hover:bg-green-600"}
                       >
                         {adherente.estadoAdherente === EstadoAdherente.ACTIVO ? <UserX className="mr-1.5 h-4 w-4" /> : <UserCheck className="mr-1.5 h-4 w-4" />}
-                        {adherente.estadoAdherente === EstadoAdherente.ACTIVO ? 'Desactivar' : 'Activar'}
+                        {adherente.estadoAdherente === EstadoAdherente.ACTIVO ? 'Desactivar Adherente' : 'Activar Adherente'}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -236,7 +252,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                             </AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveAdherenteById(adherente.id!)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleRemoveAdherenteById(adherente.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -255,7 +271,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                             </AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveAdherenteById(adherente.id!)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleRemoveAdherenteById(adherente.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -263,10 +279,10 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
 
                   {adherente.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE_ELIMINACION && (
                     <>
-                      <Button size="sm" variant="destructive" onClick={() => handleConfirmarEliminacionSocio(adherente.id!)}>
+                      <Button size="sm" variant="destructive" onClick={() => handleConfirmarEliminacionSocio(adherente.id)}>
                         <UserX className="mr-1.5 h-4 w-4" /> Confirmar Eliminación
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleCancelarSolicitudEliminacion(adherente.id!)}>
+                      <Button size="sm" variant="outline" onClick={() => handleCancelarSolicitudEliminacion(adherente.id)}>
                         <Ban className="mr-1.5 h-4 w-4" /> Cancelar Solicitud
                       </Button>
                     </>
@@ -285,7 +301,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                     />
                     <div className="flex justify-end gap-2 mt-2">
                       <Button size="sm" variant="ghost" onClick={() => { setEditingRechazoAdherenteId(null); setMotivoRechazoInput(''); }}>Cancelar</Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleRechazarSolicitud(adherente.id!)}>Confirmar Rechazo</Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleRechazarSolicitud(adherente.id)}>Confirmar Rechazo</Button>
                     </div>
                   </div>
                 )}
