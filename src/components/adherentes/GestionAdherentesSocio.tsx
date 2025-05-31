@@ -4,31 +4,70 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Socio, Adherente } from '@/types';
-import { adherenteSchema, EstadoSolicitudAdherente, EstadoAdherente } from '@/types';
+import type { Socio, Adherente, AptoMedicoInfo, EmpresaTitular as EmpresaEnum } from '@/types';
+import { adherenteSchema, EstadoSolicitudAdherente, EstadoAdherente, empresas } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Edit2, Info, CheckCircle, XCircle, Hourglass, Users } from 'lucide-react';
+import { generateId, getFileUrl } from '@/lib/helpers';
+import { PlusCircle, Trash2, Edit2, Info, CheckCircle, XCircle, Hourglass, Users, UploadCloud, FileText, CalendarDays, Building } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-type AdherenteFormValues = Omit<Adherente, 'id' | 'estadoAdherente' | 'estadoSolicitud' | 'motivoRechazo'>;
 
-const adherenteFormSchemaValidation = adherenteSchema.pick({
-  nombre: true,
-  apellido: true,
-  dni: true,
-  telefono: true,
-  email: true,
+// Use the comprehensive adherenteSchema for form validation
+const adherenteFormValidationSchema = adherenteSchema.omit({ 
+    id: true, 
+    estadoAdherente: true, 
+    estadoSolicitud: true, 
+    motivoRechazo: true,
+    aptoMedico: true, // Apto Medico is handled by admin/medico initially
 });
+type AdherenteFormValues = z.infer<typeof adherenteFormValidationSchema>;
+
+const renderFilePreview = (fileList: FileList | null | undefined | string, fieldName: keyof AdherenteFormValues, formInstance: ReturnType<typeof useForm<AdherenteFormValues>>) => {
+    let url: string | null = null;
+    let fileName: string | null = null;
+
+    if (typeof fileList === 'string') {
+        url = fileList;
+        fileName = "Archivo cargado";
+    } else if (fileList && fileList.length > 0) {
+        url = getFileUrl(fileList);
+        fileName = fileList[0].name;
+    }
+
+    if (url && fileName) {
+        return (
+            <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground truncate max-w-[120px]">{fileName}</span>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => formInstance.setValue(fieldName, null as any, { shouldValidate: true })}
+                >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+            </div>
+        );
+    }
+    return null;
+};
 
 
 export function GestionAdherentesSocio() {
@@ -38,13 +77,19 @@ export function GestionAdherentesSocio() {
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
 
   const form = useForm<AdherenteFormValues>({
-    resolver: zodResolver(adherenteFormSchemaValidation),
+    resolver: zodResolver(adherenteFormValidationSchema),
     defaultValues: {
       nombre: '',
       apellido: '',
       dni: '',
+      fechaNacimiento: undefined,
+      empresa: undefined,
       telefono: '',
+      direccion: '',
       email: '',
+      fotoDniFrente: null,
+      fotoDniDorso: null,
+      fotoPerfil: null,
     },
   });
 
@@ -76,8 +121,15 @@ export function GestionAdherentesSocio() {
     const nuevoAdherente: Adherente = {
       id: generateId(),
       ...data,
+      fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, // Store as ISO string
+      // Convert FileList to string URLs if needed, or handle in backend/service layer
+      // For now, assuming FileList is handled by a service that converts to URL
+      fotoDniFrente: data.fotoDniFrente, // This might need conversion to URL string
+      fotoDniDorso: data.fotoDniDorso,   // This might need conversion to URL string
+      fotoPerfil: data.fotoPerfil,     // This might need conversion to URL string
       estadoAdherente: EstadoAdherente.INACTIVO, 
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
+      aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },
     };
 
     const updatedAdherentes = [...(socioData.adherentes || []), nuevoAdherente];
@@ -155,22 +207,121 @@ export function GestionAdherentesSocio() {
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Mis Adherentes</CardTitle>
           <CardDescription>
-            Aquí puedes proponer nuevos adherentes para tu cuenta. Las solicitudes serán revisadas por administración.
-            Un adherente es una persona (ej. amigo/a) que no forma parte de tu grupo familiar directo, pero que deseas asociar al club bajo tu responsabilidad.
+            Aquí puedes proponer nuevos adherentes para tu cuenta (ej. amigos). Las solicitudes serán revisadas por administración. El adherente también deberá completar su revisión médica.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 border rounded-md bg-background mb-8">
               <h3 className="text-lg font-semibold text-primary border-b pb-2 mb-4">Proponer Nuevo Adherente</h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input placeholder="Nombre del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input placeholder="Apellido del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="dni" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={form.control} name="dni" render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="fechaNacimiento"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Fecha de Nacimiento</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarDays className="mr-2 h-4 w-4" />
+                              {field.value ? (
+                                format(field.value, "PPP", { locale: es })
+                              ) : (
+                                <span>Seleccione fecha</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                            locale={es}
+                            captionLayout="dropdown-buttons"
+                            fromYear={1900}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="empresa"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Empresa / Obra Social (Opcional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value as string | undefined}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Seleccione empresa u obra social" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {empresas.map(empresa => (
+                            <SelectItem key={empresa} value={empresa}>
+                              {empresa}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField control={form.control} name="telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" placeholder="Teléfono de contacto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" placeholder="Email de contacto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                 <FormField control={form.control} name="direccion" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input placeholder="Dirección del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
               </div>
-              <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={form.formState.isSubmitting}>
+
+              <Separator className="my-6" />
+              <h4 className="text-md font-semibold mb-3">Documentación del Adherente</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
+                      <FormField
+                          control={form.control}
+                          name={docType}
+                          key={docType}
+                          render={({ field: { onChange, value, ...restField }}) => (
+                          <FormItem>
+                              <FormLabel>{docType === 'fotoDniFrente' ? 'DNI Frente' : docType === 'fotoDniDorso' ? 'DNI Dorso' : 'Foto Perfil'}</FormLabel>
+                              <FormControl>
+                                  <label className="cursor-pointer w-full min-h-[100px] flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
+                                      <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
+                                      <span className="text-xs text-muted-foreground text-center">
+                                        {(value instanceof FileList && value.length > 0) ? value[0].name : (docType === 'fotoPerfil' ? "Subir foto" : "Subir DNI")}
+                                      </span>
+                                      <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
+                                  </label>
+                              </FormControl>
+                              {renderFilePreview(value, docType, form)}
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                  ))}
+              </div>
+
+              <Button type="submit" className="mt-6 w-full sm:w-auto" disabled={form.formState.isSubmitting}>
                 <PlusCircle className="mr-2 h-4 w-4" /> {form.formState.isSubmitting ? 'Enviando...' : 'Enviar Solicitud de Adherente'}
               </Button>
             </form>
@@ -227,3 +378,4 @@ export function GestionAdherentesSocio() {
     </div>
   );
 }
+
