@@ -2,7 +2,8 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import type { Socio, AptoMedicoInfo, EstadoCambioGrupoFamiliar } from '@/types';
+import type { Socio, AptoMedicoInfo, EstadoCambioGrupoFamiliar, Adherente } from '@/types';
+import { EstadoSolicitudAdherente } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -14,13 +15,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { getSocios as fetchSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb } from '@/lib/firebase/firestoreService';
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
-import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliarDialog'; // Nueva importación
+import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliarDialog';
 
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
@@ -61,11 +62,6 @@ export function GestionSociosDashboard() {
   const updateSocioData = async (updatedSocio: Socio) => {
     const result = await updateSocioInDb(updatedSocio);
     if (result) {
-      // No es necesario llamar a loadSocios() aquí si updateSocioInDb ya dispara el evento 'sociosDBUpdated'
-      // y el useEffect se encarga de recargar.
-      // Si no, podemos actualizar localmente y luego llamar a loadSocios() o disparar el evento manualmente.
-      // Por ahora, confiamos en el evento.
-      // setSocios(prevSocios => prevSocios.map(s => s.id === updatedSocio.id ? updatedSocio : s));
       return result;
     }
     throw new Error("Failed to update socio in DB");
@@ -106,7 +102,6 @@ export function GestionSociosDashboard() {
     if (socio) {
       const success = await deleteSocioInDb(socioId);
       if (success) {
-        // setSocios(prevSocios => prevSocios.filter(s => s.id !== socioId)); // El evento 'sociosDBUpdated' debería manejar esto
         toast({ title: 'Socio Eliminado', description: `Socio ${socio.nombre} ${socio.apellido} ha sido eliminado.`, variant: 'destructive' });
       } else {
         toast({ title: "Error", description: "No se pudo eliminar el socio.", variant: "destructive" });
@@ -123,10 +118,7 @@ export function GestionSociosDashboard() {
   };
 
   const openAdherentesDialog = (socio: Socio) => {
-    if (socio.estadoSocio !== 'Activo') {
-      toast({ title: "Acción no permitida", description: "El socio debe estar activo para gestionar adherentes.", variant: "default"});
-      return;
-    }
+    // No es necesario verificar socio.estadoSocio !== 'Activo' aquí, el diálogo manejará la lógica de habilitación de acciones.
     setSelectedSocioForAdherentes(socio);
     setIsAdherentesDialogOpen(true);
   };
@@ -174,15 +166,18 @@ export function GestionSociosDashboard() {
     const activos = socios.filter(s => s.estadoSocio === 'Activo').length;
     const inactivos = socios.filter(s => s.estadoSocio === 'Inactivo').length;
     const aptosVigentes = socios.filter(s => getAptoMedicoStatus(s.aptoMedico).status === 'Válido').length;
-    const cambiosPendientes = socios.filter(s => s.estadoCambioGrupoFamiliar === 'Pendiente').length;
-    return { total, activos, inactivos, aptosVigentes, cambiosPendientes };
+    const cambiosPendientesGF = socios.filter(s => s.estadoCambioGrupoFamiliar === 'Pendiente').length;
+    const solicitudesAdherentesPendientes = socios.reduce((count, socio) => {
+        return count + (socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0);
+    }, 0);
+    return { total, activos, inactivos, aptosVigentes, cambiosPendientesGF, solicitudesAdherentesPendientes };
   }, [socios]);
 
   if (loading) {
      return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
         <Skeleton className="h-12 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -191,17 +186,18 @@ export function GestionSociosDashboard() {
   }
 
   const statCards = [
-    { title: "Total Miembros", value: stats.total, icon: Users, color: "text-blue-500" },
-    { title: "Miembros Activos", value: stats.activos, icon: UserCheck, color: "text-green-500" },
-    { title: "Cambios Pendientes GF", value: stats.cambiosPendientes, icon: MailQuestion, color: "text-purple-500" },
+    { title: "Total Socios", value: stats.total, icon: Users, color: "text-blue-500" },
+    { title: "Socios Activos", value: stats.activos, icon: UserCheck, color: "text-green-500" },
     { title: "Aptos Médicos Vigentes", value: stats.aptosVigentes, icon: ShieldCheck, color: "text-teal-500" },
+    { title: "Cambios GF Pendientes", value: stats.cambiosPendientesGF, icon: MailQuestion, color: "text-purple-500" },
+    { title: "Solic. Adherentes Pend.", value: stats.solicitudesAdherentesPendientes, icon: Contact2, color: "text-orange-500" },
   ];
 
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Gestión de Socios</h1>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map(stat => (
             <Card key={stat.title} className="shadow-lg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -226,7 +222,7 @@ export function GestionSociosDashboard() {
               <Button onClick={handleDescargarListaPdf} variant="outline">
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Descargar Lista (PDF)
               </Button>
-              <Button onClick={handleNuevoMiembro}><UserPlus className="mr-2 h-4 w-4" /> Nuevo Miembro</Button>
+              <Button onClick={handleNuevoMiembro}><UserPlus className="mr-2 h-4 w-4" /> Nuevo Socio</Button>
             </div>
           </div>
           <div className="mt-4 flex flex-col sm:flex-row gap-4">
@@ -262,7 +258,7 @@ export function GestionSociosDashboard() {
                   <TableHead className="w-[80px]">Foto</TableHead>
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead>N° Socio</TableHead>
-                  <TableHead>Adherentes</TableHead>
+                  <TableHead>Adherentes (Pend.)</TableHead>
                   <TableHead>Estado Club</TableHead>
                   <TableHead>Cambio GF</TableHead>
                   <TableHead>Apto Médico</TableHead>
@@ -273,6 +269,7 @@ export function GestionSociosDashboard() {
                 {filteredSocios.map(socio => {
                   const aptoStatus = getAptoMedicoStatus(socio.aptoMedico);
                   const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+                  const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
                   return (
                     <TableRow key={socio.id}>
                       <TableCell>
@@ -283,7 +280,14 @@ export function GestionSociosDashboard() {
                       </TableCell>
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido}</TableCell>
                       <TableCell>{socio.numeroSocio}</TableCell>
-                      <TableCell className="text-center">{socio.adherentes?.length || 0}</TableCell>
+                      <TableCell className="text-center">
+                        {socio.adherentes?.length || 0}
+                        {adherentesPendientesCount > 0 && (
+                          <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5">
+                            {adherentesPendientesCount}P
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
                                className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
@@ -293,12 +297,12 @@ export function GestionSociosDashboard() {
                        <TableCell>
                         {socio.estadoCambioGrupoFamiliar === 'Pendiente' && (
                           <Badge variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-500/10">
-                            <MailQuestion className="mr-1 h-3 w-3" /> Pendiente
+                            <MailQuestion className="mr-1 h-3 w-3" /> Pend.
                           </Badge>
                         )}
                         {socio.estadoCambioGrupoFamiliar === 'Rechazado' && (
                           <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
-                            <XCircle className="mr-1 h-3 w-3" /> Rechazado
+                            <XCircle className="mr-1 h-3 w-3" /> Rech.
                           </Badge>
                         )}
                         {(socio.estadoCambioGrupoFamiliar === 'Ninguno' || !socio.estadoCambioGrupoFamiliar) && (
@@ -333,8 +337,9 @@ export function GestionSociosDashboard() {
                                 <Edit className="mr-2 h-4 w-4" /> Revisar Cambios GF
                               </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                             <DropdownMenuItem onClick={() => openAdherentesDialog(socio)} disabled={socio.estadoSocio !== 'Activo'}>
-                                <Users2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
+                             <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}>
+                                <Contact2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
+                                {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
