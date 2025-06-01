@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
@@ -23,29 +23,34 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from "@/lib/utils";
 import { es } from 'date-fns/locale';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Define createDefaultInvitado outside or use useMemo for stability
+const createDefaultInvitado = (): InvitadoDiario => ({
+  id: generateId(),
+  nombre: '',
+  apellido: '',
+  dni: '',
+  fechaNacimiento: undefined,
+  ingresado: false,
+  metodoPago: null,
+});
 
 export function GestionInvitadosDiarios() {
   const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Initial loading state for component's data
   const { toast } = useToast();
-  const { loggedInUserNumeroSocio, userName } = useAuth();
-  const todayISO = formatISO(new Date(), { representation: 'date' });
+  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth(); // Auth loading state
 
-  const defaultInvitado: InvitadoDiario = { 
-    id: generateId(), 
-    nombre: '', 
-    apellido: '', 
-    dni: '', 
-    fechaNacimiento: undefined, // Añadido
-    ingresado: false 
-  };
+  const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
+  const defaultInvitado = useMemo(() => createDefaultInvitado(), []);
 
   const form = useForm<SolicitudInvitadosDiarios>({
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
       id: generateId(),
-      idSocioTitular: loggedInUserNumeroSocio || '',
-      nombreSocioTitular: userName || '',
+      idSocioTitular: '', // Will be set by useEffect based on auth state
+      nombreSocioTitular: '', // Will be set by useEffect
       fecha: todayISO,
       listaInvitadosDiarios: [defaultInvitado],
       titularIngresadoEvento: false,
@@ -58,24 +63,34 @@ export function GestionInvitadosDiarios() {
   });
 
   const loadSolicitudHoy = useCallback(async () => {
-    setLoading(true);
-    if (!loggedInUserNumeroSocio) {
-        setLoading(false);
+    if (!loggedInUserNumeroSocio) { // If no socio ID after auth, likely not a socio or error
+        form.reset({
+            id: generateId(),
+            idSocioTitular: '',
+            nombreSocioTitular: '',
+            fecha: todayISO,
+            listaInvitadosDiarios: [defaultInvitado],
+            titularIngresadoEvento: false,
+        });
+        replace([defaultInvitado]);
+        setSolicitudHoy(null);
+        setLoading(false); // Ensure loading is false
         return;
     }
+
+    setLoading(true); // Set loading true for this specific fetch operation
     try {
         const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
         setSolicitudHoy(userSolicitudHoy || null);
         if (userSolicitudHoy) {
             form.reset({
               ...userSolicitudHoy,
-              // Asegurarse de que las fechas de nacimiento sean objetos Date para el Popover Calendar
               listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
                 ...inv,
-                fechaNacimiento: inv.fechaNacimiento ? parseISO(inv.fechaNacimiento as string) : undefined,
+                fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : undefined,
               }))
             });
-            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({...inv, fechaNacimiento: inv.fechaNacimiento ? parseISO(inv.fechaNacimiento as string) : undefined })) : [defaultInvitado]);
+            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({...inv, fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : undefined })) : [defaultInvitado]);
         } else {
             form.reset({
                 id: generateId(),
@@ -102,23 +117,29 @@ export function GestionInvitadosDiarios() {
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]); // authIsLoading removed as useEffect handles it
 
   useEffect(() => {
-    loadSolicitudHoy();
-  }, [loadSolicitudHoy]);
-  
+    if (!authIsLoading) { // Only proceed when auth is not loading
+      loadSolicitudHoy();
+    }
+    // If authIsLoading is true, the main return (if (authIsLoading || loading)) will show "Cargando..."
+  }, [authIsLoading, loadSolicitudHoy]); // Depend on authIsLoading and the stable loadSolicitudHoy
+
   useEffect(() => {
-    if (loggedInUserNumeroSocio && userName) {
-        if (!form.getValues('idSocioTitular')) {
+    // Effect to set titular info once auth is ready and if form doesn't have it yet
+    if (loggedInUserNumeroSocio && userName && !authIsLoading) {
+        const currentFormTitular = form.getValues('idSocioTitular');
+        if (!currentFormTitular || currentFormTitular !== loggedInUserNumeroSocio) {
             form.setValue('idSocioTitular', loggedInUserNumeroSocio);
             form.setValue('nombreSocioTitular', userName);
-        }
-        if (form.getValues('fecha') !== todayISO) {
-            form.setValue('fecha', todayISO);
+             // Ensure fecha is also set correctly if not already todayISO
+            if (form.getValues('fecha') !== todayISO) {
+                form.setValue('fecha', todayISO);
+            }
         }
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, authIsLoading]);
 
 
   const onSubmit = async (data: SolicitudInvitadosDiarios) => {
@@ -136,8 +157,7 @@ export function GestionInvitadosDiarios() {
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv, 
           id: inv.id || generateId(),
-          // Formatear fecha de nacimiento a ISO string para guardarla
-          fechaNacimiento: inv.fechaNacimiento ? formatISO(inv.fechaNacimiento as Date, { representation: 'date' }) : undefined
+          fechaNacimiento: inv.fechaNacimiento && inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, { representation: 'date' }) : undefined
         }))
     };
 
@@ -161,8 +181,15 @@ export function GestionInvitadosDiarios() {
   };
 
 
-  if (loading) {
-    return <p>Cargando información de invitados...</p>;
+  if (authIsLoading || loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 space-y-4">
+        <p className="text-muted-foreground">Cargando información de invitados...</p>
+        <Skeleton className="h-10 w-3/4" />
+        <Skeleton className="h-64 w-full max-w-2xl" />
+        <Skeleton className="h-10 w-1/3" />
+      </div>
+    );
   }
 
   return (
@@ -173,7 +200,7 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
+            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy", { locale: es })}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -314,7 +341,7 @@ export function GestionInvitadosDiarios() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio}>
+              <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading}>
                 {form.formState.isSubmitting ? 'Guardando...' : (solicitudHoy ? 'Actualizar Lista de Hoy' : 'Guardar Lista de Hoy')}
               </Button>
             </CardFooter>
@@ -324,6 +351,3 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
-
-
-    
