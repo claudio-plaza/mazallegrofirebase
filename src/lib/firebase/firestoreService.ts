@@ -1,7 +1,6 @@
-
 'use client';
 
-import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente } from '@/types';
+import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig } from '@/types';
 import { mockSocios, mockRevisiones } from '../mockData';
 import { generateId } from '../helpers';
 import { parseISO, isValid } from 'date-fns';
@@ -12,6 +11,7 @@ const KEYS = {
   REVISIONES: 'firestore/revisionesMedicas',
   CUMPLEANOS: 'firestore/solicitudesCumpleanos',
   INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
+  PRECIOS_INVITADOS: 'firestore/preciosInvitados',
 };
 
 // Helper function to get data from localStorage
@@ -21,25 +21,26 @@ const getDb = <T>(key: string): T[] => {
   return data ? JSON.parse(data) : [];
 };
 
+// Helper function to get a single config object
+const getConfig = <T>(key: string, defaultConfig: T): T => {
+  if (typeof window === 'undefined') return defaultConfig;
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : defaultConfig;
+}
+
 // Helper function to save data to localStorage and dispatch event
-const saveDbAndNotify = <T>(key: string, data: T[]): void => {
+const saveDbAndNotify = <T>(key: string, data: T[], isConfig: boolean = false): void => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(key, JSON.stringify(data));
-  window.dispatchEvent(new CustomEvent(`${key}Updated`)); // Generic event for this specific key
-  // Dispatch more general events if other parts of the app need to react broadly
-  if (key === KEYS.SOCIOS) {
-      window.dispatchEvent(new CustomEvent('sociosDBUpdated'));
-  }
-  if (key === KEYS.CUMPLEANOS) {
-      window.dispatchEvent(new CustomEvent('cumpleanosDBUpdated'));
-  }
-  if (key === KEYS.INVITADOS_DIARIOS) {
-      window.dispatchEvent(new CustomEvent('invitadosDiariosDBUpdated'));
-  }
-   if (key === KEYS.REVISIONES) {
-      window.dispatchEvent(new CustomEvent('revisionesDBUpdated'));
-  }
+  window.dispatchEvent(new CustomEvent(`${key}Updated`)); 
+
+  if (key === KEYS.SOCIOS) window.dispatchEvent(new CustomEvent('sociosDBUpdated'));
+  if (key === KEYS.CUMPLEANOS) window.dispatchEvent(new CustomEvent('cumpleanosDBUpdated'));
+  if (key === KEYS.INVITADOS_DIARIOS) window.dispatchEvent(new CustomEvent('invitadosDiariosDBUpdated'));
+  if (key === KEYS.REVISIONES) window.dispatchEvent(new CustomEvent('revisionesDBUpdated'));
+  if (key === KEYS.PRECIOS_INVITADOS) window.dispatchEvent(new CustomEvent('preciosInvitadosDBUpdated'));
 };
+
 
 // Initialize DBs if they don't exist
 export const initializeSociosDB = (): void => {
@@ -69,6 +70,17 @@ export const initializeInvitadosDiariosDB = (): void => {
         saveDbAndNotify(KEYS.INVITADOS_DIARIOS, []);
     }
 };
+
+export const initializePreciosInvitadosDB = (): void => {
+  if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.PRECIOS_INVITADOS)) {
+    const defaultConfig: PreciosInvitadosConfig = {
+      precioInvitadoDiario: 0,
+      precioInvitadoCumpleanos: 0,
+    };
+    saveDbAndNotify(KEYS.PRECIOS_INVITADOS, defaultConfig as any, true); // Cast as any for generic saveDbAndNotify
+  }
+};
+
 
 // --- Socios Service ---
 // Function to get socios with dates parsed
@@ -312,11 +324,26 @@ export const updateSolicitudInvitadosDiarios = async (updatedSolicitud: Solicitu
     return null;
 };
 
+// --- Precios Invitados Service ---
+export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => {
+  const defaultConfig: PreciosInvitadosConfig = {
+    precioInvitadoDiario: 0,
+    precioInvitadoCumpleanos: 0,
+  };
+  return getConfig<PreciosInvitadosConfig>(KEYS.PRECIOS_INVITADOS, defaultConfig);
+};
+
+export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Promise<void> => {
+  saveDbAndNotify(KEYS.PRECIOS_INVITADOS, config as any, true); // Cast as any for generic saveDbAndNotify
+};
+
+
 // Initialize DBs on load
 if (typeof window !== 'undefined') {
     initializeSociosDB();
     initializeRevisionesDB();
     initializeCumpleanosDB();
     initializeInvitadosDiariosDB();
+    initializePreciosInvitadosDB();
 }
 isValid(new Date()); // Keep this import for date-fns

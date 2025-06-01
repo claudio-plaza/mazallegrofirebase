@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake } from 'lucide-react'; 
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake, DollarSign } from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',
@@ -111,6 +111,15 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: ListFilter,
     href: '/admin/gestion-invitados-diarios',
     roles: ['administrador'],
+  },
+  {
+    id: 'configuracion-precios',
+    title: 'Configurar Precios Invitados',
+    description: 'Establece los precios de las entradas para invitados.',
+    icon: DollarSign,
+    href: '/admin/configuracion-precios',
+    roles: ['administrador'],
   }
 ];
+
 
