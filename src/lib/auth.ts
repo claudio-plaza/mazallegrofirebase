@@ -1,7 +1,6 @@
 
 import type { UserRole } from '@/types';
-import { mockSocios } from './mockData'; // To find socio details on login
-// import { mockRevisiones } from './mockData'; // Import mockRevisiones if you decide to initialize it here
+import { mockSocios, mockRevisiones } from './mockData'; // To find socio details on login
 
 interface UserDetails {
   id: string;
@@ -96,4 +95,5 @@ export const initializeMockDatabases = () => {
     }
   }
 };
+
 
