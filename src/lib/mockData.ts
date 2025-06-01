@@ -1,6 +1,6 @@
 
 import type { Socio, RevisionMedica, MiembroFamiliar, Adherente } from '@/types';
-import { RelacionFamiliar, EmpresaTitular, EstadoCambioGrupoFamiliar } from '@/types';
+import { RelacionFamiliar, EmpresaTitular, EstadoCambioGrupoFamiliar, EstadoAdherente, EstadoSolicitudAdherente } from '@/types';
 import { addDays, subDays, formatISO, subMonths, subYears } from 'date-fns';
 
 const today = new Date();
@@ -130,7 +130,20 @@ export const mockSocios: Socio[] = [
     ultimaRevisionMedica: formatISO(subDays(today, 20)),
     grupoFamiliar: [],
     adherentes: [
-      { id: 'adh-ana-1', nombre: 'Carlos', apellido: 'Santana', dni: '99887766', estadoAdherente: 'Activo'},
+      { 
+        id: 'adh-ana-1', 
+        nombre: 'Carlos', 
+        apellido: 'Santana', 
+        dni: '99887766', 
+        estadoAdherente: EstadoAdherente.ACTIVO, 
+        estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
+        fechaNacimiento: subYears(today, 27),
+        empresa: EmpresaTitular.PARTICULAR,
+        telefono: '123123123',
+        direccion: 'Adherente St 123',
+        email: 'c.santana@example.com',
+        aptoMedico: {valido: true, fechaEmision: formatISO(subDays(today,3)), fechaVencimiento: formatISO(addDays(subDays(today,3),14))},
+      },
     ],
     role: 'socio',
     estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
@@ -223,6 +236,117 @@ export const mockSocios: Socio[] = [
     role: 'socio',
     estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
+  // Nuevos Socios para prueba de variantes familiares
+  {
+    id: '2001',
+    numeroSocio: '2001',
+    nombre: 'Carlos',
+    apellido: 'Solari',
+    dni: '30000001',
+    fechaNacimiento: subYears(today, 45),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 8)), fechaVencimiento: formatISO(addDays(subDays(today, 8), 14)), observaciones: 'Apto.' },
+    email: 'carlos.solari@example.com',
+    telefono: '2610000001',
+    direccion: 'Ruta 66 Km 1',
+    empresa: EmpresaTitular.PARTICULAR,
+    miembroDesde: formatISO(subMonths(today, 10)),
+    grupoFamiliar: [],
+    adherentes: [],
+    role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
+  },
+  {
+    id: '2002',
+    numeroSocio: '2002',
+    nombre: 'Laura',
+    apellido: 'Fernández',
+    dni: '30000002',
+    fechaNacimiento: subYears(today, 38),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)), observaciones: 'Apta.' },
+    email: 'laura.fernandez@example.com',
+    telefono: '2610000002',
+    direccion: 'Av. Principal 100',
+    empresa: EmpresaTitular.OSDE,
+    miembroDesde: formatISO(subMonths(today, 5)),
+    grupoFamiliar: [
+      { id: 'fam-lf-1', nombre: 'Roberto', apellido: 'Gómez', dni: '30000012', fechaNacimiento: formatISO(subYears(today, 40)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)) } },
+    ],
+    adherentes: [],
+    role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
+  },
+  {
+    id: '2003',
+    numeroSocio: '2003',
+    nombre: 'Miguel Ángel',
+    apellido: 'Russo',
+    dni: '30000003',
+    fechaNacimiento: subYears(today, 50),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: { valido: false, razonInvalidez: 'Vencido', fechaEmision: formatISO(subDays(today, 20)), fechaVencimiento: formatISO(addDays(subDays(today, 20), 14)) },
+    email: 'miguel.russo@example.com',
+    telefono: '2610000003',
+    direccion: 'Calle Victoriosa 7',
+    empresa: EmpresaTitular.SUTIAGA,
+    miembroDesde: formatISO(subMonths(today, 15)),
+    grupoFamiliar: [
+      { id: 'fam-mr-1', nombre: 'Patricia', apellido: 'Sosa', dni: '30000013', fechaNacimiento: formatISO(subYears(today, 48)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
+      { id: 'fam-mr-2', nombre: 'Lionel', apellido: 'Russo', dni: '60000003', fechaNacimiento: formatISO(subYears(today, 10)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
+    ],
+    adherentes: [],
+    role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
+  },
+  {
+    id: '2004',
+    numeroSocio: '2004',
+    nombre: 'Valeria',
+    apellido: 'Lynch',
+    dni: '30000004',
+    fechaNacimiento: subYears(today, 42),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)), observaciones: 'Apta.' },
+    email: 'valeria.lynch@example.com',
+    telefono: '2610000004',
+    direccion: 'Av. Cantora 1980',
+    empresa: EmpresaTitular.AMPROS,
+    miembroDesde: formatISO(subMonths(today, 7)),
+    grupoFamiliar: [
+      { id: 'fam-vl-1', nombre: 'Tais', apellido: 'Lynch', dni: '60000004', fechaNacimiento: formatISO(subYears(today, 15)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)) } },
+      { id: 'fam-vl-2', nombre: 'Federico', apellido: 'Lynch', dni: '60000014', fechaNacimiento: formatISO(subYears(today, 12)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' } },
+    ],
+    adherentes: [],
+    role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
+  },
+  {
+    id: '2005',
+    numeroSocio: '2005',
+    nombre: 'Ricardo',
+    apellido: 'Darín',
+    dni: '30000005',
+    fechaNacimiento: subYears(today, 55),
+    fotoUrl: 'https://placehold.co/150x150.png',
+    estadoSocio: 'Activo',
+    aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)), observaciones: 'Apto.' },
+    email: 'ricardo.darin@example.com',
+    telefono: '2610000005',
+    direccion: 'Nueve Reinas 101',
+    empresa: EmpresaTitular.JUDICIALES,
+    miembroDesde: formatISO(subMonths(today, 20)),
+    grupoFamiliar: [
+      { id: 'fam-rd-1', nombre: 'Norma', apellido: 'Aleandro', dni: '10000005', fechaNacimiento: formatISO(subYears(today, 75)), relacion: RelacionFamiliar.PADRE_MADRE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)) } },
+    ],
+    adherentes: [],
+    role: 'socio',
+    estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
+  },
 ];
 
 export const mockRevisiones: RevisionMedica[] = [
@@ -242,7 +366,7 @@ export const mockRevisiones: RevisionMedica[] = [
     socioId: '1002',
     socioNombre: 'Ana García',
     resultado: 'Apto',
-    fechaVencimientoApto: formatISO(addDays(subDays(today, 20), 14)),
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 20), 14)), // Esto estaría vencido
     observaciones: 'Requiere nueva evaluación.',
     medicoResponsable: 'Dra. Quinn',
   },
@@ -259,7 +383,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-jp-1',
     fechaRevision: formatISO(subDays(today, 5)),
-    socioId: 'fam-jp-1',
+    socioId: 'fam-jp-1', // DNI del familiar
     socioNombre: 'Maria Gonzalez',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 5), 14)),
@@ -269,7 +393,7 @@ export const mockRevisiones: RevisionMedica[] = [
    {
     id: 'rev-fam-jp-2',
     fechaRevision: formatISO(subDays(today, 2)),
-    socioId: 'fam-jp-2',
+    socioId: 'fam-jp-2', // DNI del familiar
     socioNombre: 'Pedro Pérez',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 2), 14)),
@@ -289,7 +413,7 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-lg-1',
     fechaRevision: formatISO(subDays(today, 7)),
-    socioId: 'fam-lg-1', 
+    socioId: 'fam-lg-1', // DNI del familiar
     socioNombre: 'Marcos Diaz',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 7), 14)),
@@ -299,11 +423,114 @@ export const mockRevisiones: RevisionMedica[] = [
   {
     id: 'rev-fam-lg-3', 
     fechaRevision: formatISO(subDays(today, 1)),
-    socioId: 'fam-lg-3',
+    socioId: 'fam-lg-3', // DNI del familiar
     socioNombre: 'Lucas Diaz',
     resultado: 'Apto',
     fechaVencimientoApto: formatISO(addDays(subDays(today, 1), 14)),
     observaciones: 'Apto.',
     medicoResponsable: 'Dr. House',
   },
+  // Revisiones para nuevos socios de prueba
+  {
+    id: 'rev-cs-1',
+    fechaRevision: formatISO(subDays(today, 8)),
+    socioId: '2001',
+    socioNombre: 'Carlos Solari',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 8), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dr. House',
+  },
+  {
+    id: 'rev-lf-1',
+    fechaRevision: formatISO(subDays(today, 6)),
+    socioId: '2002',
+    socioNombre: 'Laura Fernández',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 6), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dra. Quinn',
+  },
+  {
+    id: 'rev-rg-1', // Cónyuge de Laura Fernandez
+    fechaRevision: formatISO(subDays(today, 6)),
+    socioId: '30000012', // DNI del familiar Roberto Gómez
+    socioNombre: 'Roberto Gómez',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 6), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dra. Quinn',
+  },
+  {
+    id: 'rev-mar-1',
+    fechaRevision: formatISO(subDays(today, 20)), // Apto vencido
+    socioId: '2003',
+    socioNombre: 'Miguel Ángel Russo',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 20), 14)),
+    observaciones: 'Revisión anterior.',
+    medicoResponsable: 'Dr. House',
+  },
+    {
+    id: 'rev-ps-1', // Cónyuge de Miguel Russo
+    fechaRevision: formatISO(subDays(today, 1)),
+    socioId: '30000013', // DNI del familiar Patricia Sosa
+    socioNombre: 'Patricia Sosa',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 1), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dr. House',
+  },
+  {
+    id: 'rev-lr-1', // Hijo de Miguel Russo
+    fechaRevision: formatISO(subDays(today, 1)),
+    socioId: '60000003', // DNI del familiar Lionel Russo
+    socioNombre: 'Lionel Russo',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 1), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dr. House',
+  },
+  {
+    id: 'rev-vl-1',
+    fechaRevision: formatISO(subDays(today, 4)),
+    socioId: '2004',
+    socioNombre: 'Valeria Lynch',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 4), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dra. Quinn',
+  },
+  {
+    id: 'rev-tl-1', // Hija de Valeria Lynch
+    fechaRevision: formatISO(subDays(today, 4)),
+    socioId: '60000004', // DNI del familiar Tais Lynch
+    socioNombre: 'Tais Lynch',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 4), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dra. Quinn',
+  },
+  // Federico Lynch (hijo de Valeria) tiene apto pendiente, no se agrega revisión
+  {
+    id: 'rev-rd-1',
+    fechaRevision: formatISO(subDays(today, 9)),
+    socioId: '2005',
+    socioNombre: 'Ricardo Darín',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 9), 14)),
+    observaciones: 'Apto.',
+    medicoResponsable: 'Dr. House',
+  },
+  {
+    id: 'rev-na-1', // Madre de Ricardo Darín
+    fechaRevision: formatISO(subDays(today, 9)),
+    socioId: '10000005', // DNI del familiar Norma Aleandro
+    socioNombre: 'Norma Aleandro',
+    resultado: 'Apto',
+    fechaVencimientoApto: formatISO(addDays(subDays(today, 9), 14)),
+    observaciones: 'Apta.',
+    medicoResponsable: 'Dr. House',
+  },
 ];
+

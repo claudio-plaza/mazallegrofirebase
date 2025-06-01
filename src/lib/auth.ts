@@ -27,11 +27,17 @@ export const mockUsers: UserDetails[] = [
     role: 'socio' as UserRole,
     numeroSocio: socio.numeroSocio,
     password: 'password123', 
-  }))
+  })),
+   // Agregando los nuevos 5 usuarios con la contraseña 'pass123'
+  { id: 'socio-2001', name: 'Carlos Solari', email: 'carlos.solari@example.com', role: 'socio', numeroSocio: '2001', password: 'pass123' },
+  { id: 'socio-2002', name: 'Laura Fernández', email: 'laura.fernandez@example.com', role: 'socio', numeroSocio: '2002', password: 'pass123' },
+  { id: 'socio-2003', name: 'Miguel Ángel Russo', email: 'miguel.russo@example.com', role: 'socio', numeroSocio: '2003', password: 'pass123' },
+  { id: 'socio-2004', name: 'Valeria Lynch', email: 'valeria.lynch@example.com', role: 'socio', numeroSocio: '2004', password: 'pass123' },
+  { id: 'socio-2005', name: 'Ricardo Darín', email: 'ricardo.darin@example.com', role: 'socio', numeroSocio: '2005', password: 'pass123' },
 ];
 
 export const loginUser = (email: string, DUMMY_PASSWORD_FOR_DEMO: string): UserDetails | null => {
-  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === DUMMY_PASSWORD_FOR_DEMO); // Check password
   if (user) {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userRole', user.role);
@@ -75,9 +81,9 @@ export const initializeMockDatabases = () => {
     localStorage.setItem('sociosDB', JSON.stringify(mockSocios));
 
     const storedRevisiones = localStorage.getItem('revisionesDB');
-    // if (!storedRevisiones) { // Only initialize if not present, or always overwrite like sociosDB
-    //   localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones)); // Make sure mockRevisiones is imported
-    // }
+    if (!storedRevisiones) { 
+       localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
+    }
 
     const storedCumpleanos = localStorage.getItem('cumpleanosDB');
     if (!storedCumpleanos) {
@@ -90,3 +96,4 @@ export const initializeMockDatabases = () => {
     }
   }
 };
+
