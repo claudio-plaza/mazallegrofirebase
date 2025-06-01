@@ -18,6 +18,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from '@/lib/utils';
 
 
 export function VistaPerfilSocio() {
@@ -173,7 +174,20 @@ export function VistaPerfilSocio() {
                          <div className="flex items-center">
                             {aptoStatusTitular.status === 'Válido' && <ShieldCheck className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                             {aptoStatusTitular.status !== 'Válido' && <ShieldAlert className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                            <Badge variant="outline" className={`text-sm ${aptoStatusTitular.colorClass.replace('bg-', 'border-').replace('-100', '-500')} ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-700')}`}>
+                            <Badge 
+                                variant="outline" 
+                                className={cn(
+                                    "text-sm",
+                                    aptoStatusTitular.status === 'Válido' ? "text-green-700" :
+                                    (aptoStatusTitular.status === 'Vencido' || aptoStatusTitular.status === 'Inválido') ? "text-red-700" :
+                                    aptoStatusTitular.status === 'Pendiente' ? "text-yellow-700" :
+                                    "text-foreground",
+                                    aptoStatusTitular.colorClass.includes('green') && "border-green-500",
+                                    aptoStatusTitular.colorClass.includes('orange') && "border-orange-500",
+                                    aptoStatusTitular.colorClass.includes('red') && "border-red-500",
+                                    aptoStatusTitular.colorClass.includes('yellow') && "border-yellow-500"
+                                )}
+                            >
                                 {aptoStatusTitular.status}
                             </Badge>
                         </div>
@@ -216,7 +230,21 @@ export function VistaPerfilSocio() {
                                     <div className="flex items-center">
                                         {aptoStatusFamiliar.status === 'Válido' && <ShieldCheck className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                                         {aptoStatusFamiliar.status !== 'Válido' && <ShieldAlert className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                                        <Badge variant="outline" className={`text-xs ${aptoStatusFamiliar.colorClass.replace('bg-', 'border-').replace('-100', '-500')} ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-700')}`}>
+                                        <Badge 
+                                            variant="outline" 
+                                            className={cn(
+                                                "text-xs",
+                                                aptoStatusFamiliar.status === 'Válido' ? "text-green-700" :
+                                                (aptoStatusFamiliar.status === 'Vencido' || aptoStatusFamiliar.status === 'Inválido') ? "text-red-700" :
+                                                aptoStatusFamiliar.status === 'Pendiente' ? "text-yellow-700" :
+                                                "text-foreground",
+                                                // Border color logic
+                                                aptoStatusFamiliar.colorClass.includes('green') && "border-green-500",
+                                                aptoStatusFamiliar.colorClass.includes('orange') && "border-orange-500",
+                                                aptoStatusFamiliar.colorClass.includes('red') && "border-red-500",
+                                                aptoStatusFamiliar.colorClass.includes('yellow') && "border-yellow-500"
+                                            )}
+                                        >
                                             {aptoStatusFamiliar.status}
                                         </Badge>
                                     </div>
