@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { format, isToday, parseISO, formatISO } from 'date-fns';
+import { format, isToday, parseISO, formatISO, differenceInYears } from 'date-fns';
 import { 
   getSocioByNumeroSocioOrDNI, 
   getAllSolicitudesCumpleanos, 
@@ -30,7 +30,8 @@ type DisplayablePerson = {
   nombreCompleto: string;
   dni: string;
   fotoUrl?: string;
-  aptoMedico?: AptoMedicoInfo; // Solo para socios y familiares
+  aptoMedico?: AptoMedicoInfo;
+  fechaNacimiento?: string | Date; // Added for age check
   estadoSocioTitular?: Socio['estadoSocio']; // Estado del titular al que pertenece
   relacion?: string;
   isTitular: boolean;
@@ -203,22 +204,27 @@ export function ControlAcceso() {
 
     let puedeIngresar = false;
     let mensajeIngreso = '';
+    const aptoStatus = getAptoMedicoStatus(member.aptoMedico, member.fechaNacimiento);
 
     if (member.isTitular || member.isFamiliar) {
-      if (socioEncontrado.estadoSocio === 'Activo') {
+      if (socioEncontrado.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) {
         puedeIngresar = true;
-        mensajeIngreso = `Acceso permitido para ${member.nombreCompleto} (${member.relacion}). Observación Apto Médico: ${getAptoMedicoStatus(member.aptoMedico).status}.`;
-      } else {
-        mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
-      }
-    } else if (member.isAdherente) {
-      if (socioEncontrado.estadoSocio === 'Activo' && member.estadoAdherente === 'Activo') {
-        puedeIngresar = true;
-        mensajeIngreso = `Acceso permitido para Adherente: ${member.nombreCompleto}.`;
+        mensajeIngreso = `Acceso permitido para ${member.nombreCompleto} (${member.relacion}). Apto Médico: ${aptoStatus.status}.`;
       } else if (socioEncontrado.estadoSocio !== 'Activo') {
         mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
-      } else { // Titular activo, pero adherente inactivo
+      } else { // Titular activo pero apto no válido
+        mensajeIngreso = `Acceso Denegado. ${member.nombreCompleto} (${member.relacion}) tiene Apto Médico ${aptoStatus.status}. ${aptoStatus.message}.`;
+      }
+    } else if (member.isAdherente) {
+      if (socioEncontrado.estadoSocio === 'Activo' && member.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) {
+        puedeIngresar = true;
+        mensajeIngreso = `Acceso permitido para Adherente: ${member.nombreCompleto}. Apto Médico: ${aptoStatus.status}.`;
+      } else if (socioEncontrado.estadoSocio !== 'Activo') {
+        mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
+      } else if (member.estadoAdherente !== 'Activo') {
         mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} está ${member.estadoAdherente}.`;
+      } else { // Titular y adherente activos, pero apto no válido
+        mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} tiene Apto Médico ${aptoStatus.status}. ${aptoStatus.message}.`;
       }
     }
 
@@ -241,13 +247,13 @@ export function ControlAcceso() {
           try {
             if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
                 const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
-                updateSolicitudCumpleanos(updatedSolicitud); // No need to await if not critical for immediate UI change
+                updateSolicitudCumpleanos(updatedSolicitud); 
                 setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
                 setEventoHabilitadoPorIngresoFamiliarCumple(true); 
             }
             if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
                 const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
-                updateSolicitudInvitadosDiarios(updatedSolicitudDiaria); // No need to await
+                updateSolicitudInvitadosDiarios(updatedSolicitudDiaria); 
                 setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
                 setEventoHabilitadoPorIngresoFamiliarDiario(true); 
             }
@@ -354,20 +360,19 @@ export function ControlAcceso() {
 
   const displayablePeople: DisplayablePerson[] = [];
   if (socioEncontrado) {
-    // Titular
     displayablePeople.push({
       id: socioEncontrado.id,
       nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
       dni: socioEncontrado.dni,
       fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png?text=${socioEncontrado.nombre[0]}${socioEncontrado.apellido[0]}`,
       aptoMedico: socioEncontrado.aptoMedico,
+      fechaNacimiento: socioEncontrado.fechaNacimiento,
       estadoSocioTitular: socioEncontrado.estadoSocio,
       relacion: 'Titular',
       isTitular: true,
       isFamiliar: false,
       isAdherente: false,
     });
-    // Familiares
     socioEncontrado.grupoFamiliar?.forEach(fam => {
       let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
       if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') { 
@@ -379,6 +384,7 @@ export function ControlAcceso() {
         dni: fam.dni,
         fotoUrl: fotoFamiliar,
         aptoMedico: fam.aptoMedico,
+        fechaNacimiento: fam.fechaNacimiento,
         estadoSocioTitular: socioEncontrado.estadoSocio, 
         relacion: fam.relacion,
         isTitular: false,
@@ -386,13 +392,14 @@ export function ControlAcceso() {
         isAdherente: false,
       });
     });
-    // Adherentes
     socioEncontrado.adherentes?.forEach(adh => {
       displayablePeople.push({
-        id: adh.id,
+        id: adh.id || adh.dni, // Use DNI if ID is undefined
         nombreCompleto: `${adh.nombre} ${adh.apellido}`,
         dni: adh.dni,
-        fotoUrl: `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`, // Adherentes no tienen fotoUrl definida en el tipo
+        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`),
+        aptoMedico: adh.aptoMedico,
+        fechaNacimiento: adh.fechaNacimiento,
         estadoSocioTitular: socioEncontrado.estadoSocio,
         relacion: 'Adherente',
         isTitular: false,
@@ -428,30 +435,26 @@ export function ControlAcceso() {
     let aptoMedicoDisplay = null;
     let cardBorderClass = 'border-gray-300';
     let puedeIngresarIndividualmente = false;
+    const aptoStatus = getAptoMedicoStatus(person.aptoMedico, person.fechaNacimiento);
 
-    if (person.isTitular) {
+    if (person.isTitular || person.isFamiliar) {
         statusBadge = <Badge variant={socioEncontrado?.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado?.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado?.estadoSocio}</Badge>;
-        const aptoStatus = getAptoMedicoStatus(person.aptoMedico);
         aptoMedicoDisplay = (
             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
                 <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
             </div>
         );
-        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-400' : 'border-red-400';
-        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
-    } else if (person.isFamiliar) {
-        const aptoStatus = getAptoMedicoStatus(person.aptoMedico);
-        aptoMedicoDisplay = (
-             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
-                <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
-            </div>
-        );
-        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-300' : 'border-red-300';
-        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
+        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica') ? 'border-green-400' : 'border-red-400';
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica');
     } else if (person.isAdherente) {
         statusBadge = <Badge variant={person.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={person.estadoAdherente === 'Activo' ? 'bg-green-500' : 'bg-slate-500'}>{person.estadoAdherente}</Badge>;
-        cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo') ? 'border-green-300' : 'border-red-300';
-        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo';
+         aptoMedicoDisplay = (
+            <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
+                <span className="font-medium">Apto Médico (Adh.): {aptoStatus.status}.</span> {aptoStatus.message}.
+            </div>
+        );
+        cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) ? 'border-green-300' : 'border-red-300';
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica');
     }
     
     const fotoToShow = person.fotoUrl || `https://placehold.co/60x60.png?text=${person.nombreCompleto[0]}${person.nombreCompleto.split(' ')[1]?.[0] || ''}`;
@@ -486,6 +489,11 @@ export function ControlAcceso() {
                 <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
               </Button>
             )}
+             {person.isAdherente && (
+                <Button variant="ghost" size="sm" className="w-full sm:w-auto text-xs text-muted-foreground">
+                   <FileText className="mr-2 h-3 w-3" /> Carnet Adh. (Sim.)
+                </Button>
+            )}
             <Button
               variant="default"
               size="sm"
@@ -497,7 +505,7 @@ export function ControlAcceso() {
             </Button>
           </div>
         </div>
-        {(person.isTitular || person.isFamiliar) && aptoMedicoDisplay && (
+        {aptoMedicoDisplay && (
           <>
             <Separator className="my-3" />
             {aptoMedicoDisplay}

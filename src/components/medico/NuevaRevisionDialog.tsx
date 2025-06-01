@@ -14,11 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import type { Socio, RevisionMedica, AptoMedicoInfo } from '@/types';
+import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
-import { addDays, format, formatISO, parseISO } from 'date-fns';
+import { addDays, format, formatISO, parseISO, differenceInYears, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X } from 'lucide-react';
+import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Label } from '@/components/ui/label'; 
 import { Card } from '@/components/ui/card'; 
@@ -26,6 +26,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from "@/lib/utils";
 import { siteConfig } from '@/config/site';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -34,6 +35,15 @@ const revisionSchema = z.object({
 });
 
 type RevisionFormValues = z.infer<typeof revisionSchema>;
+
+interface SearchedPerson {
+  id: string; // DNI o numeroSocio (para titulares)
+  nombreCompleto: string;
+  fechaNacimiento: string | Date;
+  tipo: 'Socio Titular' | 'Familiar' | 'Adherente';
+  socioTitularId?: string; // Solo para Familiar y Adherente
+  aptoMedicoActual?: AptoMedicoInfo;
+}
 
 interface NuevaRevisionDialogProps {
   onRevisionGuardada: () => void;
@@ -47,10 +57,11 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
   const onOpenChange = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchedSocio, setSearchedSocio] = useState<Socio | null>(null);
+  const [searchedPerson, setSearchedPerson] = useState<SearchedPerson | null>(null);
   const [searchMessage, setSearchMessage] = useState('');
   const { toast } = useToast();
   const { userName: medicoName } = useAuth(); 
+  const [isUnderThree, setIsUnderThree] = useState(false);
 
   const form = useForm<RevisionFormValues>({
     resolver: zodResolver(revisionSchema),
@@ -61,45 +72,102 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     },
   });
 
+  useEffect(() => {
+    if (searchedPerson?.fechaNacimiento) {
+      const birthDate = typeof searchedPerson.fechaNacimiento === 'string' ? parseISO(searchedPerson.fechaNacimiento) : searchedPerson.fechaNacimiento;
+      if (isValid(birthDate)) {
+        const age = differenceInYears(new Date(), birthDate);
+        setIsUnderThree(age < 3);
+      } else {
+        setIsUnderThree(false);
+      }
+    } else {
+      setIsUnderThree(false);
+    }
+  }, [searchedPerson]);
+
+
   const handleSearchSocio = () => {
     if (!searchTerm.trim()) {
-      setSearchMessage('Ingrese un N° Socio o DNI.');
-      setSearchedSocio(null);
+      setSearchMessage('Ingrese N° Socio, DNI, Nombre o Apellido.');
+      setSearchedPerson(null);
       return;
     }
     const storedSocios = localStorage.getItem('sociosDB');
     if (storedSocios) {
       const socios: Socio[] = JSON.parse(storedSocios);
-      const socioFound = socios.find(s => s.numeroSocio === searchTerm.trim() || s.dni === searchTerm.trim());
-      if (socioFound) {
-        setSearchedSocio(socioFound);
+      const term = searchTerm.trim().toLowerCase();
+      let personFound: SearchedPerson | null = null;
+
+      for (const socio of socios) {
+        // Buscar titular
+        if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
+          personFound = {
+            id: socio.numeroSocio, // Usar numeroSocio como ID principal para titulares
+            nombreCompleto: `${socio.nombre} ${socio.apellido}`,
+            fechaNacimiento: socio.fechaNacimiento,
+            tipo: 'Socio Titular',
+            aptoMedicoActual: socio.aptoMedico
+          };
+          break;
+        }
+        // Buscar familiares
+        const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
+        if (familiarFound) {
+          personFound = {
+            id: familiarFound.dni, // Usar DNI como ID para familiares
+            nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
+            fechaNacimiento: familiarFound.fechaNacimiento,
+            tipo: 'Familiar',
+            socioTitularId: socio.numeroSocio,
+            aptoMedicoActual: familiarFound.aptoMedico
+          };
+          break;
+        }
+        // Buscar adherentes
+        const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
+        if (adherenteFound) {
+           personFound = {
+            id: adherenteFound.dni, // Usar DNI como ID para adherentes
+            nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
+            fechaNacimiento: adherenteFound.fechaNacimiento,
+            tipo: 'Adherente',
+            socioTitularId: socio.numeroSocio,
+            aptoMedicoActual: adherenteFound.aptoMedico
+          };
+          break;
+        }
+      }
+
+      if (personFound) {
+        setSearchedPerson(personFound);
         setSearchMessage('');
-        form.reset({ // Reset form fields related to revision, but keep socio
-            fechaRevision: new Date(), 
-            resultado: undefined, 
-            observaciones: '' 
-        });
+        form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
       } else {
-        setSearchedSocio(null);
-        setSearchMessage('Socio no encontrado.');
+        setSearchedPerson(null);
+        setSearchMessage('Persona no encontrada (Socio, Familiar o Adherente).');
       }
     } else {
-      setSearchedSocio(null);
+      setSearchedPerson(null);
       setSearchMessage('No hay socios en la base de datos local.');
     }
   };
   
   const onSubmit = (data: RevisionFormValues) => {
-    if (!searchedSocio) {
-      toast({ title: 'Error', description: 'Debe seleccionar un socio.', variant: 'destructive' });
+    if (!searchedPerson) {
+      toast({ title: 'Error', description: 'Debe seleccionar una persona.', variant: 'destructive' });
+      return;
+    }
+    if (isUnderThree) {
+      toast({ title: 'Acción no permitida', description: 'No se puede registrar revisión médica para menores de 3 años.', variant: 'destructive' });
       return;
     }
 
     const nuevaRevision: RevisionMedica = {
       id: generateId(),
       fechaRevision: formatISO(data.fechaRevision),
-      socioId: searchedSocio.numeroSocio,
-      socioNombre: `${searchedSocio.nombre} ${searchedSocio.apellido}`,
+      socioId: searchedPerson.id, // DNI o numeroSocio
+      socioNombre: searchedPerson.nombreCompleto,
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
@@ -119,14 +187,24 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
        aptoMedicoUpdate.fechaVencimiento = undefined; 
     }
 
+    // Actualizar AptoMedico en el Socio/Familiar/Adherente
     const storedSocios = localStorage.getItem('sociosDB');
     if (storedSocios) {
       let socios: Socio[] = JSON.parse(storedSocios);
-      socios = socios.map(s => 
-        s.id === searchedSocio.id 
-        ? { ...s, aptoMedico: aptoMedicoUpdate, ultimaRevisionMedica: formatISO(data.fechaRevision) } 
-        : s
-      );
+      socios = socios.map(s => {
+        if (searchedPerson.tipo === 'Socio Titular' && s.numeroSocio === searchedPerson.id) {
+          return { ...s, aptoMedico: aptoMedicoUpdate, ultimaRevisionMedica: formatISO(data.fechaRevision) };
+        }
+        if ((searchedPerson.tipo === 'Familiar' || searchedPerson.tipo === 'Adherente') && s.numeroSocio === searchedPerson.socioTitularId) {
+          return {
+            ...s,
+            grupoFamiliar: s.grupoFamiliar?.map(f => f.dni === searchedPerson.id ? { ...f, aptoMedico: aptoMedicoUpdate } : f),
+            adherentes: s.adherentes?.map(a => a.dni === searchedPerson.id ? { ...a, aptoMedico: aptoMedicoUpdate } : a),
+            // Podríamos agregar 'ultimaRevisionMedica' al familiar/adherente si el tipo lo soportara
+          };
+        }
+        return s;
+      });
       localStorage.setItem('sociosDB', JSON.stringify(socios));
     }
 
@@ -136,22 +214,23 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     localStorage.setItem('revisionesDB', JSON.stringify(revisiones));
     
     window.dispatchEvent(new Event('sociosDBUpdated'));
-    toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedSocio.nombre} ${searchedSocio.apellido} ha sido guardada.` });
+    toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
     onRevisionGuardada();
     form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
-    setSearchedSocio(null);
+    setSearchedPerson(null);
     setSearchTerm('');
     onOpenChange(false);
   };
 
-  const currentSocioAptoStatus = searchedSocio ? getAptoMedicoStatus(searchedSocio.aptoMedico) : null;
+  const currentPersonAptoStatus = searchedPerson ? getAptoMedicoStatus(searchedPerson.aptoMedicoActual, searchedPerson.fechaNacimiento) : null;
 
   useEffect(() => {
     if (!open) {
       form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
-      setSearchedSocio(null);
+      setSearchedPerson(null);
       setSearchTerm('');
       setSearchMessage('');
+      setIsUnderThree(false);
     }
   }, [open, form]);
 
@@ -168,19 +247,19 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
             Registrar Nueva Revisión Médica
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-1">
-            Busca un socio y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Se registrará el último día de validez.
+            Busca un socio, familiar o adherente y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Menores de 3 años no requieren revisión.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 pt-4 pb-2">
           <div>
-            <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Socio (N° Socio o DNI)</Label>
+            <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Persona (N° Socio, DNI, Nombre o Apellido)</Label>
             <div className="flex gap-2 items-center mt-1">
                 <Input 
                     id="searchSocio" 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Ej: S00123 o 30123456"
+                    placeholder="Ej: S00123, 30123456 o Juan Pérez"
                     className="flex-grow"
                 />
                 <Button onClick={handleSearchSocio} type="button" variant="outline" size="icon" className="shrink-0"><Search className="h-4 w-4" /></Button>
@@ -188,125 +267,137 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           </div>
           {searchMessage && <p className="text-sm text-destructive">{searchMessage}</p>}
 
-          {searchedSocio && (
+          {searchedPerson && (
             <Card className="p-3 bg-muted/30">
               <div className="flex items-center gap-2 mb-1">
                 <User className="h-4 w-4 text-primary" />
-                <h4 className="font-semibold text-sm">{searchedSocio.nombre} {searchedSocio.apellido} (N°: {searchedSocio.numeroSocio})</h4>
+                <h4 className="font-semibold text-sm">{searchedPerson.nombreCompleto} ({searchedPerson.tipo})</h4>
               </div>
-              {currentSocioAptoStatus && (
-                <p className={`text-xs ${currentSocioAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`}>
-                  Apto actual: {currentSocioAptoStatus.status} - {currentSocioAptoStatus.message}
+              {currentPersonAptoStatus && (
+                <p className={`text-xs ${currentPersonAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`}>
+                  Apto actual: {currentPersonAptoStatus.status} - {currentPersonAptoStatus.message}
                 </p>
               )}
             </Card>
           )}
         </div>
 
+        {isUnderThree && searchedPerson && (
+          <Alert variant="default" className="bg-blue-500/10 border-blue-500/30 text-blue-700">
+            <AlertTriangle className="h-4 w-4 text-blue-600" />
+            <AlertTitle>Menor de 3 Años</AlertTitle>
+            <AlertDescription>
+              {searchedPerson.nombreCompleto} es menor de 3 años. No se requiere ni se puede registrar una revisión médica.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="fechaRevision"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal text-muted-foreground",
-                            !field.value && "text-muted-foreground",
-                            field.value && "text-foreground"
-                          )}
-                        >
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          {field.value ? (
-                            format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                          ) : (
-                            <span>Seleccione fecha</span>
-                          )}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                        locale={es}
-                        captionLayout="dropdown-buttons"
-                        fromYear={new Date().getFullYear() - 100}
-                        toYear={new Date().getFullYear()}
+            <fieldset disabled={isUnderThree || !searchedPerson}>
+              <FormField
+                control={form.control}
+                name="fechaRevision"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal text-muted-foreground",
+                              !field.value && "text-muted-foreground",
+                              field.value && "text-foreground"
+                            )}
+                          >
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            {field.value ? (
+                              format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
+                            ) : (
+                              <span>Seleccione fecha</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                          locale={es}
+                          captionLayout="dropdown-buttons"
+                          fromYear={new Date().getFullYear() - 100}
+                          toYear={new Date().getFullYear()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="resultado"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel className="text-sm font-medium">Resultado de la Revisión</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex space-x-4"
+                      >
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="Apto" id="apto" />
+                          </FormControl>
+                          <Label htmlFor="apto" className="font-normal flex items-center cursor-pointer">
+                            <Check className="mr-1 h-4 w-4 text-green-600" />Apto
+                          </Label>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="No Apto" id="no-apto"/>
+                          </FormControl>
+                          <Label htmlFor="no-apto" className="font-normal flex items-center cursor-pointer">
+                            <X className="mr-1 h-4 w-4 text-red-600" />No Apto
+                          </Label>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="observaciones"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
+                        {...field} 
+                        className="min-h-[100px]"
                       />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="resultado"
-              render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel className="text-sm font-medium">Resultado de la Revisión</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="Apto" id="apto" />
-                        </FormControl>
-                        <Label htmlFor="apto" className="font-normal flex items-center cursor-pointer">
-                          <Check className="mr-1 h-4 w-4 text-green-600" />Apto
-                        </Label>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="No Apto" id="no-apto"/>
-                        </FormControl>
-                        <Label htmlFor="no-apto" className="font-normal flex items-center cursor-pointer">
-                          <X className="mr-1 h-4 w-4 text-red-600" />No Apto
-                        </Label>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="observaciones"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
-                      {...field} 
-                      className="min-h-[100px]"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </fieldset>
             <DialogFooter className="pt-2">
               <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-              <Button type="submit" disabled={!searchedSocio || form.formState.isSubmitting}>
+              <Button type="submit" disabled={!searchedPerson || form.formState.isSubmitting || isUnderThree}>
                 {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
               </Button>
             </DialogFooter>

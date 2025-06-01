@@ -17,7 +17,7 @@ import { siteConfig } from '@/config/site';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 
-type DisplayablePerson = Pick<Socio, 'id' | 'nombre' | 'apellido' | 'dni' | 'aptoMedico' | 'fotoUrl'> & {
+type DisplayablePerson = Pick<Socio, 'id' | 'nombre' | 'apellido' | 'dni' | 'aptoMedico' | 'fotoUrl' | 'fechaNacimiento'> & {
   relacion?: string;
   numeroSocio?: string;
   miembroDesde?: string;
@@ -83,8 +83,9 @@ export function CarnetDigital() {
           apellido: titularData.apellido,
           dni: titularData.dni,
           aptoMedico: titularData.aptoMedico,
+          fechaNacimiento: titularData.fechaNacimiento,
           fotoUrl: titularData.fotoUrl,
-          fotoFile: (titularData as any).fotoPerfil, // Assuming titular might have fotoPerfil FileList from signup
+          fotoFile: (titularData as any).fotoPerfil,
           numeroSocio: titularData.numeroSocio,
           miembroDesde: titularData.miembroDesde,
           relacion: 'Titular'
@@ -96,6 +97,7 @@ export function CarnetDigital() {
             apellido: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.apellido,
             dni: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.dni,
             aptoMedico: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.aptoMedico,
+            fechaNacimiento: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fechaNacimiento,
             fotoUrl: (titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil instanceof FileList ? undefined : titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil as string | undefined) || `https://placehold.co/150x150.png?text=${titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.nombre[0]}${titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.apellido[0]}`,
             fotoFile: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil instanceof FileList ? titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil as FileList : null,
             relacion: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.relacion
@@ -137,7 +139,7 @@ export function CarnetDigital() {
     );
   }
 
-  const aptoStatus = getAptoMedicoStatus(selectedPersonData.aptoMedico);
+  const aptoStatus = getAptoMedicoStatus(selectedPersonData.aptoMedico, selectedPersonData.fechaNacimiento);
   let fotoToShow = selectedPersonData.fotoUrl;
   if (selectedPersonData.fotoFile && selectedPersonData.fotoFile.length > 0) {
     const fileUrl = getFileUrl(selectedPersonData.fotoFile);
@@ -214,13 +216,14 @@ export function CarnetDigital() {
             </div>
           </div>
 
-          <div className={`p-3 rounded-lg border ${aptoStatus.colorClass.includes('green') ? 'border-green-600 bg-green-500/10' : aptoStatus.colorClass.includes('orange') ? 'border-orange-600 bg-orange-500/10' : 'border-red-600 bg-red-500/10'}`}>
+          <div className={`p-3 rounded-lg border ${aptoStatus.colorClass.includes('green') ? 'border-green-600 bg-green-500/10' : aptoStatus.colorClass.includes('orange') ? 'border-orange-600 bg-orange-500/10' : aptoStatus.colorClass.includes('gray') ? 'border-gray-400 bg-gray-500/10' : 'border-red-600 bg-red-500/10'}`}>
             <h3 className="text-xs font-medium text-muted-foreground mb-1">Apto Médico ({selectedPersonData.relacion || 'Titular'})</h3>
             <div className="flex items-center space-x-2">
               {aptoStatus.status === 'Válido' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
               {aptoStatus.status === 'Vencido' && <XCircle className="h-5 w-5 text-red-500" />}
               {(aptoStatus.status === 'Inválido') && <AlertTriangle className="h-5 w-5 text-red-500" />}
-              {aptoStatus.status === 'Pendiente' && <Info className="h-5 w-5 text-yellow-500" />}
+              {aptoStatus.status === 'Pendiente' && <CalendarClock className="h-5 w-5 text-yellow-500" />}
+              {aptoStatus.status === 'No Aplica' && <Info className="h-5 w-5 text-gray-500" />}
                <Badge variant="outline" className={`text-xs ${aptoStatus.colorClass.replace('bg-', 'border-').replace('-100', '-500')} ${aptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-700')}`}>
                 {aptoStatus.status}
               </Badge>
@@ -246,4 +249,3 @@ export function CarnetDigital() {
     </Card>
   );
 }
-

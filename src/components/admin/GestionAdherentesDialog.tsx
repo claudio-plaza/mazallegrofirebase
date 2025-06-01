@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CheckCircle2, XCircle, Hourglass, ShieldAlert, UserCog, UserPlus, Trash2, MessageSquareWarning, UserCheck, UserX, Ban, Edit3, CalendarDays, Mail, Phone } from 'lucide-react';
+import { CheckCircle2, XCircle, Hourglass, ShieldAlert, UserCog, UserPlus, Trash2, MessageSquareWarning, UserCheck, UserX, Ban, Edit3, CalendarDays, Mail, Phone, Info } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 
 interface GestionAdherentesDialogProps {
@@ -87,7 +87,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     const success = await handleUpdateAdherente({
       ...adherente,
       estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
-      estadoAdherente: EstadoAdherente.ACTIVO,
+      estadoAdherente: EstadoAdherente.ACTIVO, // Activar por defecto al aprobar
       motivoRechazo: undefined,
       aptoMedico: adherente.aptoMedico || initialAptoMedico,
     });
@@ -108,7 +108,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     const success = await handleUpdateAdherente({
       ...adherente,
       estadoSolicitud: EstadoSolicitudAdherente.RECHAZADO,
-      estadoAdherente: EstadoAdherente.INACTIVO,
+      estadoAdherente: EstadoAdherente.INACTIVO, // Inactivar al rechazar
       motivoRechazo: motivoRechazoInput,
     });
     if (success) {
@@ -135,7 +135,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     const adherente = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherente) return;
     await handleRemoveAdherenteById(adherenteId);
-    toast({ title: "Eliminación Confirmada", description: `Adherente ${adherente.nombre} eliminado por solicitud del socio.` });
+    // El toast de eliminación ya se muestra en handleRemoveAdherenteById
   };
 
   const handleCancelarSolicitudEliminacion = async (adherenteId?: string) => {
@@ -193,7 +193,9 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
               <p className="text-sm text-muted-foreground text-center py-4">Este socio no tiene adherentes ni solicitudes pendientes.</p>
             )}
 
-            {currentAdherentes.map(adherente => (
+            {currentAdherentes.map(adherente => {
+              const aptoStatus = getAptoMedicoStatus(adherente.aptoMedico, adherente.fechaNacimiento);
+              return (
               <Card key={adherente.id || adherente.dni} className="shadow-sm">
                 <CardHeader className="pb-3">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
@@ -207,10 +209,12 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                     {adherente.telefono && <div className="flex items-center"><Phone className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/> {adherente.telefono}</div>}
                     {adherente.fechaNacimiento && <div className="flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/> Nac: {formatDate(adherente.fechaNacimiento as unknown as string)}</div>}
                     
-                    {adherente.estadoSolicitud === EstadoSolicitudAdherente.APROBADO && adherente.aptoMedico && (
-                        <div className={`flex items-center mt-1 p-1.5 rounded-sm text-xs ${getAptoMedicoStatus(adherente.aptoMedico).colorClass.replace('bg-', 'bg-opacity-20 ')}`}>
-                            {getAptoMedicoStatus(adherente.aptoMedico).status === 'Válido' ? <ShieldCheck className="mr-1.5 h-3.5 w-3.5"/> : <ShieldAlert className="mr-1.5 h-3.5 w-3.5"/>}
-                            Apto Médico: {getAptoMedicoStatus(adherente.aptoMedico).status} ({getAptoMedicoStatus(adherente.aptoMedico).message})
+                    {(adherente.estadoSolicitud === EstadoSolicitudAdherente.APROBADO || adherente.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE_ELIMINACION) && aptoStatus && (
+                        <div className={`flex items-center mt-1 p-1.5 rounded-sm text-xs ${aptoStatus.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>
+                            {aptoStatus.status === 'Válido' ? <UserCheck className="mr-1.5 h-3.5 w-3.5"/> : 
+                             aptoStatus.status === 'No Aplica' ? <Info className="mr-1.5 h-3.5 w-3.5"/> :
+                             <ShieldAlert className="mr-1.5 h-3.5 w-3.5"/>}
+                            Apto Médico: {aptoStatus.status} ({aptoStatus.message})
                         </div>
                     )}
                     {adherente.motivoRechazo && (adherente.estadoSolicitud === EstadoSolicitudAdherente.RECHAZADO || adherente.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE_ELIMINACION) && (
@@ -306,7 +310,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
                   </div>
                 )}
               </Card>
-            ))}
+            )})}
           </div>
         </ScrollArea>
 

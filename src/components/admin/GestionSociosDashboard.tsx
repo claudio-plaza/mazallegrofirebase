@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2 } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -118,7 +118,6 @@ export function GestionSociosDashboard() {
   };
 
   const openAdherentesDialog = (socio: Socio) => {
-    // No es necesario verificar socio.estadoSocio !== 'Activo' aquí, el diálogo manejará la lógica de habilitación de acciones.
     setSelectedSocioForAdherentes(socio);
     setIsAdherentesDialogOpen(true);
   };
@@ -165,7 +164,7 @@ export function GestionSociosDashboard() {
     const total = socios.length;
     const activos = socios.filter(s => s.estadoSocio === 'Activo').length;
     const inactivos = socios.filter(s => s.estadoSocio === 'Inactivo').length;
-    const aptosVigentes = socios.filter(s => getAptoMedicoStatus(s.aptoMedico).status === 'Válido').length;
+    const aptosVigentes = socios.filter(s => getAptoMedicoStatus(s.aptoMedico, s.fechaNacimiento).status === 'Válido').length;
     const cambiosPendientesGF = socios.filter(s => s.estadoCambioGrupoFamiliar === 'Pendiente').length;
     const solicitudesAdherentesPendientes = socios.reduce((count, socio) => {
         return count + (socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0);
@@ -267,7 +266,7 @@ export function GestionSociosDashboard() {
               </TableHeader>
               <TableBody>
                 {filteredSocios.map(socio => {
-                  const aptoStatus = getAptoMedicoStatus(socio.aptoMedico);
+                  const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
                   const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
                   const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
                   return (
@@ -314,7 +313,9 @@ export function GestionSociosDashboard() {
                       <TableCell>
                         <Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>
                           {aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}
-                          {aptoStatus.status !== 'Válido' && <XCircle className="mr-1 h-3 w-3" />}
+                          {(aptoStatus.status === 'Vencido' || aptoStatus.status === 'Inválido') && <XCircle className="mr-1 h-3 w-3" />}
+                          {aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}
+                          {aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}
                           {aptoStatus.status}
                         </Badge>
                       </TableCell>

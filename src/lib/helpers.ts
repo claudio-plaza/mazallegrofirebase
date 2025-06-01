@@ -1,4 +1,4 @@
-import { format, parseISO, isAfter, isEqual, isValid, differenceInDays } from 'date-fns';
+import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differenceInYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AptoMedicoInfo } from '@/types';
 
@@ -14,7 +14,21 @@ export const formatDate = (dateString?: string | Date, formatStr: string = 'dd/M
   }
 };
 
-export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo): { status: 'Válido' | 'Vencido' | 'Inválido' | 'Pendiente'; message: string; colorClass: string } => {
+export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo, fechaNacimiento?: string | Date): { status: string; message: string; colorClass: string } => {
+  if (fechaNacimiento) {
+    try {
+      const birthDate = typeof fechaNacimiento === 'string' ? parseISO(fechaNacimiento) : fechaNacimiento;
+      if (isValid(birthDate)) {
+        const age = differenceInYears(new Date(), birthDate);
+        if (age < 3) {
+          return { status: 'No Aplica', message: 'Menor de 3 años (revisión no requerida)', colorClass: 'text-gray-600 bg-gray-100' };
+        }
+      }
+    } catch (e) {
+      // Ignore error in parsing fechaNacimiento, proceed with aptoMedico logic
+    }
+  }
+
   if (!aptoMedico) {
     return { status: 'Pendiente', message: 'Sin datos de apto médico', colorClass: 'text-yellow-600 bg-yellow-100' };
   }

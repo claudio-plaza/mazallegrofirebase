@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, getAptoMedicoStatus, getFileUrl } from '@/lib/helpers';
-import { UserCircle, Users, Calendar, ShieldCheck, ShieldAlert, Mail, Phone, MapPin, Briefcase, LogInIcon, Info, UserSquare2, MailQuestion, XSquare } from 'lucide-react';
+import { UserCircle, Users, Calendar, ShieldCheck, ShieldAlert, Mail, Phone, MapPin, Briefcase, LogInIcon, Info, UserSquare2, MailQuestion, XSquare, AlertTriangle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Image from 'next/image';
@@ -81,7 +81,7 @@ export function VistaPerfilSocio() {
     );
   }
 
-  const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico);
+  const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
   const fotoTitular = socio.fotoUrl || (socio.fotoPerfil && getFileUrl(socio.fotoPerfil as FileList)) || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
 
 
@@ -173,7 +173,9 @@ export function VistaPerfilSocio() {
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Apto Médico (Titular)</h4>
                          <div className="flex items-center">
                             {aptoStatusTitular.status === 'Válido' && <ShieldCheck className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                            {aptoStatusTitular.status !== 'Válido' && <ShieldAlert className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                            {(aptoStatusTitular.status === 'Vencido' || aptoStatusTitular.status === 'Inválido') && <ShieldAlert className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                            {aptoStatusTitular.status === 'Pendiente' && <AlertTriangle className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                            {aptoStatusTitular.status === 'No Aplica' && <Info className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                             <Badge 
                                 variant="outline" 
                                 className={cn(
@@ -181,11 +183,13 @@ export function VistaPerfilSocio() {
                                     aptoStatusTitular.status === 'Válido' ? "text-green-700" :
                                     (aptoStatusTitular.status === 'Vencido' || aptoStatusTitular.status === 'Inválido') ? "text-red-700" :
                                     aptoStatusTitular.status === 'Pendiente' ? "text-yellow-700" :
+                                    aptoStatusTitular.status === 'No Aplica' ? "text-gray-700" :
                                     "text-foreground",
                                     aptoStatusTitular.colorClass.includes('green') && "border-green-500",
                                     aptoStatusTitular.colorClass.includes('orange') && "border-orange-500",
                                     aptoStatusTitular.colorClass.includes('red') && "border-red-500",
-                                    aptoStatusTitular.colorClass.includes('yellow') && "border-yellow-500"
+                                    aptoStatusTitular.colorClass.includes('yellow') && "border-yellow-500",
+                                    aptoStatusTitular.colorClass.includes('gray') && "border-gray-500"
                                 )}
                             >
                                 {aptoStatusTitular.status}
@@ -205,7 +209,7 @@ export function VistaPerfilSocio() {
                 <ProfileSection title="Grupo Familiar Aprobado" icon={Users}>
                     <Accordion type="multiple" className="w-full">
                     {socio.grupoFamiliar.map((familiar, index) => {
-                        const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico);
+                        const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico, familiar.fechaNacimiento);
                         const fotoFamiliar = (familiar.fotoPerfil instanceof FileList ? getFileUrl(familiar.fotoPerfil) : familiar.fotoPerfil as string | undefined) || `https://placehold.co/96x96.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`;
                         return (
                         <AccordionItem value={`familiar-${index}`} key={familiar.dni || index}>
@@ -229,7 +233,9 @@ export function VistaPerfilSocio() {
                                     <h5 className="text-xs font-medium text-muted-foreground mb-1">Apto Médico</h5>
                                     <div className="flex items-center">
                                         {aptoStatusFamiliar.status === 'Válido' && <ShieldCheck className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                                        {aptoStatusFamiliar.status !== 'Válido' && <ShieldAlert className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                                        {(aptoStatusFamiliar.status === 'Vencido' || aptoStatusFamiliar.status === 'Inválido') && <ShieldAlert className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                                        {aptoStatusFamiliar.status === 'Pendiente' && <AlertTriangle className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
+                                        {aptoStatusFamiliar.status === 'No Aplica' && <Info className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                                         <Badge 
                                             variant="outline" 
                                             className={cn(
@@ -237,12 +243,13 @@ export function VistaPerfilSocio() {
                                                 aptoStatusFamiliar.status === 'Válido' ? "text-green-700" :
                                                 (aptoStatusFamiliar.status === 'Vencido' || aptoStatusFamiliar.status === 'Inválido') ? "text-red-700" :
                                                 aptoStatusFamiliar.status === 'Pendiente' ? "text-yellow-700" :
+                                                aptoStatusFamiliar.status === 'No Aplica' ? "text-gray-700" :
                                                 "text-foreground",
-                                                // Border color logic
                                                 aptoStatusFamiliar.colorClass.includes('green') && "border-green-500",
                                                 aptoStatusFamiliar.colorClass.includes('orange') && "border-orange-500",
                                                 aptoStatusFamiliar.colorClass.includes('red') && "border-red-500",
-                                                aptoStatusFamiliar.colorClass.includes('yellow') && "border-yellow-500"
+                                                aptoStatusFamiliar.colorClass.includes('yellow') && "border-yellow-500",
+                                                aptoStatusFamiliar.colorClass.includes('gray') && "border-gray-500"
                                             )}
                                         >
                                             {aptoStatusFamiliar.status}
