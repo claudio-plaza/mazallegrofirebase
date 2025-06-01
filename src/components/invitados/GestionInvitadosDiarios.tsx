@@ -18,8 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, isToday, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-const STORAGE_KEY = 'invitadosDiariosDB';
+import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 
 export function GestionInvitadosDiarios() {
   const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
@@ -35,7 +34,7 @@ export function GestionInvitadosDiarios() {
       idSocioTitular: loggedInUserNumeroSocio || '',
       nombreSocioTitular: userName || '',
       fecha: todayISO,
-      listaInvitadosDiarios: [{ nombre: '', apellido: '', dni: '', ingresado: false }],
+      listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
       titularIngresadoEvento: false,
     },
   });
@@ -45,55 +44,52 @@ export function GestionInvitadosDiarios() {
     name: "listaInvitadosDiarios",
   });
 
-  const loadSolicitudHoy = useCallback(() => {
+  const loadSolicitudHoy = useCallback(async () => {
     setLoading(true);
     if (!loggedInUserNumeroSocio) {
         setLoading(false);
         return;
     }
-    const storedData = localStorage.getItem(STORAGE_KEY);
-    if (storedData) {
-      const allSolicitudes: SolicitudInvitadosDiarios[] = JSON.parse(storedData);
-      const userSolicitudHoy = allSolicitudes.find(s => 
-        s.idSocioTitular === loggedInUserNumeroSocio && 
-        s.fecha === todayISO
-      );
-      setSolicitudHoy(userSolicitudHoy || null);
-      if (userSolicitudHoy) {
-        form.reset(userSolicitudHoy);
-        // Ensure field array is correctly populated
-        replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios : [{ nombre: '', apellido: '', dni: '', ingresado: false }]);
-      } else {
-        form.reset({
+    try {
+        const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
+        setSolicitudHoy(userSolicitudHoy || null);
+        if (userSolicitudHoy) {
+            form.reset(userSolicitudHoy);
+            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios : [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+        } else {
+            form.reset({
+                id: generateId(),
+                idSocioTitular: loggedInUserNumeroSocio,
+                nombreSocioTitular: userName || '',
+                fecha: todayISO,
+                listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
+                titularIngresadoEvento: false,
+            });
+            replace([{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+        }
+    } catch (error) {
+        console.error("Error cargando solicitud de invitados diarios:", error);
+        toast({ title: "Error", description: "No se pudo cargar la lista de invitados.", variant: "destructive"});
+        // Resetear a estado inicial en caso de error
+         form.reset({
             id: generateId(),
             idSocioTitular: loggedInUserNumeroSocio,
             nombreSocioTitular: userName || '',
             fecha: todayISO,
-            listaInvitadosDiarios: [{ nombre: '', apellido: '', dni: '', ingresado: false }],
+            listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
             titularIngresadoEvento: false,
         });
-        replace([{ nombre: '', apellido: '', dni: '', ingresado: false }]);
-      }
-    } else {
-        form.reset({
-            id: generateId(),
-            idSocioTitular: loggedInUserNumeroSocio,
-            nombreSocioTitular: userName || '',
-            fecha: todayISO,
-            listaInvitadosDiarios: [{ nombre: '', apellido: '', dni: '', ingresado: false }],
-            titularIngresadoEvento: false,
-        });
-        replace([{ nombre: '', apellido: '', dni: '', ingresado: false }]);
+        replace([{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast]);
 
   useEffect(() => {
     loadSolicitudHoy();
   }, [loadSolicitudHoy]);
   
   useEffect(() => {
-    // Update default values if auth info loads after initial setup
     if (loggedInUserNumeroSocio && userName) {
         if (!form.getValues('idSocioTitular')) {
             form.setValue('idSocioTitular', loggedInUserNumeroSocio);
@@ -106,20 +102,29 @@ export function GestionInvitadosDiarios() {
   }, [loggedInUserNumeroSocio, userName, todayISO, form]);
 
 
-  const onSubmit = (data: SolicitudInvitadosDiarios) => {
-    const allSolicitudesFromStorage: SolicitudInvitadosDiarios[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const existingIndex = allSolicitudesFromStorage.findIndex(s => s.id === data.id);
-
-    if (existingIndex > -1) {
-      allSolicitudesFromStorage[existingIndex] = data;
-      toast({ title: "Lista Actualizada", description: "Tu lista de invitados para hoy ha sido actualizada." });
-    } else {
-      allSolicitudesFromStorage.push(data);
-      toast({ title: "Lista Guardada", description: "Tu lista de invitados para hoy ha sido registrada." });
+  const onSubmit = async (data: SolicitudInvitadosDiarios) => {
+    if (!loggedInUserNumeroSocio) {
+        toast({ title: "Error", description: "Usuario no identificado.", variant: "destructive"});
+        return;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allSolicitudesFromStorage));
-    window.dispatchEvent(new Event('invitadosDiariosDBUpdated')); // Notify other components
-    loadSolicitudHoy(); // Reload to reflect changes
+    // Asegurarse de que el ID del socio titular y la fecha sean los correctos
+    const dataToSave: SolicitudInvitadosDiarios = {
+        ...data,
+        idSocioTitular: loggedInUserNumeroSocio,
+        nombreSocioTitular: userName || 'Socio', // Asegurar que tengamos un nombre
+        fecha: todayISO,
+        id: solicitudHoy?.id || data.id || generateId(), // Usar ID existente si se está editando, o el generado por el form, o uno nuevo
+        listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({...inv, id: inv.id || generateId()})) // Asegurar que cada invitado tenga ID
+    };
+
+    try {
+        await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
+        toast({ title: "Lista Guardada", description: "Tu lista de invitados para hoy ha sido guardada/actualizada." });
+        loadSolicitudHoy(); 
+    } catch (error) {
+        console.error("Error guardando solicitud de invitados diarios:", error);
+        toast({ title: "Error", description: "No se pudo guardar la lista de invitados.", variant: "destructive"});
+    }
   };
 
 
@@ -162,7 +167,7 @@ export function GestionInvitadosDiarios() {
                           size="icon"
                           className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
                           onClick={() => remove(index)}
-                          disabled={fields.length <= 1 && index === 0}
+                          disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -241,3 +246,4 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
+
