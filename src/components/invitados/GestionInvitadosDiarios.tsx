@@ -13,12 +13,16 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Users, CalendarDate, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Users, CalendarDate, Info, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, isToday, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from "@/lib/utils";
+import { es } from 'date-fns/locale';
 
 export function GestionInvitadosDiarios() {
   const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
@@ -27,6 +31,15 @@ export function GestionInvitadosDiarios() {
   const { loggedInUserNumeroSocio, userName } = useAuth();
   const todayISO = formatISO(new Date(), { representation: 'date' });
 
+  const defaultInvitado: InvitadoDiario = { 
+    id: generateId(), 
+    nombre: '', 
+    apellido: '', 
+    dni: '', 
+    fechaNacimiento: undefined, // Añadido
+    ingresado: false 
+  };
+
   const form = useForm<SolicitudInvitadosDiarios>({
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
@@ -34,7 +47,7 @@ export function GestionInvitadosDiarios() {
       idSocioTitular: loggedInUserNumeroSocio || '',
       nombreSocioTitular: userName || '',
       fecha: todayISO,
-      listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
+      listaInvitadosDiarios: [defaultInvitado],
       titularIngresadoEvento: false,
     },
   });
@@ -54,36 +67,42 @@ export function GestionInvitadosDiarios() {
         const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
         setSolicitudHoy(userSolicitudHoy || null);
         if (userSolicitudHoy) {
-            form.reset(userSolicitudHoy);
-            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios : [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+            form.reset({
+              ...userSolicitudHoy,
+              // Asegurarse de que las fechas de nacimiento sean objetos Date para el Popover Calendar
+              listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
+                ...inv,
+                fechaNacimiento: inv.fechaNacimiento ? parseISO(inv.fechaNacimiento as string) : undefined,
+              }))
+            });
+            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({...inv, fechaNacimiento: inv.fechaNacimiento ? parseISO(inv.fechaNacimiento as string) : undefined })) : [defaultInvitado]);
         } else {
             form.reset({
                 id: generateId(),
                 idSocioTitular: loggedInUserNumeroSocio,
                 nombreSocioTitular: userName || '',
                 fecha: todayISO,
-                listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
+                listaInvitadosDiarios: [defaultInvitado],
                 titularIngresadoEvento: false,
             });
-            replace([{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+            replace([defaultInvitado]);
         }
     } catch (error) {
         console.error("Error cargando solicitud de invitados diarios:", error);
         toast({ title: "Error", description: "No se pudo cargar la lista de invitados.", variant: "destructive"});
-        // Resetear a estado inicial en caso de error
-         form.reset({
+        form.reset({
             id: generateId(),
             idSocioTitular: loggedInUserNumeroSocio,
             nombreSocioTitular: userName || '',
             fecha: todayISO,
-            listaInvitadosDiarios: [{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }],
+            listaInvitadosDiarios: [defaultInvitado],
             titularIngresadoEvento: false,
         });
-        replace([{ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false }]);
+        replace([defaultInvitado]);
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]);
 
   useEffect(() => {
     loadSolicitudHoy();
@@ -107,19 +126,33 @@ export function GestionInvitadosDiarios() {
         toast({ title: "Error", description: "Usuario no identificado.", variant: "destructive"});
         return;
     }
-    // Asegurarse de que el ID del socio titular y la fecha sean los correctos
+    
     const dataToSave: SolicitudInvitadosDiarios = {
         ...data,
         idSocioTitular: loggedInUserNumeroSocio,
-        nombreSocioTitular: userName || 'Socio', // Asegurar que tengamos un nombre
+        nombreSocioTitular: userName || 'Socio',
         fecha: todayISO,
-        id: solicitudHoy?.id || data.id || generateId(), // Usar ID existente si se está editando, o el generado por el form, o uno nuevo
-        listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({...inv, id: inv.id || generateId()})) // Asegurar que cada invitado tenga ID
+        id: solicitudHoy?.id || data.id || generateId(),
+        listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
+          ...inv, 
+          id: inv.id || generateId(),
+          // Formatear fecha de nacimiento a ISO string para guardarla
+          fechaNacimiento: inv.fechaNacimiento ? formatISO(inv.fechaNacimiento as Date, { representation: 'date' }) : undefined
+        }))
     };
 
     try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
-        toast({ title: "Lista Guardada", description: "Tu lista de invitados para hoy ha sido guardada/actualizada." });
+        toast({ 
+          title: "Lista Guardada", 
+          description: (
+            <div>
+              <p>Tu lista de invitados para hoy ha sido guardada/actualizada.</p>
+              <p className="mt-2 font-semibold text-orange-600">Recuerde: Se solicitará DNI a cada uno de sus invitados para ingresar y para realizar la revisión médica.</p>
+            </div>
+          ),
+          duration: 7000, 
+        });
         loadSolicitudHoy(); 
     } catch (error) {
         console.error("Error guardando solicitud de invitados diarios:", error);
@@ -140,7 +173,7 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados.
+            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -199,9 +232,54 @@ export function GestionInvitadosDiarios() {
                             control={form.control}
                             name={`listaInvitadosDiarios.${index}.dni`}
                             render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
+                              <FormItem>
                                 <FormLabel className="text-xs">DNI</FormLabel>
                                 <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm"/></FormControl>
+                                <FormMessage className="text-xs"/>
+                              </FormItem>
+                            )}
+                          />
+                           <FormField
+                            control={form.control}
+                            name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <FormLabel className="text-xs">Fecha de Nacimiento (Opcional)</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "h-9 w-full justify-start text-left font-normal text-sm",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        <CalendarDays className="mr-2 h-4 w-4" />
+                                        {field.value ? (
+                                          format(field.value as Date, "PPP", { locale: es })
+                                        ) : (
+                                          <span>Seleccione fecha</span>
+                                        )}
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value as Date | undefined}
+                                      onSelect={field.onChange}
+                                      disabled={(date) =>
+                                        date > new Date() || date < new Date("1900-01-01")
+                                      }
+                                      initialFocus
+                                      locale={es}
+                                      captionLayout="dropdown-buttons"
+                                      fromYear={1900}
+                                      toYear={new Date().getFullYear()}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                                 <FormMessage className="text-xs"/>
                               </FormItem>
                             )}
@@ -228,7 +306,7 @@ export function GestionInvitadosDiarios() {
                     variant="outline"
                     size="sm"
                     className="mt-3"
-                    onClick={() => append({ id: generateId(), nombre: '', apellido: '', dni: '', ingresado: false })}
+                    onClick={() => append(defaultInvitado)}
                   >
                     <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
                   </Button>
@@ -247,3 +325,5 @@ export function GestionInvitadosDiarios() {
   );
 }
 
+
+    

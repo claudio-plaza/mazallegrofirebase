@@ -121,11 +121,18 @@ export interface Adherente {
   nombre: string;
   apellido: string;
   dni: string;
+  fechaNacimiento: Date | string;
+  empresa: EmpresaTitular;
   telefono?: string;
+  direccion?: string;
   email?: string;
+  fotoDniFrente?: FileList | null | string;
+  fotoDniDorso?: FileList | null | string;
+  fotoPerfil?: FileList | null | string;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string;
+  aptoMedico: AptoMedicoInfo;
 }
 
 const MAX_FILE_SIZE_MB = 5;
@@ -316,6 +323,8 @@ export const invitadoDiarioSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
+  fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
+    .refine(date => isValid(date), { message: "Fecha de nacimiento inválida."}).optional().nullable(),
   ingresado: z.boolean().default(false),
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
@@ -332,16 +341,27 @@ export const solicitudInvitadosDiariosSchema = z.object({
 });
 export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
 
-export const adherenteSchema = z.object({
+export const adherenteFormSchema = z.object({
+    nombre: z.string().min(2, "Nombre es requerido."),
+    apellido: z.string().min(2, "Apellido es requerido."),
+    fechaNacimiento: z.date({ required_error: "Fecha de nacimiento es requerida.", invalid_type_error: "Fecha de nacimiento inválida."}),
+    dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
+    empresa: z.nativeEnum(EmpresaTitular, { required_error: "Seleccione una empresa."}),
+    telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
+    direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
+    email: z.string().email("Email inválido.").optional().or(z.literal('')),
+    fotoDniFrente: dniFileSchemaShared("Se requiere foto del DNI (frente).").nullable().optional(),
+    fotoDniDorso: dniFileSchemaShared("Se requiere foto del DNI (dorso).").nullable().optional(),
+    fotoPerfil: profileFileSchemaShared("Se requiere foto de perfil.").nullable().optional(),
+});
+export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
+
+export const adherenteSchema = adherenteFormSchema.extend({
   id: z.string().optional(),
-  nombre: z.string().min(2, "Nombre es requerido."),
-  apellido: z.string().min(2, "Apellido es requerido."),
-  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  telefono: z.string().optional().or(z.literal('')),
-  email: z.string().email("Email inválido.").optional().or(z.literal('')),
   estadoAdherente: z.nativeEnum(EstadoAdherente),
   estadoSolicitud: z.nativeEnum(EstadoSolicitudAdherente),
   motivoRechazo: z.string().optional(),
+  aptoMedico: z.custom<AptoMedicoInfo>(),
 });
 export type AdherenteData = z.infer<typeof adherenteSchema>;
 
@@ -351,3 +371,6 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date()); // Keep this import for date-fns
+
+
+    
