@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Child } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby } from 'lucide-react'; // Changed Child to Baby
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -294,8 +294,13 @@ export function ControlAcceso() {
         }
     }
 
-    if (!esMenorDeTresSinCosto && !metodoPagoSeleccionado) {
+    if (!esMenorDeTresSinCosto && tipoInvitado === 'diario' && !metodoPagoSeleccionado) {
         toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado.", variant: "destructive" });
+        return;
+    }
+    // Para cumpleaños, el método de pago es siempre requerido (a menos que se cambie la lógica)
+    if (tipoInvitado === 'cumpleanos' && !metodoPagoSeleccionado) {
+        toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado de cumpleaños.", variant: "destructive" });
         return;
     }
 
@@ -374,7 +379,7 @@ export function ControlAcceso() {
 
   const getMetodoPagoBadge = (metodo: MetodoPagoInvitado | null | undefined, esGratuito?: boolean) => {
     if (esGratuito) {
-      return <Badge variant="secondary" className="text-xs bg-purple-500 hover:bg-purple-600 text-white"><Child className="mr-1 h-3 w-3" /> Gratuito (Menor)</Badge>;
+      return <Badge variant="secondary" className="text-xs bg-purple-500 hover:bg-purple-600 text-white"><Baby className="mr-1 h-3 w-3" /> Gratuito (Menor)</Badge>;
     }
     if (!metodo) return null;
     let variant: "default" | "secondary" | "outline" = "outline";
@@ -711,7 +716,7 @@ export function ControlAcceso() {
                                    <div className="flex items-center justify-between">
                                       <p className="font-medium text-sm flex items-center">
                                         {invitado.nombre} {invitado.apellido}
-                                        {esMenorDeTres && <Child className="ml-2 h-4 w-4 text-purple-500" title="Menor de 3 años (Ingreso Gratuito)" />}
+                                        {esMenorDeTres && <Baby className="ml-2 h-4 w-4 text-purple-500" title="Menor de 3 años (Ingreso Gratuito)" />}
                                       </p>
                                       {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, esMenorDeTres)}
                                     </div>
@@ -789,8 +794,8 @@ export function ControlAcceso() {
                                             </p>
                                         </div>
                                     </div>
-                                    <Badge variant={festejo.titularIngresadoEvento ? "default" : "outline"} className={festejo.titularIngresadoEvento ? "bg-green-500" : ""}>
-                                        {festejo.titularIngresadoEvento ? "Grupo Ingresó" : "Grupo Pendiente"}
+                                    <Badge variant={festejo.titularIngresadoEvento ? 'default' : 'outline'} className={festejo.titularIngresadoEvento ? 'bg-green-500' : ''}>
+                                        {festejo.titularIngresadoEvento ? 'Grupo Ingresó' : 'Grupo Pendiente'}
                                     </Badge>
                                 </div>
                             </AccordionTrigger>
@@ -854,3 +859,4 @@ export function ControlAcceso() {
     </div>
   );
 }
+
