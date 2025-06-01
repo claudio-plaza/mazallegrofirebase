@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente } from '@/types';
+import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente, MetodoPagoInvitado } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { format, isToday, parseISO, formatISO, differenceInYears } from 'date-fns';
 import { 
   getSocioByNumeroSocioOrDNI, 
@@ -64,6 +65,8 @@ export function ControlAcceso() {
   const [festejosDelDia, setFestejosDelDia] = useState<FestejoHoy[]>([]);
   const [loadingFestejos, setLoadingFestejos] = useState(true);
   
+  const [metodosPagoSeleccionados, setMetodosPagoSeleccionados] = useState<Record<string, MetodoPagoInvitado | null>>({});
+
   const todayISO = formatISO(new Date(), { representation: 'date' });
 
   const loadFestejosDelDia = useCallback(async () => {
@@ -102,6 +105,7 @@ export function ControlAcceso() {
       setInvitadosDiariosSocioBuscado([]);
       setEventoHabilitadoPorIngresoFamiliarDiario(false);
       setAccordionValue(undefined);
+      setMetodosPagoSeleccionados({});
       return;
     }
     setLoading(true);
@@ -114,6 +118,7 @@ export function ControlAcceso() {
       setInvitadosDiariosSocioBuscado([]);
       setEventoHabilitadoPorIngresoFamiliarDiario(false);
       setAccordionValue(undefined);
+      setMetodosPagoSeleccionados({});
     }
     
     try {
@@ -264,97 +269,120 @@ export function ControlAcceso() {
         }
     }
   };
+  
+  const handleMetodoPagoChange = (invitadoId: string, metodo: MetodoPagoInvitado | null) => {
+    setMetodosPagoSeleccionados(prev => ({...prev, [invitadoId]: metodo }));
+  };
 
-  const handleRegistrarIngresoInvitadoCumpleanos = async (invitadoDni: string, festejoId: string) => {
+  const handleRegistrarIngresoInvitado = async (invitadoDni: string, tipoInvitado: 'cumpleanos' | 'diario', festejoId?: string) => {
     let targetFestejo: SolicitudCumpleanos | FestejoHoy | null = null;
-    let targetInvitados: InvitadoCumpleanos[] = [];
+    let targetInvitados: (InvitadoCumpleanos | InvitadoDiario)[] = [];
     let targetEventoHabilitado: boolean = false;
     let isFestejoDelSocioBuscado = false;
+    let metodoPagoSeleccionado = metodosPagoSeleccionados[invitadoDni] || null;
 
-    if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
-        targetFestejo = solicitudCumpleanosHoySocioBuscado;
-        targetInvitados = invitadosCumpleanosSocioBuscado;
-        targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple; 
-        isFestejoDelSocioBuscado = true;
-    } else {
-        const generalFestejo = festejosDelDia.find(f => f.id === festejoId);
-        if (generalFestejo) {
-            targetFestejo = generalFestejo;
-            targetInvitados = generalFestejo.listaInvitados;
-            targetEventoHabilitado = generalFestejo.titularIngresadoEvento || false; 
+    if (!metodoPagoSeleccionado && tipoInvitado !== 'diario' && tipoInvitado !== 'cumpleanos') { // Assuming 'Caja' doesn't need explicit selection if it's the only option or default.
+        toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado.", variant: "destructive" });
+        return;
+    }
+
+
+    if (tipoInvitado === 'cumpleanos') {
+        if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
+            targetFestejo = solicitudCumpleanosHoySocioBuscado;
+            targetInvitados = invitadosCumpleanosSocioBuscado;
+            targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple; 
+            isFestejoDelSocioBuscado = true;
+        } else {
+            const generalFestejo = festejosDelDia.find(f => f.id === festejoId);
+            if (generalFestejo) {
+                targetFestejo = generalFestejo;
+                targetInvitados = generalFestejo.listaInvitados;
+                targetEventoHabilitado = generalFestejo.titularIngresadoEvento || false; 
+            }
+        }
+        if (!targetEventoHabilitado) {
+          toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
+          return;
+        }
+    } else { // tipoInvitado === 'diario'
+        if (!solicitudInvitadosDiariosHoySocioBuscado) return;
+        targetInvitados = invitadosDiariosSocioBuscado;
+        targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
+        if (!targetEventoHabilitado) {
+          toast({ title: 'Acceso Denegado (Invitado Diario)', description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero.', variant: 'destructive' });
+          return;
         }
     }
     
-    if (!targetFestejo) return;
+    if (!targetFestejo && tipoInvitado === 'cumpleanos') return; // Ensure festejo is found for birthdays
+    if (!solicitudInvitadosDiariosHoySocioBuscado && tipoInvitado === 'diario') return;
 
-    if (!targetEventoHabilitado) {
-      toast({
-        title: 'Acceso Denegado (Invitado Cumpleaños)',
-        description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     const updatedInvitados = targetInvitados.map(inv =>
-        inv.dni === invitadoDni ? { ...inv, ingresado: !inv.ingresado } : inv
+        inv.dni === invitadoDni ? { ...inv, ingresado: !inv.ingresado, metodoPago: !inv.ingresado ? metodoPagoSeleccionado : inv.metodoPago } : inv
     );
     
     const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
     toast({
-        title: `Ingreso Invitado Cumpleaños ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
-        description: `${invitado?.nombre} ${invitado?.apellido} (${invitado?.dni}) ha sido ${invitado?.ingresado ? 'marcado como ingresado' : 'desmarcado'}.`,
+        title: `Ingreso Invitado ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
+        description: `${invitado?.nombre} ${invitado?.apellido} (DNI: ${invitado?.dni}) ha sido ${invitado?.ingresado ? `marcado como ingresado (Pago: ${invitado.metodoPago || 'No especificado'})` : 'desmarcado'}.`,
     });
 
-    const updatedFestejo = { ...targetFestejo, listaInvitados: updatedInvitados };
-    try {
-      await updateSolicitudCumpleanos(updatedFestejo as SolicitudCumpleanos);
-      
-      if (isFestejoDelSocioBuscado) {
-          setInvitadosCumpleanosSocioBuscado(updatedInvitados);
-          setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
-      } else {
-        setFestejosDelDia(prevFestejos => 
-            prevFestejos.map(f => f.id === festejoId ? (updatedFestejo as FestejoHoy) : f)
-        );
-      }
-    } catch (error) {
-      console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
-      toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
+    if (tipoInvitado === 'cumpleanos' && targetFestejo) {
+        const updatedFestejo = { ...targetFestejo, listaInvitados: updatedInvitados as InvitadoCumpleanos[] };
+        try {
+            await updateSolicitudCumpleanos(updatedFestejo as SolicitudCumpleanos);
+            if (isFestejoDelSocioBuscado) {
+                setInvitadosCumpleanosSocioBuscado(updatedInvitados as InvitadoCumpleanos[]);
+                setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
+            } else {
+                setFestejosDelDia(prevFestejos => 
+                    prevFestejos.map(f => f.id === festejoId ? (updatedFestejo as FestejoHoy) : f)
+                );
+            }
+        } catch (error) {
+            console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
+            toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
+        }
+    } else if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
+        const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, listaInvitadosDiarios: updatedInvitados as InvitadoDiario[] };
+        try {
+            await updateSolicitudInvitadosDiarios(updatedSolicitud);
+            setInvitadosDiariosSocioBuscado(updatedInvitados as InvitadoDiario[]); 
+            setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+        } catch (error) {
+            console.error("Error actualizando ingreso de invitado diario:", error);
+            toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
+        }
     }
+    setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null })); // Reset selection for this guest
   };
 
-  const handleRegistrarIngresoInvitadoDiario = async (invitadoDni: string) => {
-    if (!solicitudInvitadosDiariosHoySocioBuscado) return;
+  const getMetodoPagoBadge = (metodo: MetodoPagoInvitado | null | undefined) => {
+    if (!metodo) return null;
+    let variant: "default" | "secondary" | "outline" = "outline";
+    let className = "";
+    let IconComponent: React.ElementType | null = null;
 
-    if (!eventoHabilitadoPorIngresoFamiliarDiario) {
-      toast({
-        title: 'Acceso Denegado (Invitado Diario)',
-        description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero para que los invitados diarios puedan acceder.',
-        variant: 'destructive',
-      });
-      return;
+    switch (metodo) {
+        case 'Efectivo':
+            variant = 'default';
+            className = 'bg-green-500 hover:bg-green-600 text-white';
+            IconComponent = Banknote;
+            break;
+        case 'Transferencia':
+            variant = 'default';
+            className = 'bg-blue-500 hover:bg-blue-600 text-white';
+            IconComponent = CreditCard;
+            break;
+        case 'Caja':
+            variant = 'default';
+            className = 'bg-orange-500 hover:bg-orange-600 text-white';
+            IconComponent = Archive;
+            break;
     }
-
-    const updatedInvitados = invitadosDiariosSocioBuscado.map(inv =>
-        inv.dni === invitadoDni ? { ...inv, ingresado: !inv.ingresado } : inv
-    );
-    
-    const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
-    toast({
-        title: `Ingreso Invitado Diario ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
-        description: `${invitado?.nombre} ${invitado?.apellido} (${invitado?.dni}) ha sido ${invitado?.ingresado ? 'marcado como ingresado' : 'desmarcado'}.`,
-    });
-    
-    const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, listaInvitadosDiarios: updatedInvitados };
-    try {
-      await updateSolicitudInvitadosDiarios(updatedSolicitud);
-      setInvitadosDiariosSocioBuscado(updatedInvitados); 
-      setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
-    } catch (error) {
-      console.error("Error actualizando ingreso de invitado diario:", error);
-      toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
-    }
+    return <Badge variant={variant} className={`text-xs ${className}`}> {IconComponent && <IconComponent className="mr-1 h-3 w-3" />} {metodo}</Badge>;
   };
 
 
@@ -593,22 +621,39 @@ export function ControlAcceso() {
                       )}
                       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                         {invitadosCumpleanosSocioBuscado.map(invitado => (
-                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-50' : 'bg-card'}`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
+                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                   <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
+                                   {invitado.ingresado && invitado.metodoPago && getMetodoPagoBadge(invitado.metodoPago)}
+                                </div>
                                 <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                 <Checkbox
-                                   id={`guest-cumple-${invitado.dni}`}
-                                   checked={!!invitado.ingresado}
-                                   onCheckedChange={() => handleRegistrarIngresoInvitadoCumpleanos(invitado.dni, solicitudCumpleanosHoySocioBuscado!.id)}
-                                   disabled={!eventoHabilitadoPorIngresoFamiliarCumple}
-                                 />
-                                 <Label htmlFor={`guest-cumple-${invitado.dni}`} className="text-xs cursor-pointer">
-                                  {invitado.ingresado ? "Ingresado" : "Marcar Ingreso"}
-                                 </Label>
+                              {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarCumple && (
+                                <RadioGroup
+                                    onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
+                                    defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
+                                    className="flex flex-row gap-2 sm:gap-3 py-1 sm:py-0 items-center"
+                                >
+                                    {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
+                                        <div key={metodo} className="flex items-center space-x-1.5">
+                                            <RadioGroupItem value={metodo} id={`cumple-${invitado.dni}-${metodo}`} className="h-3.5 w-3.5" />
+                                            <Label htmlFor={`cumple-${invitado.dni}-${metodo}`} className="text-xs font-normal cursor-pointer">{metodo}</Label>
+                                        </div>
+                                    ))}
+                                </RadioGroup>
+                              )}
+                              <div className="flex items-center space-x-2 self-end sm:self-center">
+                                 <Button
+                                   size="sm"
+                                   variant={invitado.ingresado ? "outline" : "default"}
+                                   onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'cumpleanos', solicitudCumpleanosHoySocioBuscado!.id)}
+                                   disabled={!eventoHabilitadoPorIngresoFamiliarCumple || (!invitado.ingresado && !metodosPagoSeleccionados[invitado.dni])}
+                                   className="min-w-[120px]"
+                                 >
+                                  {invitado.ingresado ? "Anular Ingreso" : "Registrar Ingreso"}
+                                 </Button>
                               </div>
                             </div>
                           </Card>
@@ -636,23 +681,40 @@ export function ControlAcceso() {
                       )}
                       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                         {invitadosDiariosSocioBuscado.map(invitado => (
-                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-50' : 'bg-card'}`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
-                                <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                 <Checkbox
-                                   id={`guest-diario-${invitado.dni}`}
-                                   checked={!!invitado.ingresado}
-                                   onCheckedChange={() => handleRegistrarIngresoInvitadoDiario(invitado.dni)}
-                                   disabled={!eventoHabilitadoPorIngresoFamiliarDiario}
-                                 />
-                                 <Label htmlFor={`guest-diario-${invitado.dni}`} className="text-xs cursor-pointer">
-                                  {invitado.ingresado ? "Ingresado" : "Marcar Ingreso"}
-                                 </Label>
-                              </div>
+                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                               <div className="flex-1">
+                                 <div className="flex items-center justify-between">
+                                    <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
+                                    {invitado.ingresado && invitado.metodoPago && getMetodoPagoBadge(invitado.metodoPago)}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
+                               </div>
+                               {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarDiario && (
+                                <RadioGroup
+                                    onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
+                                    defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
+                                    className="flex flex-row gap-2 sm:gap-3 py-1 sm:py-0 items-center"
+                                >
+                                    {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
+                                        <div key={metodo} className="flex items-center space-x-1.5">
+                                            <RadioGroupItem value={metodo} id={`diario-${invitado.dni}-${metodo}`} className="h-3.5 w-3.5" />
+                                            <Label htmlFor={`diario-${invitado.dni}-${metodo}`} className="text-xs font-normal cursor-pointer">{metodo}</Label>
+                                        </div>
+                                    ))}
+                                </RadioGroup>
+                               )}
+                               <div className="flex items-center space-x-2 self-end sm:self-center">
+                                 <Button
+                                   size="sm"
+                                   variant={invitado.ingresado ? "outline" : "default"}
+                                   onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'diario')}
+                                   disabled={!eventoHabilitadoPorIngresoFamiliarDiario || (!invitado.ingresado && !metodosPagoSeleccionados[invitado.dni])}
+                                   className="min-w-[120px]"
+                                 >
+                                  {invitado.ingresado ? "Anular Ingreso" : "Registrar Ingreso"}
+                                 </Button>
+                               </div>
                             </div>
                           </Card>
                         ))}
@@ -715,21 +777,38 @@ export function ControlAcceso() {
                                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                         {festejo.listaInvitados.map(invitado => (
                                             <Card key={invitado.dni} className={`p-2 text-xs ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
-                                                <div className="flex items-center justify-between">
-                                                    <div>
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                                                    <div className="flex-1">
+                                                      <div className="flex items-center justify-between">
                                                         <p className="font-medium">{invitado.nombre} {invitado.apellido}</p>
-                                                        <p className="text-muted-foreground">DNI: {invitado.dni}</p>
+                                                        {invitado.ingresado && invitado.metodoPago && getMetodoPagoBadge(invitado.metodoPago)}
+                                                      </div>
+                                                      <p className="text-muted-foreground">DNI: {invitado.dni}</p>
                                                     </div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <Checkbox
-                                                            id={`guest-general-cumple-${festejo.id}-${invitado.dni}`}
-                                                            checked={!!invitado.ingresado}
-                                                            onCheckedChange={() => handleRegistrarIngresoInvitadoCumpleanos(invitado.dni, festejo.id)}
-                                                            disabled={!festejo.titularIngresadoEvento}
-                                                        />
-                                                        <Label htmlFor={`guest-general-cumple-${festejo.id}-${invitado.dni}`} className="text-xs cursor-pointer">
-                                                            {invitado.ingresado ? "Ingresó" : "Marcar"}
-                                                        </Label>
+                                                    {!invitado.ingresado && festejo.titularIngresadoEvento && (
+                                                        <RadioGroup
+                                                            onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
+                                                            defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
+                                                            className="flex flex-row gap-1.5 py-0.5 items-center"
+                                                        >
+                                                            {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
+                                                                <div key={metodo} className="flex items-center space-x-1">
+                                                                    <RadioGroupItem value={metodo} id={`general-cumple-${festejo.id}-${invitado.dni}-${metodo}`} className="h-3 w-3" />
+                                                                    <Label htmlFor={`general-cumple-${festejo.id}-${invitado.dni}-${metodo}`} className="text-xs font-normal cursor-pointer">{metodo}</Label>
+                                                                </div>
+                                                            ))}
+                                                        </RadioGroup>
+                                                    )}
+                                                    <div className="flex items-center space-x-2 self-end sm:self-center">
+                                                        <Button
+                                                           size="sm"
+                                                           variant={invitado.ingresado ? "outline" : "default"}
+                                                           onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'cumpleanos', festejo.id)}
+                                                           disabled={!festejo.titularIngresadoEvento || (!invitado.ingresado && !metodosPagoSeleccionados[invitado.dni])}
+                                                           className="min-w-[90px] text-xs h-7"
+                                                         >
+                                                          {invitado.ingresado ? "Anular" : "Ingresar"}
+                                                         </Button>
                                                     </div>
                                                 </div>
                                             </Card>

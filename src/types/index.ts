@@ -76,6 +76,8 @@ export enum EstadoSolicitudAdherente {
   PENDIENTE_ELIMINACION = "Pendiente Eliminación",
 }
 
+export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
+
 
 export interface AptoMedicoInfo {
   valido: boolean;
@@ -298,6 +300,7 @@ export const invitadoCumpleanosSchema = z.object({
   telefono: z.string().optional(),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   ingresado: z.boolean().default(false),
+  metodoPago: z.enum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
 });
 export type InvitadoCumpleanos = z.infer<typeof invitadoCumpleanosSchema>;
 
@@ -326,6 +329,7 @@ export const invitadoDiarioSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), { message: "Fecha de nacimiento inválida."}).optional().nullable(),
   ingresado: z.boolean().default(false),
+  metodoPago: z.enum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
 
