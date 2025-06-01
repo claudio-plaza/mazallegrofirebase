@@ -1,16 +1,13 @@
 
+'use client';
+
 import type { UserRole } from '@/types';
 import { mockSocios } from '../lib/mockData'; // To find socio details on login
 import { mockRevisiones } from '../lib/mockData'; // Needed for initializeMockDatabases
 
-// Import KEYS from firestoreService to use the correct localStorage key
-const KEYS = {
-  SOCIOS: 'firestore/socios',
-  // We only need SOCIOS here, but defining the structure for clarity if other keys were needed.
-  // REVISIONES: 'firestore/revisionesMedicas',
-  // CUMPLEANOS: 'firestore/solicitudesCumpleanos',
-  // INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
-};
+// Import KEYS from firestoreService to ensure consistency if used, though firestoreService manages its own keys primarily.
+// For 'sociosDB' (KEYS.SOCIOS), firestoreService.ts is responsible for initialization.
+import { initializeSociosDB as initializeSociosInFirestoreService } from './firebase/firestoreService';
 
 
 interface UserDetails {
@@ -36,7 +33,7 @@ export const mockUsers: UserDetails[] = [
     email: socio.email!.toLowerCase(),
     role: 'socio' as UserRole,
     numeroSocio: socio.numeroSocio,
-    password: 'password123',
+    password: 'password123', // Unified password
   })),
   { id: 'socio-2001', name: 'Carlos Solari', email: 'carlos.solari@example.com', role: 'socio', numeroSocio: '2001', password: 'password123' },
   { id: 'socio-2002', name: 'Laura Fernández', email: 'laura.fernandez@example.com', role: 'socio', numeroSocio: '2002', password: 'password123' },
@@ -45,8 +42,8 @@ export const mockUsers: UserDetails[] = [
   { id: 'socio-2005', name: 'Ricardo Darín', email: 'ricardo.darin@example.com', role: 'socio', numeroSocio: '2005', password: 'password123' },
 ];
 
-export const loginUser = (email: string, DUMMY_PASSWORD_FOR_DEMO: string): UserDetails | null => {
-  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === DUMMY_PASSWORD_FOR_DEMO);
+export const loginUser = (email: string, passwordInput: string): UserDetails | null => {
+  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === passwordInput);
   if (user) {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userRole', user.role);
@@ -57,7 +54,10 @@ export const loginUser = (email: string, DUMMY_PASSWORD_FOR_DEMO: string): UserD
     } else {
       localStorage.removeItem('loggedInUserNumeroSocio');
     }
-    initializeMockDatabases();
+    // Ensure firestoreService has a chance to initialize its DBs if not already done.
+    // This explicit call might be redundant if module imports handle it, but it's safe.
+    initializeSociosInFirestoreService(); // Make sure firestoreService has its DBs ready
+    initializeMockDatabases(); // Initialize other mock DBs like revisiones, etc.
     window.dispatchEvent(new Event('authChange'));
     return user;
   }
@@ -86,10 +86,10 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
 
 export const initializeMockDatabases = () => {
   if (typeof window !== 'undefined') {
-    // Use the correct key from KEYS (imported or defined locally for this scope)
-    localStorage.setItem(KEYS.SOCIOS, JSON.stringify(mockSocios));
+    // sociosDB (KEYS.SOCIOS) is initialized by firestoreService.ts when it's imported.
+    // No need to: localStorage.setItem(KEYS.SOCIOS, JSON.stringify(mockSocios));
 
-    const storedRevisiones = localStorage.getItem('revisionesDB'); // Assuming 'revisionesDB' is the correct key for these for now.
+    const storedRevisiones = localStorage.getItem('revisionesDB'); // Assuming 'revisionesDB' for these.
     if (!storedRevisiones) { 
        localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
     }
