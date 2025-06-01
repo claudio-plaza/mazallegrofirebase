@@ -3,6 +3,16 @@ import type { UserRole } from '@/types';
 import { mockSocios } from '../lib/mockData'; // To find socio details on login
 import { mockRevisiones } from '../lib/mockData'; // Needed for initializeMockDatabases
 
+// Import KEYS from firestoreService to use the correct localStorage key
+const KEYS = {
+  SOCIOS: 'firestore/socios',
+  // We only need SOCIOS here, but defining the structure for clarity if other keys were needed.
+  // REVISIONES: 'firestore/revisionesMedicas',
+  // CUMPLEANOS: 'firestore/solicitudesCumpleanos',
+  // INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
+};
+
+
 interface UserDetails {
   id: string;
   name: string;
@@ -17,18 +27,17 @@ export const mockUsers: UserDetails[] = [
   { id: 'portero1', name: 'Pedro Portero', email: 'portero@example.com', role: 'portero', password: 'password123' },
   { id: 'medico1', name: 'Dra. Ana Médico', email: 'medico@example.com', role: 'medico', password: 'password123' },
   { id: 'admin1', name: 'Admin General', email: 'admin@example.com', role: 'administrador', password: 'password123' },
-  { id: 'admin2', name: 'Admin Prueba', email: 'admin2@example.com', role: 'administrador', password: 'adminpass' },
-  { id: 'medico2', name: 'Medico Prueba', email: 'medico2@example.com', role: 'medico', password: 'medicopass' },
-  { id: 'portero2', name: 'Portero Prueba', email: 'portero2@example.com', role: 'portero', password: 'porteropass' },
+  { id: 'admin2', name: 'Admin Prueba', email: 'admin2@example.com', role: 'administrador', password: 'password123' },
+  { id: 'medico2', name: 'Medico Prueba', email: 'medico2@example.com', role: 'medico', password: 'password123' },
+  { id: 'portero2', name: 'Portero Prueba', email: 'portero2@example.com', role: 'portero', password: 'password123' },
   ...mockSocios.filter(socio => socio.email).map(socio => ({
     id: `socio-${socio.numeroSocio}`,
     name: `${socio.nombre} ${socio.apellido}`,
-    email: socio.email!.toLowerCase(), // Added non-null assertion as we filter for socio.email
+    email: socio.email!.toLowerCase(),
     role: 'socio' as UserRole,
     numeroSocio: socio.numeroSocio,
     password: 'password123',
   })),
-   // Agregando los nuevos 5 usuarios con la contraseña 'password123'
   { id: 'socio-2001', name: 'Carlos Solari', email: 'carlos.solari@example.com', role: 'socio', numeroSocio: '2001', password: 'password123' },
   { id: 'socio-2002', name: 'Laura Fernández', email: 'laura.fernandez@example.com', role: 'socio', numeroSocio: '2002', password: 'password123' },
   { id: 'socio-2003', name: 'Miguel Ángel Russo', email: 'miguel.russo@example.com', role: 'socio', numeroSocio: '2003', password: 'password123' },
@@ -37,7 +46,7 @@ export const mockUsers: UserDetails[] = [
 ];
 
 export const loginUser = (email: string, DUMMY_PASSWORD_FOR_DEMO: string): UserDetails | null => {
-  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === DUMMY_PASSWORD_FOR_DEMO); // Check password
+  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === DUMMY_PASSWORD_FOR_DEMO);
   if (user) {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userRole', user.role);
@@ -77,11 +86,11 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
 
 export const initializeMockDatabases = () => {
   if (typeof window !== 'undefined') {
-    // Always update sociosDB with the latest mockSocios data
-    localStorage.setItem('sociosDB', JSON.stringify(mockSocios));
+    // Use the correct key from KEYS (imported or defined locally for this scope)
+    localStorage.setItem(KEYS.SOCIOS, JSON.stringify(mockSocios));
 
-    const storedRevisiones = localStorage.getItem('revisionesDB');
-    if (!storedRevisiones) {
+    const storedRevisiones = localStorage.getItem('revisionesDB'); // Assuming 'revisionesDB' is the correct key for these for now.
+    if (!storedRevisiones) { 
        localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
     }
 
