@@ -16,15 +16,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
-import { addDays, format, formatISO, parseISO, differenceInYears, isValid } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { addDays, format, formatISO, parseISO, differenceInYears, isValid, subYears } from 'date-fns';
 import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Label } from '@/components/ui/label'; 
 import { Card } from '@/components/ui/card'; 
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from "@/lib/utils";
 import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -37,11 +33,11 @@ const revisionSchema = z.object({
 type RevisionFormValues = z.infer<typeof revisionSchema>;
 
 interface SearchedPerson {
-  id: string; // DNI o numeroSocio (para titulares)
+  id: string; 
   nombreCompleto: string;
   fechaNacimiento: string | Date;
   tipo: 'Socio Titular' | 'Familiar' | 'Adherente';
-  socioTitularId?: string; // Solo para Familiar y Adherente
+  socioTitularId?: string; 
   aptoMedicoActual?: AptoMedicoInfo;
 }
 
@@ -100,10 +96,9 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       let personFound: SearchedPerson | null = null;
 
       for (const socio of socios) {
-        // Buscar titular
         if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
           personFound = {
-            id: socio.numeroSocio, // Usar numeroSocio como ID principal para titulares
+            id: socio.numeroSocio, 
             nombreCompleto: `${socio.nombre} ${socio.apellido}`,
             fechaNacimiento: socio.fechaNacimiento,
             tipo: 'Socio Titular',
@@ -111,11 +106,10 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           };
           break;
         }
-        // Buscar familiares
         const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
         if (familiarFound) {
           personFound = {
-            id: familiarFound.dni, // Usar DNI como ID para familiares
+            id: familiarFound.dni, 
             nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
             fechaNacimiento: familiarFound.fechaNacimiento,
             tipo: 'Familiar',
@@ -124,11 +118,10 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           };
           break;
         }
-        // Buscar adherentes
         const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
         if (adherenteFound) {
            personFound = {
-            id: adherenteFound.dni, // Usar DNI como ID para adherentes
+            id: adherenteFound.dni, 
             nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
             fechaNacimiento: adherenteFound.fechaNacimiento,
             tipo: 'Adherente',
@@ -166,7 +159,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     const nuevaRevision: RevisionMedica = {
       id: generateId(),
       fechaRevision: formatISO(data.fechaRevision),
-      socioId: searchedPerson.id, // DNI o numeroSocio
+      socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
@@ -187,7 +180,6 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
        aptoMedicoUpdate.fechaVencimiento = undefined; 
     }
 
-    // Actualizar AptoMedico en el Socio/Familiar/Adherente
     const storedSocios = localStorage.getItem('sociosDB');
     if (storedSocios) {
       let socios: Socio[] = JSON.parse(storedSocios);
@@ -200,7 +192,6 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
             ...s,
             grupoFamiliar: s.grupoFamiliar?.map(f => f.dni === searchedPerson.id ? { ...f, aptoMedico: aptoMedicoUpdate } : f),
             adherentes: s.adherentes?.map(a => a.dni === searchedPerson.id ? { ...a, aptoMedico: aptoMedicoUpdate } : a),
-            // Podríamos agregar 'ultimaRevisionMedica' al familiar/adherente si el tipo lo soportara
           };
         }
         return s;
@@ -299,44 +290,21 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                 control={form.control}
                 name="fechaRevision"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel className="text-sm font-medium">Fecha de Revisión</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal text-muted-foreground",
-                              !field.value && "text-muted-foreground",
-                              field.value && "text-foreground"
-                            )}
-                          >
-                            <CalendarDays className="mr-2 h-4 w-4" />
-                            {field.value ? (
-                              format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                            ) : (
-                              <span>Seleccione fecha</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                          locale={es}
-                          captionLayout="dropdown-buttons"
-                          fromYear={new Date().getFullYear() - 100}
-                          toYear={new Date().getFullYear()}
+                    <FormControl>
+                      <div className="relative">
+                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="date"
+                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                          onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                          max={format(new Date(), 'yyyy-MM-dd')}
+                          min={format(subYears(new Date(), 1), 'yyyy-MM-dd')} // Example: allow dates up to 1 year in the past
+                          className="w-full pl-10"
                         />
-                      </PopoverContent>
-                    </Popover>
+                      </div>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -407,4 +375,3 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     </Dialog>
   );
 }
-

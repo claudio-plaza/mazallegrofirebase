@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info, MailQuestion, XSquare } from 'lucide-react';
-import { format, parseISO, isValid } from 'date-fns';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info, MailQuestion, XSquare, CalendarDays } from 'lucide-react';
+import { format, parseISO, isValid, subYears } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   type AgregarFamiliaresData, agregarFamiliaresSchema,
@@ -175,7 +175,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(prev => prev + 1);
     }
   };
   
@@ -421,7 +421,18 @@ export function AltaSocioMultiStepForm() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac. Cónyuge</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )}/>
+                              <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => ( 
+                                <FormItem> 
+                                  <FormLabel>Fecha Nac. Cónyuge</FormLabel> 
+                                  <FormControl>
+                                    <div className="relative">
+                                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                    </div>
+                                  </FormControl> 
+                                  <FormMessage /> 
+                                </FormItem> 
+                              )}/>
                               <FormField control={control} name="familiares.conyuge.dni" render={({ field }) => ( <FormItem> <FormLabel>DNI Cónyuge</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.direccion" render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -462,7 +473,17 @@ export function AltaSocioMultiStepForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )}/>
+                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => ( 
+                              <FormItem> <FormLabel>Fecha Nac.</FormLabel> 
+                                <FormControl>
+                                  <div className="relative">
+                                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                    <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                  </div>
+                                </FormControl> 
+                                <FormMessage /> 
+                              </FormItem> 
+                            )}/>
                             <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -509,7 +530,17 @@ export function AltaSocioMultiStepForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => ( <FormItem> <FormLabel>Fecha Nac.</FormLabel> <FormControl><Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )}/>
+                              <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => ( 
+                                <FormItem> <FormLabel>Fecha Nac.</FormLabel> 
+                                  <FormControl>
+                                    <div className="relative">
+                                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                    </div>
+                                  </FormControl> 
+                                  <FormMessage /> 
+                                </FormItem> 
+                              )}/>
                               <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -606,5 +637,3 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
-
-    

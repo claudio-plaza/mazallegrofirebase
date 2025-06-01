@@ -8,15 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Download, CalendarDays, ListChecks, Search } from 'lucide-react';
 import { formatDate } from '@/lib/helpers';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid, isSameDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 const CUMPLEANOS_DB_KEY = 'cumpleanosDB';
 
@@ -31,10 +28,9 @@ export function AdminEventosDashboard() {
     const storedData = localStorage.getItem(CUMPLEANOS_DB_KEY);
     if (storedData) {
       const allSolicitudesRaw: SolicitudCumpleanos[] = JSON.parse(storedData);
-      // Ensure fechaEvento is a Date object for consistent filtering
       const allSolicitudesProcessed = allSolicitudesRaw.map(s => ({
         ...s,
-        fechaEvento: s.fechaEvento ? parseISO(s.fechaEvento as unknown as string) : new Date(0) // handle invalid or missing dates
+        fechaEvento: s.fechaEvento ? parseISO(s.fechaEvento as unknown as string) : new Date(0) 
       }));
       setTodasLasSolicitudes(allSolicitudesProcessed);
     }
@@ -42,7 +38,7 @@ export function AdminEventosDashboard() {
   }, []);
 
   const solicitudesFiltradas = useMemo(() => {
-    if (!selectedDate) return todasLasSolicitudes; // Show all if no date is selected
+    if (!selectedDate) return todasLasSolicitudes; 
     return todasLasSolicitudes.filter(s => 
         s.fechaEvento && isValid(s.fechaEvento) && isSameDay(s.fechaEvento, selectedDate)
     );
@@ -83,30 +79,16 @@ export function AdminEventosDashboard() {
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-grow">
               <Label htmlFor="date-picker-cumpleanos">Filtrar por Fecha de Evento (Opcional):</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date-picker-cumpleanos"
-                    variant={"outline"}
-                    className={cn(
-                      "w-full sm:w-[280px] justify-start text-left font-normal mt-1",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Todas las fechas</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => setSelectedDate(date)} // Allow unselecting
-                    initialFocus
-                    locale={es}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="relative mt-1">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="date-picker-cumpleanos"
+                  type="date"
+                  value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setSelectedDate(e.target.value ? parseISO(e.target.value) : undefined)}
+                  className="w-full sm:w-[280px] pl-10"
+                />
+              </div>
                {selectedDate && (
                 <Button variant="link" size="sm" onClick={() => setSelectedDate(undefined)} className="pl-2 text-xs">Limpiar filtro</Button>
               )}

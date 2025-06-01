@@ -12,16 +12,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, CalendarIcon, Users, Cake, Edit2, Eye, ListChecks, UserCheck } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Cake, Edit2, Eye, ListChecks, UserCheck, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { format, parseISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -130,12 +126,11 @@ export function GestionCumpleanos() {
   const onSubmit = (data: SolicitudCumpleanos) => {
     const allSolicitudesFromStorage: SolicitudCumpleanos[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     
-    // Validation: One celebration per person per year
     const yearOfEvent = new Date(data.fechaEvento).getFullYear();
     const existingRequestForPersonInYear = allSolicitudesFromStorage.find(req => 
       req.idCumpleanero === data.idCumpleanero &&
       new Date(req.fechaEvento).getFullYear() === yearOfEvent &&
-      (!editingSolicitud || req.id !== editingSolicitud.id) // Exclude current if editing
+      (!editingSolicitud || req.id !== editingSolicitud.id) 
     );
 
     if (existingRequestForPersonInYear) {
@@ -178,7 +173,7 @@ export function GestionCumpleanos() {
   };
 
   const handleOpenForm = (solicitud?: SolicitudCumpleanos) => {
-    loadTitularData(); // Ensure options are fresh
+    loadTitularData(); 
     if (solicitud) {
       setEditingSolicitud(solicitud);
       form.reset({
@@ -354,38 +349,20 @@ export function GestionCumpleanos() {
                   control={form.control}
                   name="fechaEvento"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Fecha del Evento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(new Date(field.value), "PPP", { locale: es })
-                              ) : (
-                                <span>Seleccione una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value ? new Date(field.value) : undefined}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) || date < new Date("1900-01-01")}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <div className="relative">
+                           <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                           <Input
+                              type="date"
+                              value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                              onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                              min={format(new Date(), 'yyyy-MM-dd')}
+                              className="w-full pl-10"
+                            />
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -399,7 +376,6 @@ export function GestionCumpleanos() {
                     </AlertDescription>
                   </Alert>
                 )}
-
 
                 <Separator />
                 
@@ -520,4 +496,3 @@ export function GestionCumpleanos() {
     </FormProvider>
   );
 }
-

@@ -19,41 +19,35 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format, parseISO, subYears } from 'date-fns';
 
-
-// Use the comprehensive adherenteSchema for form validation
 const adherenteFormValidationSchema = adherenteSchema.omit({ 
     id: true, 
     estadoAdherente: true, 
     estadoSolicitud: true, 
     motivoRechazo: true,
-    aptoMedico: true, // Apto Medico is handled by admin/medico initially
+    aptoMedico: true, 
 });
 type AdherenteFormValues = z.infer<typeof adherenteFormValidationSchema>;
 
 const renderFilePreview = (fileList: FileList | null | undefined | string, fieldName: keyof AdherenteFormValues, formInstance: ReturnType<typeof useForm<AdherenteFormValues>>) => {
     let url: string | null = null;
-    let fileName: string | null = null;
+    let fileNamePreview: string | null = null;
 
     if (typeof fileList === 'string') {
         url = fileList;
-        fileName = "Archivo cargado";
+        fileNamePreview = "Archivo cargado";
     } else if (fileList && fileList.length > 0) {
         url = getFileUrl(fileList);
-        fileName = fileList[0].name;
+        fileNamePreview = fileList[0].name;
     }
 
-    if (url && fileName) {
+    if (url && fileNamePreview) {
         return (
             <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground truncate max-w-[120px]">{fileName}</span>
+                <span className="text-muted-foreground truncate max-w-[120px]">{fileNamePreview}</span>
                 <Button
                     type="button"
                     variant="ghost"
@@ -121,12 +115,10 @@ export function GestionAdherentesSocio() {
     const nuevoAdherente: Adherente = {
       id: generateId(),
       ...data,
-      fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, // Store as ISO string
-      // Convert FileList to string URLs if needed, or handle in backend/service layer
-      // For now, assuming FileList is handled by a service that converts to URL
-      fotoDniFrente: data.fotoDniFrente, // This might need conversion to URL string
-      fotoDniDorso: data.fotoDniDorso,   // This might need conversion to URL string
-      fotoPerfil: data.fotoPerfil,     // This might need conversion to URL string
+      fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, 
+      fotoDniFrente: data.fotoDniFrente, 
+      fotoDniDorso: data.fotoDniDorso,   
+      fotoPerfil: data.fotoPerfil,     
       estadoAdherente: EstadoAdherente.INACTIVO, 
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },
@@ -223,43 +215,21 @@ export function GestionAdherentesSocio() {
                   control={form.control}
                   name="fechaNacimiento"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Fecha de Nacimiento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarDays className="mr-2 h-4 w-4" />
-                              {field.value ? (
-                                format(field.value, "PPP", { locale: es })
-                              ) : (
-                                <span>Seleccione fecha</span>
-                              )}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                            locale={es}
-                            captionLayout="dropdown-buttons"
-                            fromYear={1900}
-                            toYear={new Date().getFullYear()}
+                      <FormControl>
+                        <div className="relative">
+                          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="date"
+                            value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                            onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                            max={format(subYears(new Date(), 0), 'yyyy-MM-dd')} // Puede ser cualquier edad
+                            min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                            className="w-full pl-10"
                           />
-                        </PopoverContent>
-                      </Popover>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -378,4 +348,3 @@ export function GestionAdherentesSocio() {
     </div>
   );
 }
-

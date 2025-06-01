@@ -18,14 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, CalendarDays, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building } from 'lucide-react';
+import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays } from 'lucide-react';
 import { siteConfig } from '@/config/site';
-import { signupTitularSchema, type SignupTitularData, empresas, EmpresaTitular } from '@/types';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from "@/lib/utils";
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { signupTitularSchema, type SignupTitularData, empresas } from '@/types';
+import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
 const renderFilePreview = (fileList: FileList | null | undefined, fieldName: keyof SignupTitularData, form: ReturnType<typeof useForm<SignupTitularData>>) => {
@@ -125,43 +121,21 @@ export function SignupForm() {
                   control={form.control}
                   name="fechaNacimiento"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Fecha de Nacimiento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarDays className="mr-2 h-4 w-4" />
-                              {field.value ? (
-                                format(field.value, "PPP", { locale: es })
-                              ) : (
-                                <span>Seleccione fecha</span>
-                              )}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                            locale={es}
-                            captionLayout="dropdown-buttons"
-                            fromYear={1900}
-                            toYear={new Date().getFullYear()}
+                      <FormControl>
+                        <div className="relative">
+                           <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                           <Input
+                            type="date"
+                            value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                            onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                            max={format(subYears(new Date(), 18), 'yyyy-MM-dd')}
+                            min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                            className="w-full pl-10"
                           />
-                        </PopoverContent>
-                      </Popover>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

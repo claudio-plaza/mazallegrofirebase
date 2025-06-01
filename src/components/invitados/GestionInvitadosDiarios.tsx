@@ -13,19 +13,13 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Users, CalendarDate, Info, CalendarDays } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Info, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatISO, isToday, parseISO } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { format, formatISO, parseISO } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from "@/lib/utils";
-import { es } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Define createDefaultInvitado outside or use useMemo for stability
 const createDefaultInvitado = (): InvitadoDiario => ({
   id: generateId(),
   nombre: '',
@@ -38,9 +32,9 @@ const createDefaultInvitado = (): InvitadoDiario => ({
 
 export function GestionInvitadosDiarios() {
   const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
-  const [loading, setLoading] = useState(true); // Initial loading state for component's data
+  const [loading, setLoading] = useState(true); 
   const { toast } = useToast();
-  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth(); // Auth loading state
+  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth(); 
 
   const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
   const defaultInvitado = useMemo(() => createDefaultInvitado(), []);
@@ -49,8 +43,8 @@ export function GestionInvitadosDiarios() {
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
       id: generateId(),
-      idSocioTitular: '', // Will be set by useEffect based on auth state
-      nombreSocioTitular: '', // Will be set by useEffect
+      idSocioTitular: '', 
+      nombreSocioTitular: '', 
       fecha: todayISO,
       listaInvitadosDiarios: [defaultInvitado],
       titularIngresadoEvento: false,
@@ -63,7 +57,7 @@ export function GestionInvitadosDiarios() {
   });
 
   const loadSolicitudHoy = useCallback(async () => {
-    if (!loggedInUserNumeroSocio) { // If no socio ID after auth, likely not a socio or error
+    if (!loggedInUserNumeroSocio) { 
         form.reset({
             id: generateId(),
             idSocioTitular: '',
@@ -74,11 +68,11 @@ export function GestionInvitadosDiarios() {
         });
         replace([defaultInvitado]);
         setSolicitudHoy(null);
-        setLoading(false); // Ensure loading is false
+        setLoading(false); 
         return;
     }
 
-    setLoading(true); // Set loading true for this specific fetch operation
+    setLoading(true); 
     try {
         const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
         setSolicitudHoy(userSolicitudHoy || null);
@@ -117,23 +111,20 @@ export function GestionInvitadosDiarios() {
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]); // authIsLoading removed as useEffect handles it
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]); 
 
   useEffect(() => {
-    if (!authIsLoading) { // Only proceed when auth is not loading
+    if (!authIsLoading) { 
       loadSolicitudHoy();
     }
-    // If authIsLoading is true, the main return (if (authIsLoading || loading)) will show "Cargando..."
-  }, [authIsLoading, loadSolicitudHoy]); // Depend on authIsLoading and the stable loadSolicitudHoy
+  }, [authIsLoading, loadSolicitudHoy]); 
 
   useEffect(() => {
-    // Effect to set titular info once auth is ready and if form doesn't have it yet
     if (loggedInUserNumeroSocio && userName && !authIsLoading) {
         const currentFormTitular = form.getValues('idSocioTitular');
         if (!currentFormTitular || currentFormTitular !== loggedInUserNumeroSocio) {
             form.setValue('idSocioTitular', loggedInUserNumeroSocio);
             form.setValue('nombreSocioTitular', userName);
-             // Ensure fecha is also set correctly if not already todayISO
             if (form.getValues('fecha') !== todayISO) {
                 form.setValue('fecha', todayISO);
             }
@@ -200,7 +191,7 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy", { locale: es })}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
+            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -270,43 +261,21 @@ export function GestionInvitadosDiarios() {
                             control={form.control}
                             name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
                             render={({ field }) => (
-                              <FormItem className="flex flex-col">
+                              <FormItem>
                                 <FormLabel className="text-xs">Fecha de Nacimiento (Opcional)</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                          "h-9 w-full justify-start text-left font-normal text-sm",
-                                          !field.value && "text-muted-foreground"
-                                        )}
-                                      >
-                                        <CalendarDays className="mr-2 h-4 w-4" />
-                                        {field.value ? (
-                                          format(field.value as Date, "PPP", { locale: es })
-                                        ) : (
-                                          <span>Seleccione fecha</span>
-                                        )}
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value as Date | undefined}
-                                      onSelect={field.onChange}
-                                      disabled={(date) =>
-                                        date > new Date() || date < new Date("1900-01-01")
-                                      }
-                                      initialFocus
-                                      locale={es}
-                                      captionLayout="dropdown-buttons"
-                                      fromYear={1900}
-                                      toYear={new Date().getFullYear()}
+                                <FormControl>
+                                  <div className="relative">
+                                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                    <Input
+                                      type="date"
+                                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                      max={format(new Date(), 'yyyy-MM-dd')}
+                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                      className="w-full pl-10 h-9 text-sm"
                                     />
-                                  </PopoverContent>
-                                </Popover>
+                                  </div>
+                                </FormControl>
                                 <FormMessage className="text-xs"/>
                               </FormItem>
                             )}

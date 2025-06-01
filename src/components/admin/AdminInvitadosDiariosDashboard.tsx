@@ -8,15 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Download, CalendarDays, Users2, Search } from 'lucide-react';
 import { formatDate, generateId } from '@/lib/helpers';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label'; // Added import for Label
+import { Label } from '@/components/ui/label'; 
+import { Input } from '@/components/ui/input';
 
 const INVITADOS_DIARIOS_DB_KEY = 'invitadosDiariosDB';
 
@@ -75,31 +72,17 @@ export function AdminInvitadosDiariosDashboard() {
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-grow">
-              <Label htmlFor="date-picker-invitados-diarios">Seleccionar Fecha:</Label> {/* Changed FormLabel to Label and added htmlFor */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date-picker-invitados-diarios" // Added id for the Label
-                    variant={"outline"}
-                    className={cn(
-                      "w-full sm:w-[280px] justify-start text-left font-normal mt-1",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Seleccione una fecha</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    initialFocus
-                    locale={es}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="date-picker-invitados-diarios">Seleccionar Fecha:</Label>
+              <div className="relative mt-1">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="date-picker-invitados-diarios"
+                  type="date"
+                  value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setSelectedDate(e.target.value ? parseISO(e.target.value) : undefined)}
+                  className="w-full sm:w-[280px] pl-10"
+                />
+              </div>
             </div>
             <Button 
               onClick={handleDescargarListaInvitadosDiarios} 
