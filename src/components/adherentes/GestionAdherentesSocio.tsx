@@ -66,8 +66,11 @@ export function GestionAdherentesSocio() {
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
 
   useEffect(() => {
-    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
+    // Max birth date is today for adherents
+    const today = new Date();
+    setMaxBirthDate(format(today, 'yyyy-MM-dd'));
   }, []);
+
 
   const form = useForm<AdherenteFormData>({
     resolver: zodResolver(adherenteFormSchema), // Using adherenteFormSchema
@@ -260,7 +263,7 @@ export function GestionAdherentesSocio() {
               </div>
 
               <Separator className="my-6" />
-              <h4 className="text-md font-semibold mb-3">Documentación del Adherente</h4>
+              <h4 className="text-md font-semibold mb-3">Documentación del Adherente (Opcional)</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => (
                       <FormField
@@ -268,7 +271,6 @@ export function GestionAdherentesSocio() {
                           name={docType}
                           key={docType}
                           render={({ field }) => {
-                            const isOptional = true;
                             const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
                             const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
                             return (
