@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
-import { adherenteSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types';
+import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types'; // Changed import from adherenteSchema
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,15 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
 import { format, parseISO, subYears } from 'date-fns';
-
-const adherenteFormValidationSchema = adherenteSchema.omit({ 
-    id: true, 
-    estadoAdherente: true, 
-    estadoSolicitud: true, 
-    motivoRechazo: true,
-    aptoMedico: true, 
-});
-
 
 const renderFilePreview = (
   fileList: FileList | null | undefined | string,
@@ -79,7 +70,7 @@ export function GestionAdherentesSocio() {
   }, []);
 
   const form = useForm<AdherenteFormData>({
-    resolver: zodResolver(adherenteFormValidationSchema),
+    resolver: zodResolver(adherenteFormSchema), // Using adherenteFormSchema
     mode: 'onChange',
     defaultValues: {
       nombre: '',
@@ -277,7 +268,7 @@ export function GestionAdherentesSocio() {
                           name={docType}
                           key={docType}
                           render={({ field }) => {
-                            const isOptional = true; // All docs are optional for adherente for now
+                            const isOptional = true;
                             const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
                             const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
                             return (
@@ -299,7 +290,7 @@ export function GestionAdherentesSocio() {
                                             className="hidden" 
                                             onChange={e => {
                                               field.onChange(e.target.files);
-                                              form.trigger(docType); // Explicitly trigger validation for this field
+                                              form.trigger(docType);
                                             }}
                                             accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
                                             ref={field.ref}

@@ -282,7 +282,7 @@ export function SignupForm() {
                                             className="hidden" 
                                             onChange={e => {
                                               field.onChange(e.target.files);
-                                              form.trigger(docType); // Explicitly trigger validation for this field
+                                              form.trigger(docType);
                                             }}
                                             accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
                                             ref={field.ref}

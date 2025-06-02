@@ -8,7 +8,6 @@ export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 export const MAX_INVITADOS_CUMPLEANOS = 15;
 
-// Updated list of companies
 export enum EmpresaTitular {
   SADOP = "Sadop",
   AMPROS = "Ampros",
@@ -57,10 +56,10 @@ export enum EstadoSolicitudCumpleanos {
 }
 
 export enum EstadoCambioGrupoFamiliar {
-  NINGUNO = "Ninguno", // No hay cambios pendientes
-  PENDIENTE = "Pendiente", // Cambios enviados por el socio, esperando aprobación admin
-  APROBADO = "Aprobado", // Cambios aprobados por admin (este estado podría ser transitorio antes de aplicar)
-  RECHAZADO = "Rechazado", // Cambios rechazados por admin
+  NINGUNO = "Ninguno",
+  PENDIENTE = "Pendiente",
+  APROBADO = "Aprobado",
+  RECHAZADO = "Rechazado",
 }
 
 export enum EstadoAdherente {
@@ -80,8 +79,8 @@ export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
 
 export interface AptoMedicoInfo {
   valido: boolean;
-  fechaEmision?: string; // ISO date string
-  fechaVencimiento?: string; // ISO date string (ultimo dia valido)
+  fechaEmision?: string;
+  fechaVencimiento?: string;
   razonInvalidez?: string;
   observaciones?: string;
 }
@@ -89,14 +88,14 @@ export interface AptoMedicoInfo {
 export interface DocumentoSocioGeneral {
   id: string;
   nombreArchivo: string;
-  tipoDocumento: string; // e.g., 'DNI_FRENTE', 'CERT_MATRIMONIO'
-  url?: string; // Opcional, si se almacena en la nube
-  fechaCarga: string; // ISO date string
+  tipoDocumento: string;
+  url?: string;
+  fechaCarga: string;
 }
 
 export interface CuentaSocio {
   estadoCuenta: 'Al Dia' | 'Con Deuda' | 'Suspendida';
-  fechaUltimoPago?: string; // ISO date string
+  fechaUltimoPago?: string;
   saldoActual?: number;
 }
 
@@ -105,7 +104,7 @@ export interface MiembroFamiliar {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento: Date | string; // Allow string for existing data, Date for new entries
+  fechaNacimiento: Date | string;
   relacion: RelacionFamiliar;
   direccion?: string;
   telefono?: string;
@@ -113,7 +112,7 @@ export interface MiembroFamiliar {
   fotoPerfil?: FileList | null | string;
   fotoDniFrente?: FileList | null | string;
   fotoDniDorso?: FileList | null | string;
-  fotoCarnet?: FileList | null | string; // Nuevo campo opcional
+  fotoCarnet?: FileList | null | string;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
 }
@@ -131,7 +130,7 @@ export interface Adherente {
   fotoDniFrente?: FileList | null | string;
   fotoDniDorso?: FileList | null | string;
   fotoPerfil?: FileList | null | string;
-  fotoCarnet?: FileList | null | string; // Nuevo campo opcional
+  fotoCarnet?: FileList | null | string;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string;
@@ -146,22 +145,34 @@ export interface PreciosInvitadosConfig {
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-const fileSchemaShared = (message: string) => z.custom<FileList>((val) => val instanceof FileList && val.length > 0, message)
-  .refine(files => files?.[0]?.size <= MAX_FILE_SIZE_BYTES, `El archivo no debe exceder ${MAX_FILE_SIZE_MB}MB.`)
-  .refine(files => files?.length === 1, "Solo se puede subir un archivo.");
+// Helper for SSR compatibility with FileList
+const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 
-const dniFileSchema = (message: string) => fileSchemaShared(message)
-  .refine(files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type), "Solo se aceptan archivos PNG, JPG o PDF para el DNI.");
+const baseFileSchema = (message: string) =>
+  z.instanceof(FileListInstance, { message })
+    .refine(files => files && files.length === 1, "Debe seleccionar un archivo.")
+    .refine(files => files?.[0]?.size <= MAX_FILE_SIZE_BYTES, `El archivo no debe exceder ${MAX_FILE_SIZE_MB}MB.`);
 
-const profileFileSchema = (message: string) => fileSchemaShared(message)
-  .refine(files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type), "Solo se aceptan archivos PNG o JPG para la foto.");
+const dniFileSchema = (message: string) =>
+  baseFileSchema(message).refine(
+    files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type),
+    "Solo se aceptan archivos PNG, JPG o PDF."
+  );
 
-const optionalProfileFileSchema = (message: string = "Archivo inválido.") => z.custom<FileList>((val) => val instanceof FileList && val.length > 0, message)
-  .refine(files => files?.[0]?.size <= MAX_FILE_SIZE_BYTES, `El archivo no debe exceder ${MAX_FILE_SIZE_MB}MB.`)
-  .refine(files => files?.length === 1, "Solo se puede subir un archivo.")
-  .refine(files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type), "Solo se aceptan archivos PNG o JPG para la foto.")
-  .nullable()
-  .optional();
+const profileFileSchema = (message: string) =>
+  baseFileSchema(message).refine(
+    files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type),
+    "Solo se aceptan archivos PNG o JPG."
+  );
+
+const optionalProfileFileSchema = () =>
+  baseFileSchema("Archivo inválido.")
+    .refine(
+      files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type),
+      "Solo se aceptan archivos PNG o JPG para la foto."
+    )
+    .nullable()
+    .optional();
 
 
 export const signupTitularSchema = z.object({
@@ -180,7 +191,7 @@ export const signupTitularSchema = z.object({
   fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable(),
   fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable(),
   fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable(),
-  fotoCarnet: optionalProfileFileSchema("Foto carnet inválida (PNG, JPG)."), // Nuevo campo
+  fotoCarnet: optionalProfileFileSchema(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden.',
   path: ['confirmPassword'],
@@ -201,18 +212,18 @@ export const titularSchema = z.object({
   fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable(),
   fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable(),
   fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable(),
-  fotoCarnet: optionalProfileFileSchema("Foto carnet inválida (PNG, JPG)."), // Nuevo campo
+  fotoCarnet: optionalProfileFileSchema(),
 });
 export type TitularData = z.infer<typeof titularSchema>;
 
 export interface Socio extends TitularData {
   id: string;
   numeroSocio: string;
-  fotoUrl?: string; // URL de la foto de perfil (si ya está almacenada)
+  fotoUrl?: string;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string; // ISO date string
-  ultimaRevisionMedica?: string; // ISO date string
+  miembroDesde: string;
+  ultimaRevisionMedica?: string;
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
@@ -232,14 +243,14 @@ export interface Socio extends TitularData {
 }
 
 export interface RevisionMedica {
-  id: string; // UUID
-  fechaRevision: string; // ISO date string
-  socioId: string; // numeroSocio or familiarId (DNI for familiar)
+  id: string;
+  fechaRevision: string;
+  socioId: string;
   socioNombre: string;
   resultado: 'Apto' | 'No Apto';
-  fechaVencimientoApto?: string; // ISO date string (ultimo dia valido)
+  fechaVencimientoApto?: string;
   observaciones?: string;
-  medicoResponsable?: string; // Nombre del medico o ID
+  medicoResponsable?: string;
 }
 
 export const familiarBaseSchema = z.object({
@@ -249,10 +260,10 @@ export const familiarBaseSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: z.union([z.custom<FileList>((val) => val instanceof FileList), z.string().url(), z.null()]).optional(),
-  fotoDniDorso: z.union([z.custom<FileList>((val) => val instanceof FileList), z.string().url(), z.null()]).optional(),
-  fotoPerfil: z.union([z.custom<FileList>((val) => val instanceof FileList), z.string().url(), z.null()]).optional(),
-  fotoCarnet: z.union([optionalProfileFileSchema(), z.string().url(), z.null()]).optional(), // Nuevo campo
+  fotoDniFrente: z.union([dniFileSchema("Se requiere foto del DNI (frente)."), z.string().url(), z.null()]).optional(),
+  fotoDniDorso: z.union([dniFileSchema("Se requiere foto del DNI (dorso)."), z.string().url(), z.null()]).optional(),
+  fotoPerfil: z.union([profileFileSchema("Se requiere foto de perfil."), z.string().url(), z.null()]).optional(),
+  fotoCarnet: z.union([optionalProfileFileSchema(), z.string().url(), z.null()]).optional(),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -373,7 +384,7 @@ export const adherenteFormSchema = z.object({
     fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable().optional(),
     fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable().optional(),
     fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable().optional(),
-    fotoCarnet: optionalProfileFileSchema("Foto carnet inválida (PNG, JPG)."), // Nuevo campo
+    fotoCarnet: optionalProfileFileSchema(),
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
 
@@ -397,4 +408,4 @@ export const getStepSpecificValidationSchema = (step: number) => {
   setCurrentStepForSchema(step);
   return agregarFamiliaresSchema;
 };
-isValid(new Date()); // Keep this import for date-fns
+isValid(new Date());
