@@ -22,6 +22,7 @@ import { siteConfig } from '@/config/site';
 import { signupTitularSchema, type SignupTitularData } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { useState, useEffect } from 'react'; // Added useState and useEffect
 
 const renderFilePreview = (fileList: FileList | null | undefined, fieldName: keyof SignupTitularData, form: ReturnType<typeof useForm<SignupTitularData>>) => {
   if (fileList && fileList.length > 0) {
@@ -43,6 +44,11 @@ const renderFilePreview = (fileList: FileList | null | undefined, fieldName: key
 export function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+
+  useEffect(() => {
+    setMaxBirthDate(format(subYears(new Date(), 18), 'yyyy-MM-dd'));
+  }, []);
 
   const form = useForm<SignupTitularData>({
     resolver: zodResolver(signupTitularSchema),
@@ -51,7 +57,7 @@ export function SignupForm() {
       apellido: '',
       fechaNacimiento: undefined,
       dni: '',
-      empresa: '', // Changed from undefined
+      empresa: '',
       telefono: '',
       direccion: '',
       email: '',
@@ -129,9 +135,10 @@ export function SignupForm() {
                             type="date"
                             value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                             onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                            max={format(subYears(new Date(), 18), 'yyyy-MM-dd')}
-                            min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                            max={maxBirthDate}
+                            min="1900-01-01"
                             className="w-full pl-10"
+                            disabled={!maxBirthDate}
                           />
                         </div>
                       </FormControl>

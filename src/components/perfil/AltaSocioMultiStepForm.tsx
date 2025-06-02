@@ -30,6 +30,11 @@ export function AltaSocioMultiStepForm() {
   const [socioData, setSocioData] = useState<Socio | null>(null);
   const [loadingSocio, setLoadingSocio] = useState(true);
   const [existingGroupType, setExistingGroupType] = useState<'conyugeEHijos' | 'padresMadres' | null>(null);
+  const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+
+  useEffect(() => {
+    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
+  }, []);
 
   const form = useForm<AgregarFamiliaresData>({
     resolver: async (data, context, options) => {
@@ -175,7 +180,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(prev => prev - 1); // Corrected to decrement
     }
   };
   
@@ -423,7 +428,7 @@ export function AltaSocioMultiStepForm() {
                                   <FormControl>
                                     <div className="relative">
                                       <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                     </div>
                                   </FormControl> 
                                   <FormMessage /> 
@@ -474,7 +479,7 @@ export function AltaSocioMultiStepForm() {
                                 <FormControl>
                                   <div className="relative">
                                     <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                    <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                    <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                   </div>
                                 </FormControl> 
                                 <FormMessage /> 
@@ -531,7 +536,7 @@ export function AltaSocioMultiStepForm() {
                                   <FormControl>
                                     <div className="relative">
                                       <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={format(new Date(), 'yyyy-MM-dd')} min={format(new Date("1900-01-01"), 'yyyy-MM-dd')} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} />
+                                      <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                     </div>
                                   </FormControl> 
                                   <FormMessage /> 
@@ -633,5 +638,3 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
-
-    

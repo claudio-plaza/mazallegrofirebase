@@ -35,6 +35,11 @@ export function GestionInvitadosDiarios() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
+  const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+
+  useEffect(() => {
+    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
+  }, []);
 
   const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
   
@@ -219,7 +224,7 @@ export function GestionInvitadosDiarios() {
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                   
                   <ScrollArea className="max-h-[500px]"> 
-                    <div className="space-y-4 pr-3"> {/* Added pr-3 here for content padding away from scrollbar */}
+                    <div className="space-y-4 pr-3">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
                           <Button
@@ -278,9 +283,10 @@ export function GestionInvitadosDiarios() {
                                       type="date"
                                       value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                                       onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                                      max={format(new Date(), 'yyyy-MM-dd')}
-                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                      max={maxBirthDate}
+                                      min="1900-01-01"
                                       className="w-full h-9 text-sm"
+                                      disabled={!maxBirthDate}
                                     />
                                   </FormControl>
                                   <FormMessage className="text-xs"/>

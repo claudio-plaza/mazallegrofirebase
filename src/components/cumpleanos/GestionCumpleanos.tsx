@@ -37,6 +37,11 @@ export function GestionCumpleanos() {
   const [editingSolicitud, setEditingSolicitud] = useState<SolicitudCumpleanos | null>(null);
   const [birthdayPeopleOptions, setBirthdayPeopleOptions] = useState<BirthdayPersonOption[]>([]);
   const [currentTitular, setCurrentTitular] = useState<Socio | null>(null);
+  const [minEventDate, setMinEventDate] = useState<string>('');
+
+  useEffect(() => {
+    setMinEventDate(format(new Date(), 'yyyy-MM-dd'));
+  }, []);
 
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, userName } = useAuth();
@@ -358,8 +363,9 @@ export function GestionCumpleanos() {
                               type="date"
                               value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                               onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                              min={format(new Date(), 'yyyy-MM-dd')}
+                              min={minEventDate}
                               className="w-full pl-10"
+                              disabled={!minEventDate}
                             />
                         </div>
                       </FormControl>

@@ -68,6 +68,11 @@ export function GestionAdherentesSocio() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
+  const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+
+  useEffect(() => {
+    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd')); // Adherentes pueden ser de cualquier edad, hasta hoy.
+  }, []);
 
   const form = useForm<AdherenteFormValues>({
     resolver: zodResolver(adherenteFormValidationSchema),
@@ -76,7 +81,7 @@ export function GestionAdherentesSocio() {
       apellido: '',
       dni: '',
       fechaNacimiento: undefined,
-      empresa: '', // Changed from undefined
+      empresa: '',
       telefono: '',
       direccion: '',
       email: '',
@@ -114,7 +119,7 @@ export function GestionAdherentesSocio() {
     const nuevoAdherente: Adherente = {
       id: generateId(),
       ...data,
-      empresa: data.empresa, // Already a string
+      empresa: data.empresa,
       fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, 
       fotoDniFrente: data.fotoDniFrente, 
       fotoDniDorso: data.fotoDniDorso,   
@@ -224,9 +229,10 @@ export function GestionAdherentesSocio() {
                             type="date"
                             value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                             onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                            max={format(subYears(new Date(), 0), 'yyyy-MM-dd')} // Puede ser cualquier edad
-                            min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                            max={maxBirthDate}
+                            min="1900-01-01"
                             className="w-full pl-10"
+                            disabled={!maxBirthDate}
                           />
                         </div>
                       </FormControl>
