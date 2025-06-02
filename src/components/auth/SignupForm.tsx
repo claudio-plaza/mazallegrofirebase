@@ -13,14 +13,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays } from 'lucide-react';
 import { siteConfig } from '@/config/site';
-import { signupTitularSchema, type SignupTitularData, empresas } from '@/types';
+import { signupTitularSchema, type SignupTitularData } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
@@ -52,7 +51,7 @@ export function SignupForm() {
       apellido: '',
       fechaNacimiento: undefined,
       dni: '',
-      empresa: undefined,
+      empresa: '', // Changed from undefined
       telefono: '',
       direccion: '',
       email: '',
@@ -156,22 +155,13 @@ export function SignupForm() {
                   name="empresa"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Empresa / Obra Social</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder="Seleccione su empresa u obra social" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {empresas.map(empresa => (
-                            <SelectItem key={empresa} value={empresa}>
-                              {empresa}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Empresa / Sindicato</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                           <Input placeholder="Nombre de su empresa o sindicato" {...field} className="pl-10" />
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

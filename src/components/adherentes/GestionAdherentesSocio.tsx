@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Socio, Adherente, AptoMedicoInfo, EmpresaTitular as EmpresaEnum } from '@/types';
-import { adherenteSchema, EstadoSolicitudAdherente, EstadoAdherente, empresas } from '@/types';
+import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
+import { adherenteSchema, EstadoSolicitudAdherente, EstadoAdherente } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -19,7 +19,6 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO, subYears } from 'date-fns';
 
 const adherenteFormValidationSchema = adherenteSchema.omit({ 
@@ -77,7 +76,7 @@ export function GestionAdherentesSocio() {
       apellido: '',
       dni: '',
       fechaNacimiento: undefined,
-      empresa: undefined,
+      empresa: '', // Changed from undefined
       telefono: '',
       direccion: '',
       email: '',
@@ -115,6 +114,7 @@ export function GestionAdherentesSocio() {
     const nuevoAdherente: Adherente = {
       id: generateId(),
       ...data,
+      empresa: data.empresa, // Already a string
       fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, 
       fotoDniFrente: data.fotoDniFrente, 
       fotoDniDorso: data.fotoDniDorso,   
@@ -239,22 +239,13 @@ export function GestionAdherentesSocio() {
                   name="empresa"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Empresa / Obra Social (Opcional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value as string | undefined}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder="Seleccione empresa u obra social" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {empresas.map(empresa => (
-                            <SelectItem key={empresa} value={empresa}>
-                              {empresa}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Empresa / Sindicato</FormLabel>
+                       <FormControl>
+                        <div className="relative">
+                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                           <Input placeholder="Nombre de la empresa o sindicato" {...field} className="pl-10" />
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

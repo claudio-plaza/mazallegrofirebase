@@ -123,7 +123,7 @@ export interface Adherente {
   apellido: string;
   dni: string;
   fechaNacimiento: Date | string;
-  empresa: EmpresaTitular;
+  empresa: string; // Changed from EmpresaTitular to string
   telefono?: string;
   direccion?: string;
   email?: string;
@@ -161,7 +161,7 @@ export const signupTitularSchema = z.object({
     return date <= subYears(new Date(), 18);
   }, "Debe ser mayor de 18 años."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.nativeEnum(EmpresaTitular, { required_error: "Seleccione una empresa."}),
+  empresa: z.string().min(1, "Empresa / Sindicato es requerido."), // Changed from enum to string
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
@@ -183,7 +183,7 @@ export const titularSchema = z.object({
     return date <= subYears(new Date(), 18);
   }, "Debe ser mayor de 18 años."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.nativeEnum(EmpresaTitular, { errorMap: () => ({ message: "Seleccione una empresa."})}),
+  empresa: z.string().min(1, "Empresa / Sindicato es requerido."), // Changed from enum to string
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
@@ -354,7 +354,7 @@ export const adherenteFormSchema = z.object({
     apellido: z.string().min(2, "Apellido es requerido."),
     fechaNacimiento: z.date({ required_error: "Fecha de nacimiento es requerida.", invalid_type_error: "Fecha de nacimiento inválida."}),
     dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-    empresa: z.nativeEnum(EmpresaTitular, { required_error: "Seleccione una empresa."}),
+    empresa: z.string().min(1, "Empresa / Sindicato es requerido."), // Changed from enum to string
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -388,4 +388,5 @@ isValid(new Date()); // Keep this import for date-fns
 
 
     
+
 
