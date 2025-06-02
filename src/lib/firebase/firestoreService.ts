@@ -3,7 +3,7 @@
 import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig } from '@/types';
 import { mockSocios, mockRevisiones } from '../mockData';
 import { generateId } from '../helpers';
-import { parseISO, isValid } from 'date-fns';
+import { parseISO, isValid, formatISO } from 'date-fns';
 
 
 const KEYS = {
@@ -29,7 +29,7 @@ const getConfig = <T>(key: string, defaultConfig: T): T => {
 }
 
 // Helper function to save data to localStorage and dispatch event
-const saveDbAndNotify = <T>(key: string, data: T[], isConfig: boolean = false): void => {
+const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = false): void => { // Allow T for config
   if (typeof window === 'undefined') return;
   localStorage.setItem(key, JSON.stringify(data));
   window.dispatchEvent(new CustomEvent(`${key}Updated`)); 
@@ -44,12 +44,74 @@ const saveDbAndNotify = <T>(key: string, data: T[], isConfig: boolean = false): 
 
 // Initialize DBs if they don't exist
 export const initializeSociosDB = (): void => {
-  if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.SOCIOS)) {
-    saveDbAndNotify(KEYS.SOCIOS, mockSocios.map(s => ({
-      ...s,
-      fechaNacimiento: typeof s.fechaNacimiento === 'string' ? s.fechaNacimiento : s.fechaNacimiento.toISOString(),
-      grupoFamiliar: s.grupoFamiliar.map(f => ({...f, fechaNacimiento: typeof f.fechaNacimiento === 'string' ? f.fechaNacimiento : f.fechaNacimiento.toISOString()}))
-    })) as unknown as Socio[]);
+  if (typeof window === 'undefined') return;
+
+  let shouldInitialize = false;
+  const existingDataString = localStorage.getItem(KEYS.SOCIOS);
+
+  if (!existingDataString) {
+    shouldInitialize = true;
+    console.log(`${KEYS.SOCIOS} not found in localStorage. Initializing.`);
+  } else {
+    try {
+      const existingData = JSON.parse(existingDataString);
+      if (!Array.isArray(existingData) || existingData.length === 0) {
+        shouldInitialize = true;
+        console.log(`${KEYS.SOCIOS} found but is empty or not an array. Re-initializing.`);
+      }
+    } catch (e) {
+      shouldInitialize = true;
+      console.warn(`Data for ${KEYS.SOCIOS} in localStorage was corrupted. Re-initializing. Error:`, e);
+    }
+  }
+
+  if (shouldInitialize) {
+    const sociosToStore = mockSocios.map(socio => {
+      const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
+        if (dateField instanceof Date) return dateField.toISOString();
+        if (typeof dateField === 'string') return dateField; // Assume already ISO string
+        return undefined;
+      };
+      const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
+        if (dateField instanceof Date) return dateField.toISOString();
+        if (typeof dateField === 'string') return dateField;
+        return new Date(0).toISOString(); // Default to epoch if undefined/null
+      };
+
+      return {
+      ...socio,
+      fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
+      miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
+      ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
+      aptoMedico: socio.aptoMedico ? {
+          ...socio.aptoMedico,
+          fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
+          fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
+      } : undefined,
+      grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
+        ...familiar,
+        fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
+        aptoMedico: familiar.aptoMedico ? {
+            ...familiar.aptoMedico,
+            fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
+            fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
+        } : undefined,
+      })) || [],
+      adherentes: socio.adherentes?.map(adherente => ({
+        ...adherente,
+        fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
+        aptoMedico: adherente.aptoMedico ? {
+            ...adherente.aptoMedico,
+            fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
+            fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
+        } : undefined,
+      })) || [],
+      // Ensure all other potential Date fields are stringified
+      // cambiosPendientesGrupoFamiliar and its nested dates would also need similar treatment if they were part of mockSocios directly
+      // For now, mockSocios doesn't have cambiosPendientesGrupoFamiliar pre-filled with dates.
+      };
+    });
+    saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
   }
 };
 
@@ -77,7 +139,7 @@ export const initializePreciosInvitadosDB = (): void => {
       precioInvitadoDiario: 0,
       precioInvitadoCumpleanos: 0,
     };
-    saveDbAndNotify(KEYS.PRECIOS_INVITADOS, defaultConfig as any, true); // Cast as any for generic saveDbAndNotify
+    saveDbAndNotify(KEYS.PRECIOS_INVITADOS, defaultConfig, true);
   }
 };
 
@@ -86,14 +148,76 @@ export const initializePreciosInvitadosDB = (): void => {
 // Function to get socios with dates parsed
 const getParsedSocios = (): Socio[] => {
   const sociosRaw = getDb<any>(KEYS.SOCIOS); // Get raw data
-  return sociosRaw.map(s => ({
+  return sociosRaw.map(s => {
+    const parseDateSafe = (dateString?: string | null): Date => {
+        if (dateString && isValid(parseISO(dateString))) return parseISO(dateString);
+        return new Date(0); // Default or invalid date representation
+    };
+    const parseOptionalDateSafe = (dateString?: string | null): Date | undefined => {
+        if (dateString && isValid(parseISO(dateString))) return parseISO(dateString);
+        return undefined;
+    };
+    return {
     ...s,
-    fechaNacimiento: s.fechaNacimiento ? parseISO(s.fechaNacimiento) : new Date(0),
+    fechaNacimiento: parseDateSafe(s.fechaNacimiento),
+    miembroDesde: parseDateSafe(s.miembroDesde),
+    ultimaRevisionMedica: parseOptionalDateSafe(s.ultimaRevisionMedica),
+    aptoMedico: s.aptoMedico ? {
+        ...s.aptoMedico,
+        fechaEmision: parseOptionalDateSafe(s.aptoMedico.fechaEmision),
+        fechaVencimiento: parseOptionalDateSafe(s.aptoMedico.fechaVencimiento),
+    } : undefined,
     grupoFamiliar: s.grupoFamiliar?.map((f: any) => ({
       ...f,
-      fechaNacimiento: f.fechaNacimiento ? parseISO(f.fechaNacimiento) : new Date(0),
+      fechaNacimiento: parseDateSafe(f.fechaNacimiento),
+      aptoMedico: f.aptoMedico ? {
+          ...f.aptoMedico,
+          fechaEmision: parseOptionalDateSafe(f.aptoMedico.fechaEmision),
+          fechaVencimiento: parseOptionalDateSafe(f.aptoMedico.fechaVencimiento),
+      } : undefined,
     })) || [],
-  }));
+     adherentes: s.adherentes?.map((a: any) => ({
+      ...a,
+      fechaNacimiento: parseDateSafe(a.fechaNacimiento),
+      aptoMedico: a.aptoMedico ? {
+          ...a.aptoMedico,
+          fechaEmision: parseOptionalDateSafe(a.aptoMedico.fechaEmision),
+          fechaVencimiento: parseOptionalDateSafe(a.aptoMedico.fechaVencimiento),
+      } : undefined,
+    })) || [],
+    cambiosPendientesGrupoFamiliar: s.cambiosPendientesGrupoFamiliar ? {
+        ...s.cambiosPendientesGrupoFamiliar,
+        familiares: {
+          conyuge: s.cambiosPendientesGrupoFamiliar.familiares?.conyuge ? {
+            ...s.cambiosPendientesGrupoFamiliar.familiares.conyuge,
+            fechaNacimiento: parseDateSafe(s.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento),
+             aptoMedico: s.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico ? {
+                ...s.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico,
+                fechaEmision: parseOptionalDateSafe(s.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaEmision),
+                fechaVencimiento: parseOptionalDateSafe(s.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaVencimiento),
+            } : undefined,
+          } : null,
+          hijos: s.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map((h: any) => ({
+              ...h, 
+              fechaNacimiento: parseDateSafe(h.fechaNacimiento),
+              aptoMedico: h.aptoMedico ? {
+                  ...h.aptoMedico,
+                  fechaEmision: parseOptionalDateSafe(h.aptoMedico.fechaEmision),
+                  fechaVencimiento: parseOptionalDateSafe(h.aptoMedico.fechaVencimiento),
+              } : undefined,
+          })) || [],
+          padres: s.cambiosPendientesGrupoFamiliar.familiares?.padres?.map((p: any) => ({
+              ...p, 
+              fechaNacimiento: parseDateSafe(p.fechaNacimiento),
+              aptoMedico: p.aptoMedico ? {
+                  ...p.aptoMedico,
+                  fechaEmision: parseOptionalDateSafe(p.aptoMedico.fechaEmision),
+                  fechaVencimiento: parseOptionalDateSafe(p.aptoMedico.fechaVencimiento),
+              } : undefined,
+          })) || [],
+        }
+      } : null,
+  }});
 };
 
 export const getSocios = async (): Promise<Socio[]> => {
@@ -119,23 +243,33 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
 
 
 export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes'>, isTitularSignup: boolean = false): Promise<Socio> => {
-  const socios = getDb<Socio>(KEYS.SOCIOS); // Get raw to keep dates as strings
-  const newNumeroSocio = `S${(Math.max(0, ...socios.map(s => parseInt(s.numeroSocio.substring(1)))) + 1).toString().padStart(3, '0')}`;
+  const sociosRaw = getDb<Socio>(KEYS.SOCIOS); 
+  const newNumeroSocio = `S${(Math.max(0, ...sociosRaw.map(s => parseInt(s.numeroSocio.substring(1)))) + 1).toString().padStart(3, '0')}`;
 
-  const nuevoSocio: Socio = {
+  const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
+    if (dateField instanceof Date) return dateField.toISOString();
+    if (typeof dateField === 'string') return dateField; // Assume already ISO string
+    return new Date(0).toISOString();
+  };
+
+  const nuevoSocioRaw: any = {
     ...socioData,
-    fechaNacimiento: typeof socioData.fechaNacimiento === 'string' ? socioData.fechaNacimiento : socioData.fechaNacimiento.toISOString(),
+    fechaNacimiento: stringifyDateOrEpoch(socioData.fechaNacimiento),
     id: generateId(),
     numeroSocio: newNumeroSocio,
     estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
     role: 'socio',
     miembroDesde: new Date().toISOString(),
-    grupoFamiliar: socioData.grupoFamiliar?.map(f => ({...f, fechaNacimiento: typeof f.fechaNacimiento === 'string' ? f.fechaNacimiento : (f.fechaNacimiento as Date).toISOString()})) || [],
-    adherentes: [], // Initialize with empty adherentes
-    aptoMedico: socioData.aptoMedico || { valido: false, razonInvalidez: 'Pendiente de presentación' },
+    grupoFamiliar: socioData.grupoFamiliar?.map(f => ({...f, fechaNacimiento: stringifyDateOrEpoch(f.fechaNacimiento)})) || [],
+    adherentes: [], 
+    aptoMedico: socioData.aptoMedico ? {
+        ...socioData.aptoMedico,
+        fechaEmision: socioData.aptoMedico.fechaEmision instanceof Date ? socioData.aptoMedico.fechaEmision.toISOString() : socioData.aptoMedico.fechaEmision,
+        fechaVencimiento: socioData.aptoMedico.fechaVencimiento instanceof Date ? socioData.aptoMedico.fechaVencimiento.toISOString() : socioData.aptoMedico.fechaVencimiento,
+    } : { valido: false, razonInvalidez: 'Pendiente de presentación' },
   };
-  saveDbAndNotify(KEYS.SOCIOS, [...socios, nuevoSocio]);
-  return { ...nuevoSocio, fechaNacimiento: parseISO(nuevoSocio.fechaNacimiento as string) }; // Return with parsed date
+  saveDbAndNotify(KEYS.SOCIOS, [...sociosRaw, nuevoSocioRaw]);
+  return { ...nuevoSocioRaw, fechaNacimiento: parseISO(nuevoSocioRaw.fechaNacimiento as string) }; 
 };
 
 // Function to update a socio in the raw DB (expects dates as ISO strings)
@@ -143,26 +277,77 @@ const updateSocioInDb = (updatedSocioRaw: any): Socio | null => {
   let sociosRaw = getDb<any>(KEYS.SOCIOS);
   const index = sociosRaw.findIndex(s => s.id === updatedSocioRaw.id);
   if (index > -1) {
-    sociosRaw[index] = updatedSocioRaw; // updatedSocioRaw already has dates as strings
+    sociosRaw[index] = updatedSocioRaw; 
     saveDbAndNotify(KEYS.SOCIOS, sociosRaw);
-    // Return the updated socio with dates parsed for immediate use if needed
+    
+    const parseDateSafe = (dateString?: string | null): Date => {
+        if (dateString && isValid(parseISO(dateString))) return parseISO(dateString);
+        return new Date(0);
+    };
+     const parseOptionalDateSafe = (dateString?: string | null): Date | undefined => {
+        if (dateString && isValid(parseISO(dateString))) return parseISO(dateString);
+        return undefined;
+    };
+
     return {
       ...updatedSocioRaw,
-      fechaNacimiento: parseISO(updatedSocioRaw.fechaNacimiento),
+      fechaNacimiento: parseDateSafe(updatedSocioRaw.fechaNacimiento),
+      miembroDesde: parseDateSafe(updatedSocioRaw.miembroDesde),
+      ultimaRevisionMedica: parseOptionalDateSafe(updatedSocioRaw.ultimaRevisionMedica),
+      aptoMedico: updatedSocioRaw.aptoMedico ? {
+        ...updatedSocioRaw.aptoMedico,
+        fechaEmision: parseOptionalDateSafe(updatedSocioRaw.aptoMedico.fechaEmision),
+        fechaVencimiento: parseOptionalDateSafe(updatedSocioRaw.aptoMedico.fechaVencimiento),
+      } : undefined,
       cambiosPendientesGrupoFamiliar: updatedSocioRaw.cambiosPendientesGrupoFamiliar ? {
         ...updatedSocioRaw.cambiosPendientesGrupoFamiliar,
         familiares: {
           conyuge: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares?.conyuge ? {
             ...updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge,
-            fechaNacimiento: parseISO(updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento),
+            fechaNacimiento: parseDateSafe(updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento),
+             aptoMedico: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico ? {
+                ...updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico,
+                fechaEmision: parseOptionalDateSafe(updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaEmision),
+                fechaVencimiento: parseOptionalDateSafe(updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaVencimiento),
+            } : undefined,
           } : null,
-          hijos: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map((h: any) => ({...h, fechaNacimiento: parseISO(h.fechaNacimiento)})) || [],
-          padres: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares?.padres?.map((p: any) => ({...p, fechaNacimiento: parseISO(p.fechaNacimiento)})) || [],
+          hijos: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map((h: any) => ({
+              ...h, 
+              fechaNacimiento: parseDateSafe(h.fechaNacimiento),
+              aptoMedico: h.aptoMedico ? {
+                  ...h.aptoMedico,
+                  fechaEmision: parseOptionalDateSafe(h.aptoMedico.fechaEmision),
+                  fechaVencimiento: parseOptionalDateSafe(h.aptoMedico.fechaVencimiento),
+              } : undefined,
+          })) || [],
+          padres: updatedSocioRaw.cambiosPendientesGrupoFamiliar.familiares?.padres?.map((p: any) => ({
+              ...p, 
+              fechaNacimiento: parseDateSafe(p.fechaNacimiento),
+              aptoMedico: p.aptoMedico ? {
+                  ...p.aptoMedico,
+                  fechaEmision: parseOptionalDateSafe(p.aptoMedico.fechaEmision),
+                  fechaVencimiento: parseOptionalDateSafe(p.aptoMedico.fechaVencimiento),
+              } : undefined,
+            })) || [],
         }
       } : null,
       grupoFamiliar: updatedSocioRaw.grupoFamiliar?.map((f: any) => ({
         ...f,
-        fechaNacimiento: parseISO(f.fechaNacimiento),
+        fechaNacimiento: parseDateSafe(f.fechaNacimiento),
+        aptoMedico: f.aptoMedico ? {
+          ...f.aptoMedico,
+          fechaEmision: parseOptionalDateSafe(f.aptoMedico.fechaEmision),
+          fechaVencimiento: parseOptionalDateSafe(f.aptoMedico.fechaVencimiento),
+        } : undefined,
+      })) || [],
+      adherentes: updatedSocioRaw.adherentes?.map((a: any) => ({
+        ...a,
+        fechaNacimiento: parseDateSafe(a.fechaNacimiento),
+        aptoMedico: a.aptoMedico ? {
+          ...a.aptoMedico,
+          fechaEmision: parseOptionalDateSafe(a.aptoMedico.fechaEmision),
+          fechaVencimiento: parseOptionalDateSafe(a.aptoMedico.fechaVencimiento),
+        } : undefined,
       })) || [],
     };
   }
@@ -171,34 +356,77 @@ const updateSocioInDb = (updatedSocioRaw: any): Socio | null => {
 
 
 export const updateSocio = async (updatedSocio: Socio): Promise<Socio | null> => {
-  // Convert dates back to ISO strings before saving
+  const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
+    if (dateField instanceof Date) return dateField.toISOString();
+    if (typeof dateField === 'string') return dateField;
+    return undefined;
+  };
+   const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
+    if (dateField instanceof Date) return dateField.toISOString();
+    if (typeof dateField === 'string') return dateField; // Assume already ISO string
+    return new Date(0).toISOString();
+  };
+
   const socioToSave = {
     ...updatedSocio,
-    fechaNacimiento: typeof updatedSocio.fechaNacimiento === 'string' ? updatedSocio.fechaNacimiento : updatedSocio.fechaNacimiento.toISOString(),
+    fechaNacimiento: stringifyDateOrEpoch(updatedSocio.fechaNacimiento),
+    miembroDesde: stringifyDateOrEpoch(updatedSocio.miembroDesde),
+    ultimaRevisionMedica: stringifyDate(updatedSocio.ultimaRevisionMedica),
+    aptoMedico: updatedSocio.aptoMedico ? {
+        ...updatedSocio.aptoMedico,
+        fechaEmision: stringifyDate(updatedSocio.aptoMedico.fechaEmision),
+        fechaVencimiento: stringifyDate(updatedSocio.aptoMedico.fechaVencimiento),
+    } : undefined,
     cambiosPendientesGrupoFamiliar: updatedSocio.cambiosPendientesGrupoFamiliar ? {
         ...updatedSocio.cambiosPendientesGrupoFamiliar,
         familiares: {
             conyuge: updatedSocio.cambiosPendientesGrupoFamiliar.familiares?.conyuge ? {
                 ...updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge,
-                fechaNacimiento: typeof updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento === 'string'
-                    ? updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento
-                    : (updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento as Date).toISOString(),
+                fechaNacimiento: stringifyDateOrEpoch(updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento),
+                aptoMedico: updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico ? {
+                    ...updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico,
+                    fechaEmision: stringifyDate(updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaEmision),
+                    fechaVencimiento: stringifyDate(updatedSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.aptoMedico.fechaVencimiento),
+                } : undefined,
             } : null,
             hijos: updatedSocio.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map(h => ({
                 ...h,
-                fechaNacimiento: typeof h.fechaNacimiento === 'string' ? h.fechaNacimiento : (h.fechaNacimiento as Date).toISOString(),
+                fechaNacimiento: stringifyDateOrEpoch(h.fechaNacimiento),
+                aptoMedico: h.aptoMedico ? {
+                    ...h.aptoMedico,
+                    fechaEmision: stringifyDate(h.aptoMedico.fechaEmision),
+                    fechaVencimiento: stringifyDate(h.aptoMedico.fechaVencimiento),
+                } : undefined,
             })) || [],
             padres: updatedSocio.cambiosPendientesGrupoFamiliar.familiares?.padres?.map(p => ({
                 ...p,
-                fechaNacimiento: typeof p.fechaNacimiento === 'string' ? p.fechaNacimiento : (p.fechaNacimiento as Date).toISOString(),
+                fechaNacimiento: stringifyDateOrEpoch(p.fechaNacimiento),
+                aptoMedico: p.aptoMedico ? {
+                    ...p.aptoMedico,
+                    fechaEmision: stringifyDate(p.aptoMedico.fechaEmision),
+                    fechaVencimiento: stringifyDate(p.aptoMedico.fechaVencimiento),
+                } : undefined,
             })) || [],
         }
     } : null,
     grupoFamiliar: updatedSocio.grupoFamiliar?.map(f => ({
       ...f,
-      fechaNacimiento: typeof f.fechaNacimiento === 'string' ? f.fechaNacimiento : (f.fechaNacimiento as Date).toISOString(),
+      fechaNacimiento: stringifyDateOrEpoch(f.fechaNacimiento),
+       aptoMedico: f.aptoMedico ? {
+        ...f.aptoMedico,
+        fechaEmision: stringifyDate(f.aptoMedico.fechaEmision),
+        fechaVencimiento: stringifyDate(f.aptoMedico.fechaVencimiento),
+      } : undefined,
     })) || [],
-     // Adherentes no tienen fechas, se guardan tal cual.
+     adherentes: updatedSocio.adherentes?.map(a => ({
+        ...a,
+        fechaNacimiento: stringifyDateOrEpoch(a.fechaNacimiento),
+        aptoMedico: a.aptoMedico ? {
+          ...a.aptoMedico,
+          fechaEmision: stringifyDate(a.aptoMedico.fechaEmision),
+          fechaVencimiento: stringifyDate(a.aptoMedico.fechaVencimiento),
+        } : undefined,
+    })) || [],
   };
   return updateSocioInDb(socioToSave);
 };
@@ -224,15 +452,15 @@ export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
 export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): Promise<RevisionMedica> => {
   const revisiones = await getRevisionesMedicas();
   const nuevaRevision: RevisionMedica = { ...revision, id: generateId() };
-  revisiones.unshift(nuevaRevision);
+  revisiones.unshift(nuevaRevision); // Add to the beginning
   saveDbAndNotify(KEYS.REVISIONES, revisiones);
 
   const socio = await getSocioByNumeroSocioOrDNI(nuevaRevision.socioId);
   if (socio) {
     const aptoInfo: AptoMedicoInfo = {
       valido: nuevaRevision.resultado === 'Apto',
-      fechaEmision: nuevaRevision.fechaRevision,
-      fechaVencimiento: nuevaRevision.fechaVencimientoApto,
+      fechaEmision: nuevaRevision.fechaRevision, // Already ISO string
+      fechaVencimiento: nuevaRevision.fechaVencimientoApto, // Already ISO string or undefined
       observaciones: nuevaRevision.observaciones,
       razonInvalidez: nuevaRevision.resultado === 'No Apto' ? 'No Apto según última revisión' : undefined,
     };
@@ -255,29 +483,29 @@ export const getSolicitudesCumpleanosBySocio = async (idSocioTitular: string): P
 };
 
 export const addSolicitudCumpleanos = async (solicitud: Omit<SolicitudCumpleanos, 'id' | 'fechaSolicitud' | 'estado' | 'titularIngresadoEvento'>): Promise<SolicitudCumpleanos> => {
-    const solicitudes = getDb<SolicitudCumpleanos>(KEYS.CUMPLEANOS); // Get raw
-    const nuevaSolicitud: SolicitudCumpleanos = {
+    const solicitudesRaw = getDb<SolicitudCumpleanos>(KEYS.CUMPLEANOS); 
+    const solicitudToSave: SolicitudCumpleanos = {
         ...solicitud,
         id: generateId(),
         fechaSolicitud: new Date().toISOString(),
-        estado: solicitud.estado || 'Aprobada',
+        estado: solicitud.estado || 'Aprobada', // Default if not provided
         titularIngresadoEvento: false,
-        fechaEvento: typeof solicitud.fechaEvento === 'string' ? solicitud.fechaEvento : (solicitud.fechaEvento as Date).toISOString(),
+        fechaEvento: solicitud.fechaEvento instanceof Date ? solicitud.fechaEvento.toISOString() : solicitud.fechaEvento, // Ensure ISO string
     };
-    saveDbAndNotify(KEYS.CUMPLEANOS, [...solicitudes, nuevaSolicitud]);
-    return {...nuevaSolicitud, fechaEvento: parseISO(nuevaSolicitud.fechaEvento as string)};
+    saveDbAndNotify(KEYS.CUMPLEANOS, [...solicitudesRaw, solicitudToSave]);
+    return {...solicitudToSave, fechaEvento: parseISO(solicitudToSave.fechaEvento as string)};
 };
 
 export const updateSolicitudCumpleanos = async (updatedSolicitud: SolicitudCumpleanos): Promise<SolicitudCumpleanos | null> => {
-    let solicitudes = getDb<SolicitudCumpleanos>(KEYS.CUMPLEANOS); // Get raw
-    const index = solicitudes.findIndex(s => s.id === updatedSolicitud.id);
+    let solicitudesRaw = getDb<SolicitudCumpleanos>(KEYS.CUMPLEANOS); 
+    const index = solicitudesRaw.findIndex(s => s.id === updatedSolicitud.id);
     if (index > -1) {
         const solicitudToSave = {
             ...updatedSolicitud,
-            fechaEvento: typeof updatedSolicitud.fechaEvento === 'string' ? updatedSolicitud.fechaEvento : (updatedSolicitud.fechaEvento as Date).toISOString(),
+            fechaEvento: updatedSolicitud.fechaEvento instanceof Date ? updatedSolicitud.fechaEvento.toISOString() : updatedSolicitud.fechaEvento,
         };
-        solicitudes[index] = solicitudToSave;
-        saveDbAndNotify(KEYS.CUMPLEANOS, solicitudes);
+        solicitudesRaw[index] = solicitudToSave;
+        saveDbAndNotify(KEYS.CUMPLEANOS, solicitudesRaw);
         return {...solicitudToSave, fechaEvento: parseISO(solicitudToSave.fechaEvento as string)};
     }
     return null;
@@ -285,7 +513,14 @@ export const updateSolicitudCumpleanos = async (updatedSolicitud: SolicitudCumpl
 
 // --- Solicitudes Invitados Diarios Service ---
 export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvitadosDiarios[]> => {
-    return getDb<SolicitudInvitadosDiarios>(KEYS.INVITADOS_DIARIOS);
+    const solicitudesRaw = getDb<SolicitudInvitadosDiarios>(KEYS.INVITADOS_DIARIOS);
+    return solicitudesRaw.map(s => ({
+        ...s,
+        listaInvitadosDiarios: s.listaInvitadosDiarios.map(inv => ({
+            ...inv,
+            fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined, // Already stored as string or undefined
+        }))
+    }));
 };
 
 export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fechaISO: string): Promise<SolicitudInvitadosDiarios | null> => {
@@ -294,32 +529,49 @@ export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fecha
 };
 
 export const addOrUpdateSolicitudInvitadosDiarios = async (solicitud: SolicitudInvitadosDiarios): Promise<SolicitudInvitadosDiarios> => {
-    let solicitudes = await getAllSolicitudesInvitadosDiarios();
-    const index = solicitudes.findIndex(s => s.id === solicitud.id || (s.idSocioTitular === solicitud.idSocioTitular && s.fecha === solicitud.fecha));
+    let solicitudesRaw = getDb<SolicitudInvitadosDiarios>(KEYS.INVITADOS_DIARIOS);
+    const index = solicitudesRaw.findIndex(s => s.id === solicitud.id || (s.idSocioTitular === solicitud.idSocioTitular && s.fecha === solicitud.fecha));
 
+    const solicitudToSave: SolicitudInvitadosDiarios = {
+        ...solicitud,
+        listaInvitadosDiarios: solicitud.listaInvitadosDiarios.map(inv => ({
+            ...inv,
+            fechaNacimiento: inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, {representation: 'date'}) : (typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined)
+        }))
+    };
+    
     if (index > -1) {
-        solicitudes[index] = solicitud;
+        solicitudesRaw[index] = solicitudToSave;
     } else {
-        solicitudes.push(solicitud);
+        solicitudesRaw.push(solicitudToSave);
     }
-    saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudes);
-    return solicitud;
+    saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudesRaw);
+    return solicitudToSave; 
 };
 
 export const updateSolicitudInvitadosDiarios = async (updatedSolicitud: SolicitudInvitadosDiarios): Promise<SolicitudInvitadosDiarios | null> => {
-    let solicitudes = await getAllSolicitudesInvitadosDiarios();
-    const index = solicitudes.findIndex(s => s.id === updatedSolicitud.id);
+    let solicitudesRaw = getDb<SolicitudInvitadosDiarios>(KEYS.INVITADOS_DIARIOS);
+    const index = solicitudesRaw.findIndex(s => s.id === updatedSolicitud.id);
+
+    const solicitudToSave: SolicitudInvitadosDiarios = {
+        ...updatedSolicitud,
+        listaInvitadosDiarios: updatedSolicitud.listaInvitadosDiarios.map(inv => ({
+            ...inv,
+            fechaNacimiento: inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, {representation: 'date'}) : (typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined)
+        }))
+    };
+
     if (index > -1) {
-        solicitudes[index] = updatedSolicitud;
-        saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudes);
-        return updatedSolicitud;
+        solicitudesRaw[index] = solicitudToSave;
+        saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudesRaw);
+        return solicitudToSave;
     }
     // Fallback for cases where ID might not have been set initially if it was a new record from client
-    const fallbackIndex = solicitudes.findIndex(s => s.idSocioTitular === updatedSolicitud.idSocioTitular && s.fecha === updatedSolicitud.fecha);
+    const fallbackIndex = solicitudesRaw.findIndex(s => s.idSocioTitular === updatedSolicitud.idSocioTitular && s.fecha === updatedSolicitud.fecha);
     if (fallbackIndex > -1) {
-        solicitudes[fallbackIndex] = {...updatedSolicitud, id: solicitudes[fallbackIndex].id }; // Ensure ID consistency
-        saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudes);
-        return solicitudes[fallbackIndex];
+        solicitudesRaw[fallbackIndex] = {...solicitudToSave, id: solicitudesRaw[fallbackIndex].id }; // Ensure ID consistency
+        saveDbAndNotify(KEYS.INVITADOS_DIARIOS, solicitudesRaw);
+        return solicitudesRaw[fallbackIndex];
     }
     return null;
 };
@@ -334,7 +586,7 @@ export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => 
 };
 
 export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Promise<void> => {
-  saveDbAndNotify(KEYS.PRECIOS_INVITADOS, config as any, true); // Cast as any for generic saveDbAndNotify
+  saveDbAndNotify(KEYS.PRECIOS_INVITADOS, config, true);
 };
 
 
