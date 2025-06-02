@@ -25,7 +25,7 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   nombre: '',
   apellido: '',
   dni: '',
-  fechaNacimiento: undefined, // Será un Date object en el form, string en DB
+  fechaNacimiento: undefined,
   ingresado: false,
   metodoPago: null,
 });
@@ -37,7 +37,7 @@ export function GestionInvitadosDiarios() {
   const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
 
   const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
-
+  
   const form = useForm<SolicitudInvitadosDiarios>({
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
@@ -50,13 +50,13 @@ export function GestionInvitadosDiarios() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "listaInvitadosDiarios",
   });
 
   const loadSolicitudHoy = useCallback(async () => {
-    if (!loggedInUserNumeroSocio) {
+    if (!loggedInUserNumeroSocio && !authIsLoading) {
         form.reset({
             id: generateId(),
             idSocioTitular: '',
@@ -68,6 +68,10 @@ export function GestionInvitadosDiarios() {
         setSolicitudHoy(null);
         setLoading(false);
         return;
+    }
+    if (authIsLoading || !loggedInUserNumeroSocio) {
+      setLoading(false); // Ensure loading is false if we can't proceed
+      return;
     }
 
     setLoading(true);
@@ -81,11 +85,12 @@ export function GestionInvitadosDiarios() {
               listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.length > 0 
                 ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
                     ...inv,
+                    id: inv.id || generateId(),
                     fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' 
                                       ? parseISO(inv.fechaNacimiento) 
                                       : inv.fechaNacimiento instanceof Date ? inv.fechaNacimiento : undefined,
                   }))
-                : [createDefaultInvitado()],
+                : [createDefaultInvitado()], // Ensure at least one if list is empty after fetch
             });
         } else {
             form.reset({
@@ -111,7 +116,7 @@ export function GestionInvitadosDiarios() {
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast, authIsLoading, replace]);
 
   useEffect(() => {
     if (!authIsLoading) {
@@ -125,9 +130,9 @@ export function GestionInvitadosDiarios() {
         if (!currentFormTitular || currentFormTitular !== loggedInUserNumeroSocio) {
             form.setValue('idSocioTitular', loggedInUserNumeroSocio);
             form.setValue('nombreSocioTitular', userName);
-            if (form.getValues('fecha') !== todayISO) {
-                form.setValue('fecha', todayISO);
-            }
+        }
+        if (form.getValues('fecha') !== todayISO) {
+           form.setValue('fecha', todayISO);
         }
     }
   }, [loggedInUserNumeroSocio, userName, todayISO, form, authIsLoading]);
@@ -212,7 +217,7 @@ export function GestionInvitadosDiarios() {
                 <div>
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
-                  <ScrollArea className="max-h-[400px] pr-3">
+                  <ScrollArea className="max-h-[60vh] pr-3"> {/* Aumentada la altura */}
                     <div className="space-y-4">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
@@ -222,7 +227,7 @@ export function GestionInvitadosDiarios() {
                             size="icon"
                             className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
                             onClick={() => remove(index)}
-                            disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni}
+                            disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -320,5 +325,3 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
-
-    
