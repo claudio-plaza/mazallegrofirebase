@@ -7,7 +7,6 @@ export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 export const MAX_INVITADOS_CUMPLEANOS = 15;
-// export const MAX_INVITADOS_DIARIOS = 10; // Límite para invitados diarios -- Límite eliminado
 
 // Updated list of companies
 export enum EmpresaTitular {
@@ -331,8 +330,9 @@ export const invitadoDiarioSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
-    .refine(date => isValid(date), { message: "Fecha de nacimiento inválida."}).optional().nullable(),
+  fechaNacimiento: z.union([z.date({required_error: "Fecha de nacimiento es requerida.", invalid_type_error: "Fecha de nacimiento inválida."}), z.string()])
+    .transform(val => typeof val === 'string' ? parseISO(val) : val)
+    .refine(date => isValid(date), { message: "Fecha de nacimiento inválida." }),
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
 });
@@ -345,7 +345,6 @@ export const solicitudInvitadosDiariosSchema = z.object({
   fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }),
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
     .min(1, "Debe agregar al menos un invitado."),
-    // .max(MAX_INVITADOS_DIARIOS, `No puede agregar más de ${MAX_INVITADOS_DIARIOS} invitados diarios.`), // Límite eliminado
   titularIngresadoEvento: z.boolean().default(false),
 });
 export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
@@ -389,3 +388,4 @@ isValid(new Date()); // Keep this import for date-fns
 
 
     
+

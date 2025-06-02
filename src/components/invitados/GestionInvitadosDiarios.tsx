@@ -25,7 +25,7 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   nombre: '',
   apellido: '',
   dni: '',
-  fechaNacimiento: undefined,
+  fechaNacimiento: undefined, 
   ingresado: false,
   metodoPago: null,
 });
@@ -160,9 +160,10 @@ export function GestionInvitadosDiarios() {
             <div>
               <p>Tu lista de invitados para hoy ha sido guardada/actualizada.</p>
               <p className="mt-2 font-semibold text-orange-600">Recuerde: Se solicitará DNI a cada uno de sus invitados para ingresar y para realizar la revisión médica.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Recuerde: Es responsable del comportamiento de sus invitados y puede ser sancionado.</p>
             </div>
           ),
-          duration: 7000, 
+          duration: 8000, 
         });
         loadSolicitudHoy(); 
     } catch (error) {
@@ -191,7 +192,7 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). La fecha de nacimiento es opcional.
+            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}).
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -207,7 +208,7 @@ export function GestionInvitadosDiarios() {
               
               <div>
                 <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
-                <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido y DNI son obligatorios.</p>
+                <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                 <ScrollArea className="max-h-[400px] pr-3">
                   <div className="space-y-4">
                     {fields.map((item, index) => (
@@ -262,19 +263,16 @@ export function GestionInvitadosDiarios() {
                             name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs">Fecha de Nacimiento (Opcional)</FormLabel>
+                                <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                    <Input
-                                      type="date"
-                                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
-                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                                      max={format(new Date(), 'yyyy-MM-dd')}
-                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
-                                      className="w-full pl-10 h-9 text-sm"
-                                    />
-                                  </div>
+                                  <Input
+                                    type="date"
+                                    value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                    max={format(new Date(), 'yyyy-MM-dd')}
+                                    min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                    className="w-full h-9 text-sm"
+                                  />
                                 </FormControl>
                                 <FormMessage className="text-xs"/>
                               </FormItem>
@@ -320,3 +318,4 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
+
