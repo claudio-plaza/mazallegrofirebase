@@ -17,22 +17,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays } from 'lucide-react';
+import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { signupTitularSchema, type SignupTitularData } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect } from 'react'; // Added useState and useEffect
+import { useState, useEffect } from 'react';
 
-const renderFilePreview = (fileList: FileList | null | undefined, fieldName: keyof SignupTitularData, form: ReturnType<typeof useForm<SignupTitularData>>) => {
-  if (fileList && fileList.length > 0) {
-    const file = fileList[0];
+const renderFilePreview = (
+  fileList: FileList | null | undefined | string,
+  fieldName: keyof SignupTitularData,
+  form: ReturnType<typeof useForm<SignupTitularData>>
+) => {
+  let fileNamePreview: string | null = null;
+  let isExistingFile = typeof fileList === 'string' && fileList.startsWith('http');
+
+  if (isExistingFile) {
+    fileNamePreview = "Archivo cargado";
+  } else if (fileList instanceof FileList && fileList.length > 0) {
+    fileNamePreview = fileList[0].name;
+  }
+
+  if (fileNamePreview) {
     return (
-      <div className="mt-2 flex items-center space-x-2 p-2 border rounded-md bg-muted/50">
-        <FileText className="h-5 w-5 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground truncate max-w-[150px] sm:max-w-[200px]">{file.name}</span>
-        <Button type="button" variant="ghost" size="icon" onClick={() => form.setValue(fieldName, null as any, { shouldValidate: true })}>
-          <Trash2 className="h-4 w-4 text-destructive" />
+      <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
+        <BadgeCheck className="h-4 w-4 text-green-500" />
+        <span className="text-muted-foreground truncate max-w-[120px] sm:max-w-[150px]">
+          {fileNamePreview}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => form.setValue(fieldName, null, { shouldValidate: true })}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>
       </div>
     );
@@ -66,6 +86,7 @@ export function SignupForm() {
       fotoDniFrente: null,
       fotoDniDorso: null,
       fotoPerfil: null,
+      fotoCarnet: null, // Nuevo campo
     },
   });
 
@@ -238,22 +259,29 @@ export function SignupForm() {
             {/* Documentación */}
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => (
                       <FormField
                           control={form.control}
                           name={docType}
                           key={docType}
                           render={({ field: { onChange, value, ...restField }}) => (
                           <FormItem>
-                              <FormLabel>{docType === 'fotoDniFrente' ? 'DNI Frente' : docType === 'fotoDniDorso' ? 'DNI Dorso' : 'Foto Perfil'}</FormLabel>
+                              <FormLabel>
+                                {docType === 'fotoDniFrente' ? 'DNI Frente' : 
+                                 docType === 'fotoDniDorso' ? 'DNI Dorso' : 
+                                 docType === 'fotoPerfil' ? 'Foto Perfil' : 
+                                 'Foto Carnet (Opcional)'}
+                              </FormLabel>
                               <FormControl>
                                   <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
                                       <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
                                       <span className="text-sm text-muted-foreground text-center">
-                                        {value && value.length > 0 ? value[0].name : (docType === 'fotoPerfil' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)")}
+                                        {renderFilePreview(value, docType, form) === null
+                                          ? (docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)")
+                                          : null}
                                       </span>
-                                      <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
+                                      <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
                                   </label>
                               </FormControl>
                               {renderFilePreview(value, docType, form)}
