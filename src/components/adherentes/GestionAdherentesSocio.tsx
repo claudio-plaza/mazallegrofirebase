@@ -40,7 +40,7 @@ const renderFilePreview = (
 
   if (isExistingFile) {
     fileNamePreview = "Archivo cargado";
-  } else if (fileList instanceof FileList && fileList.length > 0) {
+  } else if (typeof window !== 'undefined' && fileList instanceof FileList && fileList.length > 0) {
     fileNamePreview = fileList[0].name;
   }
 
@@ -92,7 +92,7 @@ export function GestionAdherentesSocio() {
       fotoDniFrente: null,
       fotoDniDorso: null,
       fotoPerfil: null,
-      fotoCarnet: null, // Nuevo campo
+      fotoCarnet: null,
     },
   });
 
@@ -129,7 +129,7 @@ export function GestionAdherentesSocio() {
       fotoDniFrente: data.fotoDniFrente, 
       fotoDniDorso: data.fotoDniDorso,   
       fotoPerfil: data.fotoPerfil,
-      fotoCarnet: data.fotoCarnet, // Nuevo campo     
+      fotoCarnet: data.fotoCarnet,     
       estadoAdherente: EstadoAdherente.INACTIVO, 
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },

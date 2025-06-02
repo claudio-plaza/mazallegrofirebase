@@ -1,3 +1,4 @@
+
 import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differenceInYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AptoMedicoInfo } from '@/types';
@@ -66,7 +67,7 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo, fechaNacimiento
 };
 
 export const getFileUrl = (fileList: FileList | null | undefined): string | null => {
-  if (fileList && fileList.length > 0) {
+  if (typeof window !== 'undefined' && fileList && fileList.length > 0 && fileList[0] instanceof File) {
     return URL.createObjectURL(fileList[0]);
   }
   return null;

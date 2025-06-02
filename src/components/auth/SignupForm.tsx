@@ -34,7 +34,7 @@ const renderFilePreview = (
 
   if (isExistingFile) {
     fileNamePreview = "Archivo cargado";
-  } else if (fileList instanceof FileList && fileList.length > 0) {
+  } else if (typeof window !== 'undefined' && fileList instanceof FileList && fileList.length > 0) {
     fileNamePreview = fileList[0].name;
   }
 
@@ -86,7 +86,7 @@ export function SignupForm() {
       fotoDniFrente: null,
       fotoDniDorso: null,
       fotoPerfil: null,
-      fotoCarnet: null, // Nuevo campo
+      fotoCarnet: null,
     },
   });
 
