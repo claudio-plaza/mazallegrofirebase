@@ -25,16 +25,16 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   nombre: '',
   apellido: '',
   dni: '',
-  fechaNacimiento: undefined, 
+  fechaNacimiento: undefined,
   ingresado: false,
   metodoPago: null,
 });
 
 export function GestionInvitadosDiarios() {
   const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth(); 
+  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
 
   const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
   const defaultInvitado = useMemo(() => createDefaultInvitado(), []);
@@ -43,8 +43,8 @@ export function GestionInvitadosDiarios() {
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
       id: generateId(),
-      idSocioTitular: '', 
-      nombreSocioTitular: '', 
+      idSocioTitular: '',
+      nombreSocioTitular: '',
       fecha: todayISO,
       listaInvitadosDiarios: [defaultInvitado],
       titularIngresadoEvento: false,
@@ -57,7 +57,7 @@ export function GestionInvitadosDiarios() {
   });
 
   const loadSolicitudHoy = useCallback(async () => {
-    if (!loggedInUserNumeroSocio) { 
+    if (!loggedInUserNumeroSocio) {
         form.reset({
             id: generateId(),
             idSocioTitular: '',
@@ -68,11 +68,11 @@ export function GestionInvitadosDiarios() {
         });
         replace([defaultInvitado]);
         setSolicitudHoy(null);
-        setLoading(false); 
+        setLoading(false);
         return;
     }
 
-    setLoading(true); 
+    setLoading(true);
     try {
         const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
         setSolicitudHoy(userSolicitudHoy || null);
@@ -111,13 +111,13 @@ export function GestionInvitadosDiarios() {
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]); 
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]);
 
   useEffect(() => {
-    if (!authIsLoading) { 
+    if (!authIsLoading) {
       loadSolicitudHoy();
     }
-  }, [authIsLoading, loadSolicitudHoy]); 
+  }, [authIsLoading, loadSolicitudHoy]);
 
   useEffect(() => {
     if (loggedInUserNumeroSocio && userName && !authIsLoading) {
@@ -138,7 +138,7 @@ export function GestionInvitadosDiarios() {
         toast({ title: "Error", description: "Usuario no identificado.", variant: "destructive"});
         return;
     }
-    
+
     const dataToSave: SolicitudInvitadosDiarios = {
         ...data,
         idSocioTitular: loggedInUserNumeroSocio,
@@ -146,7 +146,7 @@ export function GestionInvitadosDiarios() {
         fecha: todayISO,
         id: solicitudHoy?.id || data.id || generateId(),
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
-          ...inv, 
+          ...inv,
           id: inv.id || generateId(),
           fechaNacimiento: inv.fechaNacimiento && inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, { representation: 'date' }) : (typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined)
         }))
@@ -154,8 +154,8 @@ export function GestionInvitadosDiarios() {
 
     try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
-        toast({ 
-          title: "Lista Guardada", 
+        toast({
+          title: "Lista Guardada",
           description: (
             <div>
               <p>Tu lista de invitados para hoy ha sido guardada/actualizada.</p>
@@ -163,9 +163,9 @@ export function GestionInvitadosDiarios() {
               <p className="mt-1 text-sm text-muted-foreground">Recuerde: Es responsable del comportamiento de sus invitados y puede ser sancionado.</p>
             </div>
           ),
-          duration: 8000, 
+          duration: 8000,
         });
-        loadSolicitudHoy(); 
+        loadSolicitudHoy();
     } catch (error) {
         console.error("Error guardando solicitud de invitados diarios:", error);
         toast({ title: "Error", description: "No se pudo guardar la lista de invitados.", variant: "destructive"});
@@ -197,117 +197,117 @@ export function GestionInvitadosDiarios() {
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
-               <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Importante</AlertTitle>
-                  <AlertDescription>
-                    Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
-                  </AlertDescription>
-                </Alert>
-              
-              <div>
-                <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
-                <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
-                <ScrollArea className="max-h-[400px] pr-3">
-                  <div className="space-y-4">
-                    {fields.map((item, index) => (
-                      <Card key={item.id} className="p-4 relative bg-muted/30">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
-                          onClick={() => remove(index)}
-                          disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <p className="text-sm font-semibold mb-2">Invitado {index + 1}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                          <FormField
-                            control={form.control}
-                            name={`listaInvitadosDiarios.${index}.nombre`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-xs">Nombre</FormLabel>
-                                <FormControl><Input placeholder="Nombre" {...field} className="h-9 text-sm"/></FormControl>
-                                <FormMessage className="text-xs"/>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`listaInvitadosDiarios.${index}.apellido`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-xs">Apellido</FormLabel>
-                                <FormControl><Input placeholder="Apellido" {...field} className="h-9 text-sm"/></FormControl>
-                                <FormMessage className="text-xs"/>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`listaInvitadosDiarios.${index}.dni`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-xs">DNI</FormLabel>
-                                <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm"/></FormControl>
-                                <FormMessage className="text-xs"/>
-                              </FormItem>
-                            )}
-                          />
-                           <FormField
-                            control={form.control}
-                            name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="date"
-                                    value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                                    max={format(new Date(), 'yyyy-MM-dd')}
-                                    min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
-                                    className="w-full h-9 text-sm"
-                                  />
-                                </FormControl>
-                                <FormMessage className="text-xs"/>
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-                {form.formState.errors.listaInvitadosDiarios && !form.formState.errors.listaInvitadosDiarios.root && (
-                    <FormMessage className="text-xs mt-1">
-                        {form.formState.errors.listaInvitadosDiarios.message}
-                    </FormMessage>
-                )}
-                {form.formState.errors.listaInvitadosDiarios?.root && (
-                     <FormMessage className="text-xs mt-1">
-                        {form.formState.errors.listaInvitadosDiarios.root.message}
-                    </FormMessage>
-                )}
+            <CardContent className="p-0"> {/* Remove padding to allow ScrollArea to manage it */}
+              <ScrollArea className="max-h-[65vh] p-6"> {/* Adjust max-h as needed, add padding here */}
+                <div className="space-y-6">
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Importante</AlertTitle>
+                    <AlertDescription>
+                      Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
+                    </AlertDescription>
+                  </Alert>
 
-                
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => append(defaultInvitado)}
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
-                  </Button>
-                
-              </div>
+                  <div>
+                    <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
+                    <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
+                    <div className="space-y-4">
+                      {fields.map((item, index) => (
+                        <Card key={item.id} className="p-4 relative bg-muted/30">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => remove(index)}
+                            disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <p className="text-sm font-semibold mb-2">Invitado {index + 1}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                            <FormField
+                              control={form.control}
+                              name={`listaInvitadosDiarios.${index}.nombre`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">Nombre</FormLabel>
+                                  <FormControl><Input placeholder="Nombre" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormMessage className="text-xs"/>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`listaInvitadosDiarios.${index}.apellido`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">Apellido</FormLabel>
+                                  <FormControl><Input placeholder="Apellido" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormMessage className="text-xs"/>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`listaInvitadosDiarios.${index}.dni`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">DNI</FormLabel>
+                                  <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormMessage className="text-xs"/>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="date"
+                                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                      onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                      max={format(new Date(), 'yyyy-MM-dd')}
+                                      min={format(new Date("1900-01-01"), 'yyyy-MM-dd')}
+                                      className="w-full h-9 text-sm"
+                                    />
+                                  </FormControl>
+                                  <FormMessage className="text-xs"/>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                    {form.formState.errors.listaInvitadosDiarios && !form.formState.errors.listaInvitadosDiarios.root && (
+                        <FormMessage className="text-xs mt-1">
+                            {form.formState.errors.listaInvitadosDiarios.message}
+                        </FormMessage>
+                    )}
+                    {form.formState.errors.listaInvitadosDiarios?.root && (
+                         <FormMessage className="text-xs mt-1">
+                            {form.formState.errors.listaInvitadosDiarios.root.message}
+                        </FormMessage>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => append(defaultInvitado)}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
+                    </Button>
+                  </div>
+                </div>
+              </ScrollArea>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="pt-6"> {/* Ensure footer has padding if CardContent doesn't */}
               <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading}>
                 {form.formState.isSubmitting ? 'Guardando...' : (solicitudHoy ? 'Actualizar Lista de Hoy' : 'Guardar Lista de Hoy')}
               </Button>
@@ -318,4 +318,3 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
-
