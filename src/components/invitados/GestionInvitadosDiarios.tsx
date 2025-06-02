@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
 import { PlusCircle, Trash2, Users, Info, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatISO, parseISO } from 'date-fns';
+import { format, formatISO, parseISO, isValid } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,7 +25,7 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   nombre: '',
   apellido: '',
   dni: '',
-  fechaNacimiento: undefined,
+  fechaNacimiento: undefined, // Será un Date object en el form, string en DB
   ingresado: false,
   metodoPago: null,
 });
@@ -37,7 +37,6 @@ export function GestionInvitadosDiarios() {
   const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
 
   const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
-  const defaultInvitado = useMemo(() => createDefaultInvitado(), []);
 
   const form = useForm<SolicitudInvitadosDiarios>({
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
@@ -46,12 +45,12 @@ export function GestionInvitadosDiarios() {
       idSocioTitular: '',
       nombreSocioTitular: '',
       fecha: todayISO,
-      listaInvitadosDiarios: [defaultInvitado],
+      listaInvitadosDiarios: [createDefaultInvitado()],
       titularIngresadoEvento: false,
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "listaInvitadosDiarios",
   });
@@ -63,10 +62,9 @@ export function GestionInvitadosDiarios() {
             idSocioTitular: '',
             nombreSocioTitular: '',
             fecha: todayISO,
-            listaInvitadosDiarios: [defaultInvitado],
+            listaInvitadosDiarios: [createDefaultInvitado()],
             titularIngresadoEvento: false,
         });
-        replace([defaultInvitado]);
         setSolicitudHoy(null);
         setLoading(false);
         return;
@@ -76,25 +74,28 @@ export function GestionInvitadosDiarios() {
     try {
         const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
         setSolicitudHoy(userSolicitudHoy || null);
+
         if (userSolicitudHoy) {
             form.reset({
               ...userSolicitudHoy,
-              listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
-                ...inv,
-                fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : undefined,
-              }))
+              listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.length > 0 
+                ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
+                    ...inv,
+                    fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' 
+                                      ? parseISO(inv.fechaNacimiento) 
+                                      : inv.fechaNacimiento instanceof Date ? inv.fechaNacimiento : undefined,
+                  }))
+                : [createDefaultInvitado()],
             });
-            replace(userSolicitudHoy.listaInvitadosDiarios.length > 0 ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({...inv, fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : undefined })) : [defaultInvitado]);
         } else {
             form.reset({
                 id: generateId(),
                 idSocioTitular: loggedInUserNumeroSocio,
                 nombreSocioTitular: userName || '',
                 fecha: todayISO,
-                listaInvitadosDiarios: [defaultInvitado],
+                listaInvitadosDiarios: [createDefaultInvitado()],
                 titularIngresadoEvento: false,
             });
-            replace([defaultInvitado]);
         }
     } catch (error) {
         console.error("Error cargando solicitud de invitados diarios:", error);
@@ -104,14 +105,13 @@ export function GestionInvitadosDiarios() {
             idSocioTitular: loggedInUserNumeroSocio,
             nombreSocioTitular: userName || '',
             fecha: todayISO,
-            listaInvitadosDiarios: [defaultInvitado],
+            listaInvitadosDiarios: [createDefaultInvitado()],
             titularIngresadoEvento: false,
         });
-        replace([defaultInvitado]);
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, replace, toast, defaultInvitado]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast]);
 
   useEffect(() => {
     if (!authIsLoading) {
@@ -148,7 +148,9 @@ export function GestionInvitadosDiarios() {
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv,
           id: inv.id || generateId(),
-          fechaNacimiento: inv.fechaNacimiento && inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, { representation: 'date' }) : (typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined)
+          fechaNacimiento: inv.fechaNacimiento instanceof Date 
+                            ? formatISO(inv.fechaNacimiento, { representation: 'date' }) 
+                            : (typeof inv.fechaNacimiento === 'string' && isValid(parseISO(inv.fechaNacimiento)) ? inv.fechaNacimiento : undefined)
         }))
     };
 
@@ -197,20 +199,20 @@ export function GestionInvitadosDiarios() {
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="p-0"> {/* Remove padding to allow ScrollArea to manage it */}
-              <ScrollArea className="max-h-[65vh] p-6"> {/* Adjust max-h as needed, add padding here */}
-                <div className="space-y-6">
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Importante</AlertTitle>
-                    <AlertDescription>
-                      Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
-                    </AlertDescription>
-                  </Alert>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Importante</AlertTitle>
+                  <AlertDescription>
+                    Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
+                  </AlertDescription>
+                </Alert>
 
-                  <div>
-                    <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
-                    <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
+                <div>
+                  <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
+                  <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
+                  <ScrollArea className="max-h-[400px] pr-3">
                     <div className="space-y-4">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
@@ -283,31 +285,31 @@ export function GestionInvitadosDiarios() {
                         </Card>
                       ))}
                     </div>
-                    {form.formState.errors.listaInvitadosDiarios && !form.formState.errors.listaInvitadosDiarios.root && (
-                        <FormMessage className="text-xs mt-1">
-                            {form.formState.errors.listaInvitadosDiarios.message}
-                        </FormMessage>
-                    )}
-                    {form.formState.errors.listaInvitadosDiarios?.root && (
-                         <FormMessage className="text-xs mt-1">
-                            {form.formState.errors.listaInvitadosDiarios.root.message}
-                        </FormMessage>
-                    )}
+                  </ScrollArea>
+                  {form.formState.errors.listaInvitadosDiarios && !form.formState.errors.listaInvitadosDiarios.root && (
+                      <FormMessage className="text-xs mt-1">
+                          {form.formState.errors.listaInvitadosDiarios.message}
+                      </FormMessage>
+                  )}
+                  {form.formState.errors.listaInvitadosDiarios?.root && (
+                       <FormMessage className="text-xs mt-1">
+                          {form.formState.errors.listaInvitadosDiarios.root.message}
+                      </FormMessage>
+                  )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                      onClick={() => append(defaultInvitado)}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => append(createDefaultInvitado())}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
+                  </Button>
                 </div>
-              </ScrollArea>
+              </div>
             </CardContent>
-            <CardFooter className="pt-6"> {/* Ensure footer has padding if CardContent doesn't */}
+            <CardFooter className="pt-6">
               <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading}>
                 {form.formState.isSubmitting ? 'Guardando...' : (solicitudHoy ? 'Actualizar Lista de Hoy' : 'Guardar Lista de Hoy')}
               </Button>
@@ -318,3 +320,5 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
+
+    
