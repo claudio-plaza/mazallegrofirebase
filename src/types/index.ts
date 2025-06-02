@@ -8,25 +8,6 @@ export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 export const MAX_INVITADOS_CUMPLEANOS = 15;
 
-export enum EmpresaTitular {
-  SADOP = "Sadop",
-  AMPROS = "Ampros",
-  JUDICIALES = "Judiciales",
-  SUTIAGA = "Sutiaga",
-  SIDUNCU = "Siduncu",
-  CLAN_PITU = "Clan Pitu",
-  PARTICULAR = "Particular",
-  OSDE = "OSDE",
-  SWISS_MEDICAL = "Swiss Medical",
-  GALENO = "Galeno",
-  MEDICUS = "Medicus",
-  OMINT = "Omint",
-  SANCOR_SALUD = "Sancor Salud",
-  OTRA = "Otra",
-  NINGUNA = "Ninguna",
-}
-export const empresas = Object.values(EmpresaTitular);
-
 export enum RelacionFamiliar {
   CONYUGE = "Conyuge",
   HIJO_A = "Hijo/a",
@@ -145,34 +126,37 @@ export interface PreciosInvitadosConfig {
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Helper for SSR compatibility with FileList
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 
-const baseFileSchema = (message: string) =>
-  z.instanceof(FileListInstance, { message })
-    .refine(files => files && files.length === 1, "Debe seleccionar un archivo.")
-    .refine(files => files?.[0]?.size <= MAX_FILE_SIZE_BYTES, `El archivo no debe exceder ${MAX_FILE_SIZE_MB}MB.`);
+const baseFileSchema = (config: { typeError: string, sizeError: string, mimeTypeError: string, mimeTypes: string[] }) =>
+  z.instanceof(FileListInstance, { message: config.typeError })
+    .refine(files => files.length === 1, { message: "Debe seleccionar exactamente un archivo." })
+    .refine(files => files[0]?.size <= MAX_FILE_SIZE_BYTES, { message: config.sizeError })
+    .refine(files => config.mimeTypes.includes(files[0]?.type), { message: config.mimeTypeError });
 
-const dniFileSchema = (message: string) =>
-  baseFileSchema(message).refine(
-    files => files?.[0] && ['image/png', 'image/jpeg', 'application/pdf'].includes(files[0].type),
-    "Solo se aceptan archivos PNG, JPG o PDF."
-  );
+const requiredFileField = (
+  baseSchemaInstance: z.ZodType<FileList, any, any>, // Expecting a configured baseFileSchema instance
+  requiredMessage: string
+) => baseSchemaInstance.nullable().refine(val => val !== null, { message: requiredMessage });
 
-const profileFileSchema = (message: string) =>
-  baseFileSchema(message).refine(
-    files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type),
-    "Solo se aceptan archivos PNG o JPG."
-  );
+const optionalFileField = (
+  baseSchemaInstance: z.ZodType<FileList, any, any> // Expecting a configured baseFileSchema instance
+) => baseSchemaInstance.nullable().optional();
 
-const optionalProfileFileSchema = () =>
-  baseFileSchema("Archivo inválido.")
-    .refine(
-      files => files?.[0] && ['image/png', 'image/jpeg'].includes(files[0].type),
-      "Solo se aceptan archivos PNG o JPG para la foto."
-    )
-    .nullable()
-    .optional();
+
+const dniFileSchemaConfig = {
+  typeError: "Archivo de DNI inválido.",
+  sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
+  mimeTypeError: "Para DNI, solo se aceptan PNG, JPG o PDF.",
+  mimeTypes: ['image/png', 'image/jpeg', 'application/pdf']
+};
+
+const profileFileSchemaConfig = {
+  typeError: "Archivo de imagen inválido.",
+  sizeError: `La foto no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
+  mimeTypeError: "Para fotos, solo se aceptan PNG o JPG.",
+  mimeTypes: ['image/png', 'image/jpeg']
+};
 
 
 export const signupTitularSchema = z.object({
@@ -188,10 +172,10 @@ export const signupTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
   confirmPassword: z.string(),
-  fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable(),
-  fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable(),
-  fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable(),
-  fotoCarnet: optionalProfileFileSchema(),
+  fotoDniFrente: requiredFileField(baseFileSchema(dniFileSchemaConfig), "Se requiere foto del DNI (frente)."),
+  fotoDniDorso: requiredFileField(baseFileSchema(dniFileSchemaConfig), "Se requiere foto del DNI (dorso)."),
+  fotoPerfil: requiredFileField(baseFileSchema(profileFileSchemaConfig), "Se requiere foto de perfil."),
+  fotoCarnet: optionalFileField(baseFileSchema(profileFileSchemaConfig)),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden.',
   path: ['confirmPassword'],
@@ -209,10 +193,10 @@ export const titularSchema = z.object({
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
-  fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable(),
-  fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable(),
-  fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable(),
-  fotoCarnet: optionalProfileFileSchema(),
+  fotoDniFrente: requiredFileField(baseFileSchema(dniFileSchemaConfig), "Se requiere foto del DNI (frente)."),
+  fotoDniDorso: requiredFileField(baseFileSchema(dniFileSchemaConfig), "Se requiere foto del DNI (dorso)."),
+  fotoPerfil: requiredFileField(baseFileSchema(profileFileSchemaConfig), "Se requiere foto de perfil."),
+  fotoCarnet: optionalFileField(baseFileSchema(profileFileSchemaConfig)),
 });
 export type TitularData = z.infer<typeof titularSchema>;
 
@@ -260,10 +244,10 @@ export const familiarBaseSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: z.union([dniFileSchema("Se requiere foto del DNI (frente)."), z.string().url(), z.null()]).optional(),
-  fotoDniDorso: z.union([dniFileSchema("Se requiere foto del DNI (dorso)."), z.string().url(), z.null()]).optional(),
-  fotoPerfil: z.union([profileFileSchema("Se requiere foto de perfil."), z.string().url(), z.null()]).optional(),
-  fotoCarnet: z.union([optionalProfileFileSchema(), z.string().url(), z.null()]).optional(),
+  fotoDniFrente: z.union([requiredFileField(baseFileSchema(dniFileSchemaConfig), "DNI Frente Familiar es requerido."), z.string().url()]).optional(),
+  fotoDniDorso: z.union([requiredFileField(baseFileSchema(dniFileSchemaConfig), "DNI Dorso Familiar es requerido."), z.string().url()]).optional(),
+  fotoPerfil: z.union([requiredFileField(baseFileSchema(profileFileSchemaConfig), "Foto Perfil Familiar es requerida."), z.string().url()]).optional(),
+  fotoCarnet: z.union([optionalFileField(baseFileSchema(profileFileSchemaConfig)), z.string().url()]).optional(),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -381,10 +365,10 @@ export const adherenteFormSchema = z.object({
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
-    fotoDniFrente: dniFileSchema("Se requiere foto del DNI (frente).").nullable().optional(),
-    fotoDniDorso: dniFileSchema("Se requiere foto del DNI (dorso).").nullable().optional(),
-    fotoPerfil: profileFileSchema("Se requiere foto de perfil.").nullable().optional(),
-    fotoCarnet: optionalProfileFileSchema(),
+    fotoDniFrente: optionalFileField(baseFileSchema(dniFileSchemaConfig)),
+    fotoDniDorso: optionalFileField(baseFileSchema(dniFileSchemaConfig)),
+    fotoPerfil: optionalFileField(baseFileSchema(profileFileSchemaConfig)),
+    fotoCarnet: optionalFileField(baseFileSchema(profileFileSchemaConfig)),
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
 
@@ -409,3 +393,6 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
+
+    
