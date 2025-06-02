@@ -27,7 +27,7 @@ import { useState, useEffect } from 'react';
 const renderFilePreview = (
   fileList: FileList | null | undefined | string,
   fieldName: keyof SignupTitularData,
-  form: ReturnType<typeof useForm<SignupTitularData>>
+  formInstance: ReturnType<typeof useForm<SignupTitularData>>
 ) => {
   let fileNamePreview: string | null = null;
   let isExistingFile = typeof fileList === 'string' && fileList.startsWith('http');
@@ -50,7 +50,7 @@ const renderFilePreview = (
           variant="ghost"
           size="icon"
           className="h-6 w-6"
-          onClick={() => form.setValue(fieldName, null, { shouldValidate: true })}
+          onClick={() => formInstance.setValue(fieldName, null, { shouldValidate: true })}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>
@@ -67,11 +67,13 @@ export function SignupForm() {
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
 
   useEffect(() => {
-    setMaxBirthDate(format(subYears(new Date(), 18), 'yyyy-MM-dd'));
+    const eighteenYearsAgo = subYears(new Date(), 18);
+    setMaxBirthDate(format(eighteenYearsAgo, 'yyyy-MM-dd'));
   }, []);
 
   const form = useForm<SignupTitularData>({
     resolver: zodResolver(signupTitularSchema),
+    mode: 'onChange', // Validate on change
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -265,29 +267,39 @@ export function SignupForm() {
                           control={form.control}
                           name={docType}
                           key={docType}
-                          render={({ field: { onChange, value, ...restField }}) => (
-                          <FormItem>
-                              <FormLabel>
-                                {docType === 'fotoDniFrente' ? 'DNI Frente' : 
-                                 docType === 'fotoDniDorso' ? 'DNI Dorso' : 
-                                 docType === 'fotoPerfil' ? 'Foto Perfil' : 
-                                 'Foto Carnet (Opcional)'}
-                              </FormLabel>
-                              <FormControl>
-                                  <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
-                                      <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                                      <span className="text-sm text-muted-foreground text-center">
-                                        {renderFilePreview(value, docType, form) === null
-                                          ? (docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)")
-                                          : null}
-                                      </span>
-                                      <Input type="file" className="hidden" onChange={e => onChange(e.target.files)} accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} {...restField} />
-                                  </label>
-                              </FormControl>
-                              {renderFilePreview(value, docType, form)}
-                              <FormMessage />
-                          </FormItem>
-                      )} />
+                          render={({ field: { onChange, value, ...restField }}) => {
+                            const isOptional = docType === 'fotoCarnet';
+                            const hasFileSelected = typeof window !== 'undefined' && value instanceof FileList && value.length > 0;
+                            const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
+                            return (
+                              <FormItem>
+                                  <FormLabel>
+                                    {docType === 'fotoDniFrente' ? 'DNI Frente' : 
+                                     docType === 'fotoDniDorso' ? 'DNI Dorso' : 
+                                     docType === 'fotoPerfil' ? 'Foto Perfil' : 
+                                     'Foto Carnet (Opcional)'}
+                                  </FormLabel>
+                                  <FormControl>
+                                      <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
+                                          <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+                                          <span className="text-sm text-muted-foreground text-center">
+                                            {!hasFileSelected ? placeholderText : null}
+                                          </span>
+                                          <Input 
+                                            type="file" 
+                                            className="hidden" 
+                                            onChange={e => onChange(e.target.files)} 
+                                            accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
+                                            {...restField} 
+                                          />
+                                      </label>
+                                  </FormControl>
+                                  {renderFilePreview(value, docType, form)}
+                                  <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
                   ))}
               </div>
             </section>
@@ -340,3 +352,4 @@ export function SignupForm() {
     </Card>
   );
 }
+
