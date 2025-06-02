@@ -130,36 +130,36 @@ const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 type FileSchemaConfig = { typeError: string, sizeError: string, mimeTypeError: string, mimeTypes: string[] };
 
 const baseFileSchema = (config: FileSchemaConfig) =>
-  z.instanceof(FileListInstance, { message: config.typeError })
-    .refine(files => files?.length === 1, { message: "Debe seleccionar exactamente un archivo." })
-    .refine(files => files?.[0]?.size <= MAX_FILE_SIZE_BYTES, { message: config.sizeError })
-    .refine(files => config.mimeTypes.includes(files?.[0]?.type), { message: config.mimeTypeError });
+  z
+    .instanceof(FileListInstance, { message: config.typeError })
+    .refine(
+      (files) => files && files.length === 1, // Ensure files is truthy before accessing length
+      {
+        message: "Debe seleccionar exactamente un archivo.",
+      }
+    )
+    .refine(
+      (files) => files && files[0] && files[0].size <= MAX_FILE_SIZE_BYTES, // Ensure files and files[0] are truthy
+      {
+        message: config.sizeError,
+      }
+    )
+    .refine(
+      (files) => files && files[0] && config.mimeTypes.includes(files[0].type), // Ensure files and files[0] are truthy
+      {
+        message: config.mimeTypeError,
+      }
+    );
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   baseFileSchema(config)
-    .nullable() 
-    .refine(val => val !== null, { message: requiredMessage });
+    .nullable() // Allow null initially (e.g. RHF default or cleared field)
+    .refine(val => val !== null, { message: requiredMessage }); // But then ensure it's not null for submission
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.custom<FileList | null | undefined>((val) => {
-    if (val === null || val === undefined) {
-      return true; // Explicitly valid if null or undefined
-    }
-    // If not null/undefined, it must be a FileList to proceed
-    if (!(val instanceof FileListInstance)) {
-      // This error will likely not be user-facing due to RHF's FileList handling,
-      // but it's good for schema integrity.
-      throw new Error(config.typeError);
-    }
-    // Now, validate the FileList using baseFileSchema
-    const result = baseFileSchema(config).safeParse(val);
-    if (!result.success) {
-      // Propagate the first specific error message from baseFileSchema
-      const firstError = result.error.errors[0]?.message;
-      throw new Error(firstError || "Archivo inválido.");
-    }
-    return true;
-  }).optional().nullable();
+  baseFileSchema(config)
+    .optional()
+    .nullable();
 
 
 const dniFileSchemaConfig: FileSchemaConfig = {
@@ -262,10 +262,10 @@ export const familiarBaseSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: z.union([requiredFileField(dniFileSchemaConfig, "DNI Frente Familiar es requerido."), z.string().url()]).optional(),
-  fotoDniDorso: z.union([requiredFileField(dniFileSchemaConfig, "DNI Dorso Familiar es requerido."), z.string().url()]).optional(),
-  fotoPerfil: z.union([requiredFileField(profileFileSchemaConfig, "Foto Perfil Familiar es requerida."), z.string().url()]).optional(),
-  fotoCarnet: z.union([optionalFileField(profileFileSchemaConfig), z.string().url()]).optional(),
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig), // Familiar docs are optional for now
+  fotoDniDorso: optionalFileField(dniFileSchemaConfig),
+  fotoPerfil: optionalFileField(profileFileSchemaConfig),
+  fotoCarnet: optionalFileField(profileFileSchemaConfig),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -411,5 +411,7 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
+    
 
     
