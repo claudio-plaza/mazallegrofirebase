@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
-import { solicitudInvitadosDiariosSchema, MAX_INVITADOS_DIARIOS } from '@/types';
+import { solicitudInvitadosDiariosSchema } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -148,7 +148,7 @@ export function GestionInvitadosDiarios() {
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv, 
           id: inv.id || generateId(),
-          fechaNacimiento: inv.fechaNacimiento && inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, { representation: 'date' }) : undefined
+          fechaNacimiento: inv.fechaNacimiento && inv.fechaNacimiento instanceof Date ? formatISO(inv.fechaNacimiento, { representation: 'date' }) : (typeof inv.fechaNacimiento === 'string' ? inv.fechaNacimiento : undefined)
         }))
     };
 
@@ -191,7 +191,7 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). Puedes agregar hasta {MAX_INVITADOS_DIARIOS} invitados. La fecha de nacimiento es opcional.
+            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}). La fecha de nacimiento es opcional.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -206,7 +206,7 @@ export function GestionInvitadosDiarios() {
                 </Alert>
               
               <div>
-                <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length}/{MAX_INVITADOS_DIARIOS})</h3>
+                <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                 <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido y DNI son obligatorios.</p>
                 <ScrollArea className="max-h-[400px] pr-3">
                   <div className="space-y-4">
@@ -296,7 +296,7 @@ export function GestionInvitadosDiarios() {
                     </FormMessage>
                 )}
 
-                {fields.length < MAX_INVITADOS_DIARIOS && (
+                
                   <Button
                     type="button"
                     variant="outline"
@@ -306,7 +306,7 @@ export function GestionInvitadosDiarios() {
                   >
                     <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
                   </Button>
-                )}
+                
               </div>
             </CardContent>
             <CardFooter>

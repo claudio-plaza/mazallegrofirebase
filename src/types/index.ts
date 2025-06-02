@@ -7,7 +7,7 @@ export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
 export const MAX_INVITADOS_CUMPLEANOS = 15;
-export const MAX_INVITADOS_DIARIOS = 10; // Límite para invitados diarios
+// export const MAX_INVITADOS_DIARIOS = 10; // Límite para invitados diarios -- Límite eliminado
 
 // Updated list of companies
 export enum EmpresaTitular {
@@ -344,8 +344,8 @@ export const solicitudInvitadosDiariosSchema = z.object({
   nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
   fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }),
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
-    .min(1, "Debe agregar al menos un invitado.")
-    .max(MAX_INVITADOS_DIARIOS, `No puede agregar más de ${MAX_INVITADOS_DIARIOS} invitados diarios.`),
+    .min(1, "Debe agregar al menos un invitado."),
+    // .max(MAX_INVITADOS_DIARIOS, `No puede agregar más de ${MAX_INVITADOS_DIARIOS} invitados diarios.`), // Límite eliminado
   titularIngresadoEvento: z.boolean().default(false),
 });
 export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
