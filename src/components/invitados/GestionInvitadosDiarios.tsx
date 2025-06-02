@@ -70,7 +70,7 @@ export function GestionInvitadosDiarios() {
         return;
     }
     if (authIsLoading || !loggedInUserNumeroSocio) {
-      setLoading(false); // Ensure loading is false if we can't proceed
+      setLoading(false); 
       return;
     }
 
@@ -90,7 +90,7 @@ export function GestionInvitadosDiarios() {
                                       ? parseISO(inv.fechaNacimiento) 
                                       : inv.fechaNacimiento instanceof Date ? inv.fechaNacimiento : undefined,
                   }))
-                : [createDefaultInvitado()], // Ensure at least one if list is empty after fetch
+                : [createDefaultInvitado()],
             });
         } else {
             form.reset({
@@ -116,7 +116,7 @@ export function GestionInvitadosDiarios() {
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast, authIsLoading, replace]);
+  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast, authIsLoading]);
 
   useEffect(() => {
     if (!authIsLoading) {
@@ -217,8 +217,9 @@ export function GestionInvitadosDiarios() {
                 <div>
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
-                  <ScrollArea className="max-h-[60vh] pr-3"> {/* Aumentada la altura */}
-                    <div className="space-y-4">
+                  
+                  <ScrollArea className="max-h-[500px]"> 
+                    <div className="space-y-4 pr-3"> {/* Added pr-3 here for content padding away from scrollbar */}
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
                           <Button
