@@ -46,7 +46,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Gestiona las listas de invitados para tus festejos.',
     icon: Cake,
     href: '/cumpleanos',
-    roles: ['socio'],
+    roles: [], // Rol 'socio' eliminado para desconectar la característica
   },
   {
     id: 'invitados-diarios',
@@ -122,4 +122,4 @@ export const allFeatures: QuickAccessFeature[] = [
   }
 ];
 
-
+    

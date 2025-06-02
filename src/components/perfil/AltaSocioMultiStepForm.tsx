@@ -293,11 +293,7 @@ export function AltaSocioMultiStepForm() {
               <Info className="h-5 w-5" />
               <AlertTitle className="font-semibold">Información sobre Modificaciones</AlertTitle>
               <AlertDescription>
-                Este formulario es para gestionar los miembros de su grupo familiar.
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  <li>Los <strong>datos personales del titular</strong> (nombre, DNI, email, foto de perfil, etc.) y el <strong>tipo de grupo familiar (una vez establecido)</strong> no se pueden modificar directamente desde aquí. Para estos cambios, por favor, contacte a la administración.</li>
-                  <li>Cualquier <strong>cambio que realice aquí a su grupo familiar</strong> (agregar, quitar o modificar datos de familiares, incluyendo fotos) se enviará como una <strong>solicitud que deberá ser aprobada por la administración</strong>.</li>
-                </ul>
+                Cualquier cambio que realice aquí a su grupo familiar (agregar, quitar o modificar datos de familiares, incluyendo fotos) se enviará como una solicitud que deberá ser aprobada por la administración.
               </AlertDescription>
             </Alert>
             {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
@@ -637,3 +633,5 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
+
+    
