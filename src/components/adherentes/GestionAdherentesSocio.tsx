@@ -263,51 +263,54 @@ export function GestionAdherentesSocio() {
               </div>
 
               <Separator className="my-6" />
-              <h4 className="text-md font-semibold mb-3">Documentación del Adherente (Opcional)</h4>
+              <h4 className="text-md font-semibold mb-3">Documentación del Adherente</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => (
-                      <FormField
-                          control={form.control}
-                          name={docType}
-                          key={docType}
-                          render={({ field }) => {
-                            const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
-                            const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
-                            return (
-                              <FormItem>
-                                  <FormLabel>
-                                    {docType === 'fotoDniFrente' ? 'DNI Frente (Opcional)' : 
-                                     docType === 'fotoDniDorso' ? 'DNI Dorso (Opcional)' : 
-                                     docType === 'fotoPerfil' ? 'Foto Perfil (Opcional)' : 
-                                     'Foto Carnet (Opcional)'}
-                                  </FormLabel>
-                                  <FormControl>
-                                      <label className="cursor-pointer w-full min-h-[100px] flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
-                                          <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
-                                          <span className="text-xs text-muted-foreground text-center">
-                                            {!hasFileSelected ? placeholderText + " (Opcional)" : null}
-                                          </span>
-                                          <Input 
-                                            type="file" 
-                                            className="hidden" 
-                                            onChange={e => {
-                                              field.onChange(e.target.files);
-                                              form.trigger(docType);
-                                            }}
-                                            accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
-                                            ref={field.ref}
-                                            name={field.name}
-                                            onBlur={field.onBlur}
-                                          />
-                                      </label>
-                                  </FormControl>
-                                  {renderFilePreview(field.value, docType, form)}
-                                  <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-                  ))}
+                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => {
+                      const isOptional = docType === 'fotoCarnet';
+                      const labelText = docType === 'fotoDniFrente' ? 'DNI Frente' :
+                                        docType === 'fotoDniDorso' ? 'DNI Dorso' :
+                                        docType === 'fotoPerfil' ? 'Foto Perfil' :
+                                        'Foto Carnet (Opcional)';
+                      const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
+
+                      return (
+                        <FormField
+                            control={form.control}
+                            name={docType}
+                            key={docType}
+                            render={({ field }) => {
+                              const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
+                              return (
+                                <FormItem>
+                                    <FormLabel>{labelText}</FormLabel>
+                                    <FormControl>
+                                        <label className="cursor-pointer w-full min-h-[100px] flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
+                                            <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
+                                            <span className="text-xs text-muted-foreground text-center">
+                                              {!hasFileSelected ? placeholderText : null}
+                                            </span>
+                                            <Input 
+                                              type="file" 
+                                              className="hidden" 
+                                              onChange={e => {
+                                                field.onChange(e.target.files);
+                                                form.trigger(docType);
+                                              }}
+                                              accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
+                                              ref={field.ref}
+                                              name={field.name}
+                                              onBlur={field.onBlur}
+                                            />
+                                        </label>
+                                    </FormControl>
+                                    {renderFilePreview(field.value, docType, form)}
+                                    <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                      );
+                  })}
               </div>
 
               <Button type="submit" className="mt-6 w-full sm:w-auto" disabled={form.formState.isSubmitting}>

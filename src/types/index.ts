@@ -137,8 +137,8 @@ const baseFileSchema = (config: FileSchemaConfig) =>
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   baseFileSchema(config)
-    .nullable() 
-    .refine(val => val !== null, { message: requiredMessage });
+    .nullable() // Allow null initially
+    .refine(val => val !== null, { message: requiredMessage }); // But then enforce it's not null for validation
 
 const optionalFileField = (config: FileSchemaConfig) =>
   z.union([
@@ -369,9 +369,9 @@ export const adherenteFormSchema = z.object({
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
-    fotoDniFrente: optionalFileField(dniFileSchemaConfig),
-    fotoDniDorso: optionalFileField(dniFileSchemaConfig),
-    fotoPerfil: optionalFileField(profileFileSchemaConfig),
+    fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
+    fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
+    fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
     fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
