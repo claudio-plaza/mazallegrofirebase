@@ -73,7 +73,7 @@ export function SignupForm() {
 
   const form = useForm<SignupTitularData>({
     resolver: zodResolver(signupTitularSchema),
-    mode: 'onChange', // Validate on change
+    mode: 'onChange',
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -94,11 +94,6 @@ export function SignupForm() {
 
   function onSubmit(data: SignupTitularData) {
     console.log('Signup data:', data);
-    // Aquí iría la lógica para registrar al usuario en el backend.
-    // Por ahora, solo simulamos el éxito.
-    // También se crearía una entrada en `sociosDB` y `mockUsers` en `lib/auth.ts`
-    // para que el nuevo usuario pueda iniciar sesión inmediatamente.
-
     toast({
       title: 'Cuenta Creada Exitosamente',
       description: 'Tu cuenta de titular ha sido creada. Ahora puedes iniciar sesión.',
@@ -119,7 +114,6 @@ export function SignupForm() {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-8">
             
-            {/* Datos Personales */}
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><UserCircle className="mr-2 h-6 w-6 text-primary"/>Datos Personales</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -201,7 +195,6 @@ export function SignupForm() {
 
             <Separator />
 
-            {/* Datos de Contacto */}
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><Mail className="mr-2 h-6 w-6 text-primary"/>Datos de Contacto</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -258,7 +251,6 @@ export function SignupForm() {
             
             <Separator />
 
-            {/* Documentación */}
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -267,9 +259,9 @@ export function SignupForm() {
                           control={form.control}
                           name={docType}
                           key={docType}
-                          render={({ field: { onChange, value, ...restField }}) => {
+                          render={({ field }) => {
                             const isOptional = docType === 'fotoCarnet';
-                            const hasFileSelected = typeof window !== 'undefined' && value instanceof FileList && value.length > 0;
+                            const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
                             const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
                             return (
                               <FormItem>
@@ -283,18 +275,23 @@ export function SignupForm() {
                                       <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
                                           <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
                                           <span className="text-sm text-muted-foreground text-center">
-                                            {!hasFileSelected ? placeholderText : null}
+                                            {!hasFileSelected && !isOptional ? placeholderText : (hasFileSelected ? '' : (isOptional ? placeholderText + " (Opcional)" : placeholderText))}
                                           </span>
                                           <Input 
                                             type="file" 
                                             className="hidden" 
-                                            onChange={e => onChange(e.target.files)} 
-                                            accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
-                                            {...restField} 
+                                            onChange={e => {
+                                              field.onChange(e.target.files);
+                                              form.trigger(docType); // Explicitly trigger validation for this field
+                                            }}
+                                            accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
+                                            ref={field.ref}
+                                            name={field.name}
+                                            onBlur={field.onBlur}
                                           />
                                       </label>
                                   </FormControl>
-                                  {renderFilePreview(value, docType, form)}
+                                  {renderFilePreview(field.value, docType, form)}
                                   <FormMessage />
                               </FormItem>
                             );
@@ -306,7 +303,6 @@ export function SignupForm() {
 
             <Separator />
 
-            {/* Seguridad de la Cuenta */}
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><KeyRound className="mr-2 h-6 w-6 text-primary"/>Seguridad de la Cuenta</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -352,4 +348,3 @@ export function SignupForm() {
     </Card>
   );
 }
-

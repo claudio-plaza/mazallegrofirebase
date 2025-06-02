@@ -75,13 +75,12 @@ export function GestionAdherentesSocio() {
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
 
   useEffect(() => {
-    // Adherentes pueden ser de cualquier edad, hasta hoy.
     setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
   }, []);
 
   const form = useForm<AdherenteFormData>({
     resolver: zodResolver(adherenteFormValidationSchema),
-    mode: 'onChange', // Validate on change
+    mode: 'onChange',
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -277,9 +276,9 @@ export function GestionAdherentesSocio() {
                           control={form.control}
                           name={docType}
                           key={docType}
-                          render={({ field: { onChange, value, ...restField }}) => {
-                            const isOptional = ['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'].includes(docType); // All are optional for adherente
-                            const hasFileSelected = typeof window !== 'undefined' && value instanceof FileList && value.length > 0;
+                          render={({ field }) => {
+                            const isOptional = true; // All docs are optional for adherente for now
+                            const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
                             const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
                             return (
                               <FormItem>
@@ -293,18 +292,23 @@ export function GestionAdherentesSocio() {
                                       <label className="cursor-pointer w-full min-h-[100px] flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
                                           <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
                                           <span className="text-xs text-muted-foreground text-center">
-                                            {!hasFileSelected ? placeholderText : null}
+                                            {!hasFileSelected ? placeholderText + " (Opcional)" : null}
                                           </span>
                                           <Input 
                                             type="file" 
                                             className="hidden" 
-                                            onChange={e => onChange(e.target.files)} 
+                                            onChange={e => {
+                                              field.onChange(e.target.files);
+                                              form.trigger(docType); // Explicitly trigger validation for this field
+                                            }}
                                             accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
-                                            {...restField} 
+                                            ref={field.ref}
+                                            name={field.name}
+                                            onBlur={field.onBlur}
                                           />
                                       </label>
                                   </FormControl>
-                                  {renderFilePreview(value, docType, form)}
+                                  {renderFilePreview(field.value, docType, form)}
                                   <FormMessage />
                               </FormItem>
                             );
