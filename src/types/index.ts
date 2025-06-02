@@ -137,26 +137,40 @@ const baseFileSchema = (config: FileSchemaConfig) =>
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   baseFileSchema(config)
-    .nullable() // Allow null initially
-    .refine(val => val !== null, { message: requiredMessage }); // But then enforce it's not null for validation
+    .nullable() 
+    .refine(val => val !== null, { message: requiredMessage });
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.union([
-    z.null(),
-    z.undefined(),
-    baseFileSchema(config)
-  ]);
+  z.custom<FileList | null | undefined>((val) => {
+    if (val === null || val === undefined) {
+      return true; // Explicitly valid if null or undefined
+    }
+    // If not null/undefined, it must be a FileList to proceed
+    if (!(val instanceof FileListInstance)) {
+      // This error will likely not be user-facing due to RHF's FileList handling,
+      // but it's good for schema integrity.
+      throw new Error(config.typeError);
+    }
+    // Now, validate the FileList using baseFileSchema
+    const result = baseFileSchema(config).safeParse(val);
+    if (!result.success) {
+      // Propagate the first specific error message from baseFileSchema
+      const firstError = result.error.errors[0]?.message;
+      throw new Error(firstError || "Archivo inválido.");
+    }
+    return true;
+  }).optional().nullable();
 
 
 const dniFileSchemaConfig: FileSchemaConfig = {
-  typeError: "Archivo de DNI inválido.",
+  typeError: "Archivo de DNI inválido. Se esperaba un archivo.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
   mimeTypeError: "Para DNI, solo se aceptan PNG, JPG o PDF.",
   mimeTypes: ['image/png', 'image/jpeg', 'application/pdf']
 };
 
 const profileFileSchemaConfig: FileSchemaConfig = {
-  typeError: "Archivo de imagen inválido.",
+  typeError: "Archivo de imagen inválido. Se esperaba un archivo.",
   sizeError: `La foto no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
   mimeTypeError: "Para fotos, solo se aceptan PNG o JPG.",
   mimeTypes: ['image/png', 'image/jpeg']
@@ -397,3 +411,5 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
+    
