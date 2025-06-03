@@ -93,7 +93,7 @@ export function SignupForm() {
   });
 
   function onSubmit(data: SignupTitularData) {
-    console.log('Signup data:', data);
+    console.log('Signup data submitted:', data); // Log submitted data
     toast({
       title: 'Cuenta Creada Exitosamente',
       description: 'Tu cuenta de titular ha sido creada. Ahora puedes iniciar sesión.',
@@ -102,8 +102,11 @@ export function SignupForm() {
   }
 
   // DEBUGGING CONSOLE LOGS:
+  // These logs will show up in your browser's developer console.
+  // They help us see what the form thinks its values and errors are at any given moment.
   console.log('Current form values:', form.getValues());
   console.log('Current form errors:', form.formState.errors);
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl my-8">
