@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
-import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types'; // Changed import from adherenteSchema
+import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -47,7 +47,10 @@ const renderFilePreview = (
           variant="ghost"
           size="icon"
           className="h-6 w-6"
-          onClick={() => formInstance.setValue(fieldName, null, { shouldValidate: true })}
+          onClick={() => {
+            formInstance.setValue(fieldName, null, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+            formInstance.trigger(fieldName); // Explicitly trigger validation for this field
+          }}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>
@@ -73,8 +76,8 @@ export function GestionAdherentesSocio() {
 
 
   const form = useForm<AdherenteFormData>({
-    resolver: zodResolver(adherenteFormSchema), // Using adherenteFormSchema
-    mode: 'onChange',
+    resolver: zodResolver(adherenteFormSchema), 
+    mode: 'onBlur', // Changed from 'onChange'
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -294,7 +297,7 @@ export function GestionAdherentesSocio() {
                                               className="hidden" 
                                               onChange={e => {
                                                 field.onChange(e.target.files);
-                                                form.trigger(docType);
+                                                form.trigger(docType); // Explicitly trigger validation for this field
                                               }}
                                               accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
                                               ref={field.ref}

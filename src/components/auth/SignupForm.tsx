@@ -50,7 +50,10 @@ const renderFilePreview = (
           variant="ghost"
           size="icon"
           className="h-6 w-6"
-          onClick={() => formInstance.setValue(fieldName, null, { shouldValidate: true })}
+          onClick={() => {
+            formInstance.setValue(fieldName, null, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+            formInstance.trigger(fieldName); // Explicitly trigger validation for this field
+          }}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>
@@ -73,7 +76,7 @@ export function SignupForm() {
 
   const form = useForm<SignupTitularData>({
     resolver: zodResolver(signupTitularSchema),
-    mode: 'onChange',
+    mode: 'onBlur', // Changed from 'onChange'
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -93,7 +96,7 @@ export function SignupForm() {
   });
 
   function onSubmit(data: SignupTitularData) {
-    console.log('Signup data submitted:', data); // Log submitted data
+    console.log('Signup data submitted:', data); 
     toast({
       title: 'Cuenta Creada Exitosamente',
       description: 'Tu cuenta de titular ha sido creada. Ahora puedes iniciar sesión.',
@@ -101,9 +104,8 @@ export function SignupForm() {
     router.push('/login');
   }
 
+  
   // DEBUGGING CONSOLE LOGS:
-  // These logs will show up in your browser's developer console.
-  // They help us see what the form thinks its values and errors are at any given moment.
   console.log('Current form values:', form.getValues());
   console.log('Current form errors:', form.formState.errors);
 
@@ -290,7 +292,7 @@ export function SignupForm() {
                                               className="hidden" 
                                               onChange={e => {
                                                 field.onChange(e.target.files);
-                                                form.trigger(docType);
+                                                form.trigger(docType); // Explicitly trigger validation for this field
                                               }}
                                               accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
                                               ref={field.ref}
