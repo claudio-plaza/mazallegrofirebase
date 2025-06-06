@@ -3,14 +3,24 @@ import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differen
 import { es } from 'date-fns/locale';
 import type { AptoMedicoInfo } from '@/types';
 
-export const formatDate = (dateString?: string | Date, formatStr: string = 'dd/MM/yyyy'): string => {
-  if (!dateString) return 'N/A';
+export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM/yyyy'): string => {
+  if (!dateInput) return 'N/A';
   try {
-    const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+    let date: Date;
+    if (dateInput instanceof Date) {
+      date = dateInput;
+    } else if (typeof dateInput === 'string') {
+      date = parseISO(dateInput);
+    } else {
+      // This case should not be reached if TypeScript is doing its job with the string | Date union type
+      console.error("formatDate received an invalid type:", dateInput);
+      return 'Entrada inválida';
+    }
+    
     if (!isValid(date)) return 'Fecha inválida';
     return format(date, formatStr, { locale: es });
   } catch (error) {
-    console.error("Error formatting date:", error);
+    console.error("Error formatting date:", dateInput, error);
     return 'Error fecha';
   }
 };
@@ -44,18 +54,33 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo, fechaNacimiento
 
   if (aptoMedico.valido && aptoMedico.fechaVencimiento) {
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Comparar solo fechas
-    const fechaVencimiento = parseISO(aptoMedico.fechaVencimiento);
-    fechaVencimiento.setHours(23,59,59,999); // El apto es válido hasta el final del día de vencimiento
+    hoy.setHours(0, 0, 0, 0); 
 
-    if (isAfter(fechaVencimiento, hoy) || isEqual(fechaVencimiento, hoy)) {
-      const daysLeft = differenceInDays(fechaVencimiento, hoy);
-      let colorClass = 'text-green-600 bg-green-100';
-      if (daysLeft <= 7) colorClass = 'text-orange-600 bg-orange-100'; // Próximo a vencer
-
-      return { status: 'Válido', message: `Válido hasta: ${formatDate(aptoMedico.fechaVencimiento)}`, colorClass };
+    let fechaVencimientoDate: Date;
+    if (aptoMedico.fechaVencimiento instanceof Date) {
+      fechaVencimientoDate = aptoMedico.fechaVencimiento;
+    } else if (typeof aptoMedico.fechaVencimiento === 'string') {
+      fechaVencimientoDate = parseISO(aptoMedico.fechaVencimiento);
     } else {
-      return { status: 'Vencido', message: `Vencido (Venció el ${formatDate(aptoMedico.fechaVencimiento)})`, colorClass: 'text-red-600 bg-red-100' };
+      console.error("Invalid type for aptoMedico.fechaVencimiento:", aptoMedico.fechaVencimiento);
+      return { status: 'Error', message: 'Formato de fecha de vencimiento interno inválido.', colorClass: 'text-red-600 bg-red-100' };
+    }
+    
+    if (!isValid(fechaVencimientoDate)) {
+        return { status: 'Error', message: 'Fecha de vencimiento inválida tras procesar.', colorClass: 'text-red-600 bg-red-100' };
+    }
+
+    const fechaVencimientoComparable = new Date(fechaVencimientoDate.valueOf());
+    fechaVencimientoComparable.setHours(23,59,59,999); 
+
+    if (isAfter(fechaVencimientoComparable, hoy) || isEqual(fechaVencimientoComparable, hoy)) {
+      const daysLeft = differenceInDays(fechaVencimientoComparable, hoy);
+      let colorClass = 'text-green-600 bg-green-100';
+      if (daysLeft <= 7) colorClass = 'text-orange-600 bg-orange-100'; 
+
+      return { status: 'Válido', message: `Válido hasta: ${formatDate(fechaVencimientoDate)}`, colorClass };
+    } else {
+      return { status: 'Vencido', message: `Vencido (Venció el ${formatDate(fechaVencimientoDate)})`, colorClass: 'text-red-600 bg-red-100' };
     }
   }
   

@@ -60,8 +60,8 @@ export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
 
 export interface AptoMedicoInfo {
   valido: boolean;
-  fechaEmision?: string;
-  fechaVencimiento?: string;
+  fechaEmision?: string | Date;
+  fechaVencimiento?: string | Date;
   razonInvalidez?: string;
   observaciones?: string;
 }
@@ -158,19 +158,35 @@ const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
 
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.custom<FileList | null | undefined>((val) => {
+  z.custom<FileList | null | undefined>((val): val is FileList | null | undefined => {
     if (val === null || val === undefined) {
       return true; // Allow null or undefined for optional fields
     }
     if (!(val instanceof FileListInstance)) {
-      return false; // If not null/undefined, it must be a FileList
+      // If not null/undefined, it must be a FileList, but this check is more for type safety
+      // The baseFileSchema will handle if it's not a FileList.
+      // However, z.custom expects a boolean return, so if it's not FileList here, we might say false.
+      // But it's better to let baseFileSchema try to parse it and fail there for consistent error messages.
+      // For simplicity in z.custom, we just check if it's an instance of FileList.
+      // If it is something else (e.g. string that was an old URL), baseFileSchema will fail.
+      return val instanceof FileListInstance;
     }
     // If it is a FileList, apply baseFileSchema validations
     const parseResult = baseFileSchema(config).safeParse(val);
     return parseResult.success;
   }, {
-    message: config.typeError, // Fallback message if custom logic fails early
-    // More specific error messages can be derived from parseResult if needed, but this keeps it simpler
+    // This message is a fallback. The actual refine messages from baseFileSchema are more specific.
+    message: config.typeError,
+    // Augmenting path for errors from `baseFileSchema` inside `z.custom` is complex.
+    // For now, the errors will be associated with the field itself.
+    // If `baseFileSchema.safeParse(val)` fails, `parseResult.error.issues[0].message` could be used.
+    // Let's refine this later if error reporting isn't clear enough.
+    // For now, just returning parseResult.success ensures the validation logic is run.
+  }).refine(val => { // Add this refine to ensure baseFileSchema is actually run for FileList
+    if (val instanceof FileListInstance) {
+      return baseFileSchema(config).safeParse(val).success;
+    }
+    return true; // If null/undefined, it's already valid for an optional field
   }).optional().nullable();
 
 
@@ -236,8 +252,8 @@ export interface Socio extends TitularData {
   fotoUrl?: string;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string;
-  ultimaRevisionMedica?: string;
+  miembroDesde: string | Date; // Allow Date for runtime consistency
+  ultimaRevisionMedica?: string | Date; // Allow Date for runtime consistency
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
@@ -258,11 +274,11 @@ export interface Socio extends TitularData {
 
 export interface RevisionMedica {
   id: string;
-  fechaRevision: string;
+  fechaRevision: string | Date; // Allow Date for runtime consistency
   socioId: string;
   socioNombre: string;
   resultado: 'Apto' | 'No Apto';
-  fechaVencimientoApto?: string;
+  fechaVencimientoApto?: string | Date; // Allow Date for runtime consistency
   observaciones?: string;
   medicoResponsable?: string;
 }
@@ -423,4 +439,3 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
-
