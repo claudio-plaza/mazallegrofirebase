@@ -51,8 +51,8 @@ const renderFilePreview = (
           size="icon"
           className="h-6 w-6"
           onClick={() => {
-            formInstance.setValue(fieldName, null, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-            formInstance.trigger(fieldName); // Explicitly trigger validation for this field
+            formInstance.setValue(fieldName, null, { shouldValidate: true });
+            formInstance.trigger(fieldName);
           }}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -76,7 +76,7 @@ export function SignupForm() {
 
   const form = useForm<SignupTitularData>({
     resolver: zodResolver(signupTitularSchema),
-    mode: 'onBlur', // Changed from 'onChange'
+    mode: 'onBlur',
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -96,7 +96,7 @@ export function SignupForm() {
   });
 
   function onSubmit(data: SignupTitularData) {
-    console.log('Signup data submitted:', data); 
+    console.log('Signup data submitted:', data);
     toast({
       title: 'Cuenta Creada Exitosamente',
       description: 'Tu cuenta de titular ha sido creada. Ahora puedes iniciar sesión.',
@@ -104,7 +104,7 @@ export function SignupForm() {
     router.push('/login');
   }
 
-  
+
   // DEBUGGING CONSOLE LOGS:
   console.log('Current form values:', form.getValues());
   console.log('Current form errors:', form.formState.errors);
@@ -122,7 +122,7 @@ export function SignupForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-8">
-            
+
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><UserCircle className="mr-2 h-6 w-6 text-primary"/>Datos Personales</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -257,7 +257,7 @@ export function SignupForm() {
                 />
               </div>
             </section>
-            
+
             <Separator />
 
             <section>
@@ -287,12 +287,12 @@ export function SignupForm() {
                                             <span className="text-sm text-muted-foreground text-center">
                                               {!hasFileSelected && !isOptional ? placeholderText : (hasFileSelected ? '' : (isOptional ? placeholderText + " (Opcional)" : placeholderText))}
                                             </span>
-                                            <Input 
-                                              type="file" 
-                                              className="hidden" 
+                                            <Input
+                                              type="file"
+                                              className="hidden"
                                               onChange={e => {
                                                 field.onChange(e.target.files);
-                                                form.trigger(docType); // Explicitly trigger validation for this field
+                                                form.trigger(docType);
                                               }}
                                               accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
                                               ref={field.ref}

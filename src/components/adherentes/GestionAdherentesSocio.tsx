@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
-import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types'; 
+import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -48,8 +48,8 @@ const renderFilePreview = (
           size="icon"
           className="h-6 w-6"
           onClick={() => {
-            formInstance.setValue(fieldName, null, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-            formInstance.trigger(fieldName); // Explicitly trigger validation for this field
+            formInstance.setValue(fieldName, null, { shouldValidate: true });
+            formInstance.trigger(fieldName);
           }}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -69,15 +69,14 @@ export function GestionAdherentesSocio() {
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
 
   useEffect(() => {
-    // Max birth date is today for adherents
     const today = new Date();
     setMaxBirthDate(format(today, 'yyyy-MM-dd'));
   }, []);
 
 
   const form = useForm<AdherenteFormData>({
-    resolver: zodResolver(adherenteFormSchema), 
-    mode: 'onBlur', // Changed from 'onChange'
+    resolver: zodResolver(adherenteFormSchema),
+    mode: 'onBlur',
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -123,18 +122,18 @@ export function GestionAdherentesSocio() {
       id: generateId(),
       ...data,
       empresa: data.empresa,
-      fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date, 
-      fotoDniFrente: data.fotoDniFrente, 
-      fotoDniDorso: data.fotoDniDorso,   
+      fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date,
+      fotoDniFrente: data.fotoDniFrente,
+      fotoDniDorso: data.fotoDniDorso,
       fotoPerfil: data.fotoPerfil,
-      fotoCarnet: data.fotoCarnet,     
-      estadoAdherente: EstadoAdherente.INACTIVO, 
+      fotoCarnet: data.fotoCarnet,
+      estadoAdherente: EstadoAdherente.INACTIVO,
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },
     };
 
     const updatedAdherentes = [...(socioData.adherentes || []), nuevoAdherente];
-    
+
     try {
       await updateSocio({ ...socioData, adherentes: updatedAdherentes });
       toast({ title: 'Solicitud Enviada', description: `La solicitud para agregar a ${data.nombre} ${data.apellido} como adherente ha sido enviada.` });
@@ -144,15 +143,15 @@ export function GestionAdherentesSocio() {
       toast({ title: "Error", description: "No se pudo enviar la solicitud para el adherente.", variant: "destructive" });
     }
   };
-  
+
   const handleSolicitarEliminacion = async (adherenteId?: string) => {
     if (!adherenteId || !socioData || !socioData.adherentes) return;
-    
+
     const adherenteAEliminar = socioData.adherentes.find(a => a.id === adherenteId);
     if (!adherenteAEliminar) return;
 
-    const updatedAdherentes = socioData.adherentes.map(a => 
-      a.id === adherenteId 
+    const updatedAdherentes = socioData.adherentes.map(a =>
+      a.id === adherenteId
       ? { ...a, estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE_ELIMINACION, motivoRechazo: "Solicitud de eliminación por el socio" }
       : a
     );
@@ -178,10 +177,10 @@ export function GestionAdherentesSocio() {
       </Card>
     );
   }
-  
-  const adherentesPorEstado = (estado: EstadoSolicitudAdherente) => 
+
+  const adherentesPorEstado = (estado: EstadoSolicitudAdherente) =>
     socioData.adherentes?.filter(a => a.estadoSolicitud === estado && estado !== EstadoSolicitudAdherente.PENDIENTE_ELIMINACION) || [];
-    
+
   const adherentesConSolicitudEliminacion = socioData.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE_ELIMINACION) || [];
 
 
@@ -215,7 +214,7 @@ export function GestionAdherentesSocio() {
           <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 border rounded-md bg-background mb-8">
               <h3 className="text-lg font-semibold text-primary border-b pb-2 mb-4">Proponer Nuevo Adherente</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input placeholder="Nombre del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input placeholder="Apellido del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -270,10 +269,13 @@ export function GestionAdherentesSocio() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => {
                       const isOptional = docType === 'fotoCarnet';
-                      const labelText = docType === 'fotoDniFrente' ? 'DNI Frente' :
-                                        docType === 'fotoDniDorso' ? 'DNI Dorso' :
-                                        docType === 'fotoPerfil' ? 'Foto Perfil' :
-                                        'Foto Carnet (Opcional)';
+                      let labelText = '';
+                        switch(docType) {
+                            case 'fotoDniFrente': labelText = 'DNI Frente'; break;
+                            case 'fotoDniDorso': labelText = 'DNI Dorso'; break;
+                            case 'fotoPerfil': labelText = 'Foto Perfil'; break;
+                            case 'fotoCarnet': labelText = 'Foto Carnet (Opcional)'; break;
+                        }
                       const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
 
                       return (
@@ -292,14 +294,14 @@ export function GestionAdherentesSocio() {
                                             <span className="text-xs text-muted-foreground text-center">
                                               {!hasFileSelected ? placeholderText : null}
                                             </span>
-                                            <Input 
-                                              type="file" 
-                                              className="hidden" 
+                                            <Input
+                                              type="file"
+                                              className="hidden"
                                               onChange={e => {
                                                 field.onChange(e.target.files);
-                                                form.trigger(docType); // Explicitly trigger validation for this field
+                                                form.trigger(docType);
                                               }}
-                                              accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
+                                              accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
                                               ref={field.ref}
                                               name={field.name}
                                               onBlur={field.onBlur}
@@ -321,7 +323,7 @@ export function GestionAdherentesSocio() {
               </Button>
             </form>
           </FormProvider>
-          
+
           <Separator className="my-8" />
 
           {(!socioData.adherentes || socioData.adherentes.length === 0) && (
@@ -352,9 +354,9 @@ export function GestionAdherentesSocio() {
                           <p className="text-xs text-destructive mt-1">Motivo: {adherente.motivoRechazo}</p>
                         )}
                         {adherente.estadoSolicitud === EstadoSolicitudAdherente.APROBADO && (
-                           <Button 
-                             variant="outline" 
-                             size="sm" 
+                           <Button
+                             variant="outline"
+                             size="sm"
                              className="mt-1 text-xs"
                              onClick={() => handleSolicitarEliminacion(adherente.id)}
                            >

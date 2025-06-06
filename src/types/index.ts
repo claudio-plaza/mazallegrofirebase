@@ -133,19 +133,19 @@ const baseFileSchema = (config: FileSchemaConfig) =>
   z
     .instanceof(FileListInstance, { message: config.typeError })
     .refine(
-      (files) => files && files.length === 1, // Ensure files is truthy before accessing length
-      {
-        message: "Debe seleccionar exactamente un archivo.",
-      }
+      (files) => files && files.length === 1,
+      (files) => ({
+        message: files && files.length > 1 ? "Solo se puede seleccionar un archivo." : (files && files.length === 0 ? config.typeError : config.typeError),
+      })
     )
     .refine(
-      (files) => files && files[0] && files[0].size <= MAX_FILE_SIZE_BYTES, // Ensure files and files[0] are truthy
+      (files) => files && files[0] && files[0].size <= MAX_FILE_SIZE_BYTES,
       {
         message: config.sizeError,
       }
     )
     .refine(
-      (files) => files && files[0] && config.mimeTypes.includes(files[0].type), // Ensure files and files[0] are truthy
+      (files) => files && files[0] && config.mimeTypes.includes(files[0].type),
       {
         message: config.mimeTypeError,
       }
@@ -153,13 +153,25 @@ const baseFileSchema = (config: FileSchemaConfig) =>
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   baseFileSchema(config)
-    .nullable() // Allow null initially (e.g. RHF default or cleared field)
-    .refine(val => val !== null, { message: requiredMessage }); // But then ensure it's not null for submission
+    .nullable()
+    .refine(val => val !== null, { message: requiredMessage });
+
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  baseFileSchema(config)
-    .optional()
-    .nullable();
+  z.custom<FileList | null | undefined>((val) => {
+    if (val === null || val === undefined) {
+      return true; // Allow null or undefined for optional fields
+    }
+    if (!(val instanceof FileListInstance)) {
+      return false; // If not null/undefined, it must be a FileList
+    }
+    // If it is a FileList, apply baseFileSchema validations
+    const parseResult = baseFileSchema(config).safeParse(val);
+    return parseResult.success;
+  }, {
+    message: config.typeError, // Fallback message if custom logic fails early
+    // More specific error messages can be derived from parseResult if needed, but this keeps it simpler
+  }).optional().nullable();
 
 
 const dniFileSchemaConfig: FileSchemaConfig = {
@@ -262,7 +274,7 @@ export const familiarBaseSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: optionalFileField(dniFileSchemaConfig), // Familiar docs are optional for now
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig), 
   fotoDniDorso: optionalFileField(dniFileSchemaConfig),
   fotoPerfil: optionalFileField(profileFileSchemaConfig),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
@@ -412,6 +424,3 @@ export const getStepSpecificValidationSchema = (step: number) => {
 };
 isValid(new Date());
 
-    
-
-    
