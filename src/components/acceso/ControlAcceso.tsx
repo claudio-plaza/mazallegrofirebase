@@ -25,6 +25,7 @@ import {
   getAllSolicitudesInvitadosDiarios,
   updateSolicitudInvitadosDiarios
 } from '@/lib/firebase/firestoreService';
+import { useRouter } from 'next/navigation';
 
 type DisplayablePerson = {
   id: string;
@@ -52,6 +53,7 @@ export function ControlAcceso() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
+  const router = useRouter();
 
   const [solicitudCumpleanosHoySocioBuscado, setSolicitudCumpleanosHoySocioBuscado] = useState<SolicitudCumpleanos | null>(null);
   const [invitadosCumpleanosSocioBuscado, setInvitadosCumpleanosSocioBuscado] = useState<InvitadoCumpleanos[]>([]);
@@ -272,40 +274,40 @@ export function ControlAcceso() {
     }
   };
 
-  const handleVerCarnet = (nombre: string) => {
-    toast({
-      title: 'Carnet Digital',
-      description: `Mostrando carnet digital de ${nombre} (Simulado - QR próximamente).`,
-    });
+  const handleVerCarnet = (person: DisplayablePerson) => {
+    if (!socioEncontrado) {
+      toast({ title: "Error", description: "No se encontró el socio titular para esta acción.", variant: "destructive" });
+      return;
+    }
+    let url = `/carnet?titularId=${socioEncontrado.numeroSocio}`;
+    if (!person.isTitular) {
+      url += `&memberDni=${person.dni}`;
+    }
+    router.push(url);
   };
 
   const handleToggleIngresoMiembroGrupo = async (changedMember: DisplayablePerson, isIngresoAction: boolean) => {
     if (!socioEncontrado) return;
   
-    // Determine if any member of the *searched socio's group* has an active session income
     const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
-      p => (
-        (p.isTitular && p.dni === socioEncontrado.dni) || // Is titular of searched socio
-        (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni)) // Is familiar of searched socio
-      ) && ingresosSesion[p.dni] // AND this person has an active session income
+      p => ((p.isTitular && p.dni === socioEncontrado.dni) || 
+           (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))) && ingresosSesion[p.dni]
     );
     
-    // Update local UI flags immediately based on the current session state
     setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
     setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
   
-    // If this is an ingreso action AND it results in the event being enabled for the first time *in the DB*
     if (isIngresoAction && anyMemberOfGroupHasSessionIncome) {
       try {
         if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); // Reflect DB change locally
+          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
         }
         if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudInvitadosDiarios(updatedSolicitud);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); // Reflect DB change locally
+          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); 
         }
       } catch (error) {
         console.error("Error updating event status in DB:", error);
@@ -692,7 +694,7 @@ export function ControlAcceso() {
           </div>
           <div className="flex flex-col items-center gap-2 pt-2 sm:pt-0 sm:ml-auto">
             {!person.isAdherente && (
-              <Button variant="outline" size="sm" onClick={() => handleVerCarnet(person.nombreCompleto)} className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={() => handleVerCarnet(person)} className="w-full sm:w-auto">
                 <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
               </Button>
             )}
@@ -702,20 +704,20 @@ export function ControlAcceso() {
                 </Button>
             )}
             {ingresosSesion[person.dni] ? (
-              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-3 text-xs sm:text-sm whitespace-nowrap w-full justify-center sm:w-auto">
-                  <CheckCircle className="mr-1.5 h-4 w-4" />
-                  Ingresó
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAnularIngreso(person)}
-                  className="w-full sm:w-auto"
-                >
-                  <LogOut className="mr-2 h-4 w-4" /> Anular Ingreso
-                </Button>
-              </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                    <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-3 text-xs sm:text-sm whitespace-nowrap w-full justify-center sm:w-auto">
+                      <CheckCircle className="mr-1.5 h-4 w-4" />
+                      Ingresó
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAnularIngreso(person)}
+                      className="w-full sm:w-auto"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" /> Anular Ingreso
+                    </Button>
+                </div>
             ) : (
               <Button
                 variant="default"

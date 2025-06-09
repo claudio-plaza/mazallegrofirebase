@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Socio, MiembroFamiliar, AptoMedicoInfo } from '@/types';
+import type { Socio } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +16,8 @@ import Image from 'next/image';
 import { siteConfig } from '@/config/site';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
 
 type DisplayablePerson = Pick<Socio, 'id' | 'nombre' | 'apellido' | 'dni' | 'aptoMedico' | 'fotoUrl' | 'fechaNacimiento'> & {
   relacion?: string;
@@ -30,26 +32,60 @@ export function CarnetDigital() {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const fetchSocioData = useCallback(() => {
-    if (authLoading) return;
-    setLoading(true);
-    const storedSocios = localStorage.getItem('sociosDB');
-    let currentTitular: Socio | undefined = undefined;
-
-    if (storedSocios) {
-      const socios: Socio[] = JSON.parse(storedSocios);
-      currentTitular = socios.find(s => s.numeroSocio === loggedInUserNumeroSocio);
-    }
+  const fetchSocioData = useCallback(async () => {
+    const titularIdFromQuery = searchParams.get('titularId');
     
-    setTitularData(currentTitular || null);
-    if (currentTitular) {
-      setSelectedPersonId(currentTitular.id); 
-    } else {
-      setSelectedPersonId(null);
+    if (authLoading && !titularIdFromQuery) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-  }, [loggedInUserNumeroSocio, authLoading]);
+    setLoading(true);
+
+    const memberDniFromQuery = searchParams.get('memberDni');
+    let targetNumeroSocio = titularIdFromQuery || loggedInUserNumeroSocio;
+
+    if (!targetNumeroSocio) {
+      setTitularData(null);
+      setSelectedPersonId(null);
+      setLoading(false);
+      if (!authLoading) {
+           toast({ title: "Error", description: "No se pudo identificar al socio para mostrar el carnet.", variant: "destructive" });
+      }
+      return;
+    }
+
+    try {
+      const currentTitular = await getSocioByNumeroSocioOrDNI(targetNumeroSocio);
+      setTitularData(currentTitular || null);
+
+      if (currentTitular) {
+        if (memberDniFromQuery) {
+          const personToSelect = currentTitular.dni === memberDniFromQuery ? currentTitular.id :
+                                 currentTitular.grupoFamiliar?.find(f => f.dni === memberDniFromQuery)?.id ||
+                                 currentTitular.grupoFamiliar?.find(f => f.dni === memberDniFromQuery)?.dni ||
+                                 currentTitular.id; 
+          setSelectedPersonId(personToSelect);
+        } else {
+          setSelectedPersonId(currentTitular.id);
+        }
+      } else {
+        setSelectedPersonId(null);
+        if (targetNumeroSocio) { // Only toast if we were actually trying to load someone specific
+            toast({ title: "Socio no encontrado", description: `No se encontró información para el socio N° ${targetNumeroSocio}.`, variant: "destructive"});
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching socio data for carnet:", error);
+      toast({ title: "Error", description: "No se pudo cargar la información del carnet.", variant: "destructive" });
+      setTitularData(null);
+      setSelectedPersonId(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [loggedInUserNumeroSocio, authLoading, searchParams, toast]);
 
   useEffect(() => {
     fetchSocioData();
@@ -105,7 +141,7 @@ export function CarnetDigital() {
         : null) as DisplayablePerson | null
   : null;
 
-  if (loading || authLoading) {
+  if (loading || (authLoading && !searchParams.get('titularId'))) {
     return (
       <Card className="w-full max-w-md mx-auto shadow-lg">
         <CardHeader className="items-center text-center p-4">
@@ -133,7 +169,7 @@ export function CarnetDigital() {
           <CardTitle className="text-center text-xl">Error de Datos</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <p className="text-center text-muted-foreground">No se pudo cargar la información del carnet seleccionado. Por favor, contacte a administración.</p>
+          <p className="text-center text-muted-foreground">No se pudo cargar la información del carnet. Verifique el N° de Socio o DNI, o contacte a administración.</p>
         </CardContent>
       </Card>
     );
