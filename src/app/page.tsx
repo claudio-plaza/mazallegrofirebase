@@ -16,10 +16,18 @@ export default function HomePage() {
             alt={`${siteConfig.name} Logo`} 
             width={100} 
             height={100} 
-            className="mx-auto mb-4 rounded-full" // You might want to adjust styling (e.g., remove rounded-full if your logo isn't circular)
-            data-ai-hint="club logo" // Updated hint
+            className="mx-auto mb-4 rounded-full" 
+            data-ai-hint="club logo"
           />
-          <CardTitle className="text-3xl font-bold text-primary">{siteConfig.name}</CardTitle>
+          {/* Replaced CardTitle with an Image component for the site name */}
+          <Image
+            src="https://placehold.co/240x50.png" 
+            alt={`${siteConfig.name} Name Logo`}
+            width={240}
+            height={50}
+            className="mx-auto" 
+            data-ai-hint="club name wordmark"
+          />
           <CardDescription className="text-muted-foreground">
             Bienvenido al sistema de gestión de {siteConfig.name}.
           </CardDescription>
