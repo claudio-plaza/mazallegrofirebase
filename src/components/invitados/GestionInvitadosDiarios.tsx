@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
 import { PlusCircle, Trash2, Users, Info, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatISO, parseISO, isValid } from 'date-fns';
+import { format, formatISO, parseISO, isValid, addDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,17 +31,23 @@ const createDefaultInvitado = (): InvitadoDiario => ({
 });
 
 export function GestionInvitadosDiarios() {
-  const [solicitudHoy, setSolicitudHoy] = useState<SolicitudInvitadosDiarios | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [solicitudActual, setSolicitudActual] = useState<SolicitudInvitadosDiarios | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+  const [minSelectableDate, setMinSelectableDate] = useState<string>('');
+  const [maxSelectableDate, setMaxSelectableDate] = useState<string>('');
 
   useEffect(() => {
-    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
+    const today = new Date();
+    setMaxBirthDate(format(today, 'yyyy-MM-dd'));
+    setMinSelectableDate(format(today, 'yyyy-MM-dd'));
+    setMaxSelectableDate(format(addDays(today, 2), 'yyyy-MM-dd'));
   }, []);
 
-  const todayISO = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
+  const selectedDateISO = useMemo(() => formatISO(selectedDate, { representation: 'date' }), [selectedDate]);
   
   const form = useForm<SolicitudInvitadosDiarios>({
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
@@ -49,7 +55,7 @@ export function GestionInvitadosDiarios() {
       id: generateId(),
       idSocioTitular: '',
       nombreSocioTitular: '',
-      fecha: todayISO,
+      fecha: selectedDateISO,
       listaInvitadosDiarios: [createDefaultInvitado()],
       titularIngresadoEvento: false,
     },
@@ -60,17 +66,17 @@ export function GestionInvitadosDiarios() {
     name: "listaInvitadosDiarios",
   });
 
-  const loadSolicitudHoy = useCallback(async () => {
+  const loadSolicitudParaFecha = useCallback(async () => {
     if (!loggedInUserNumeroSocio && !authIsLoading) {
         form.reset({
             id: generateId(),
             idSocioTitular: '',
             nombreSocioTitular: '',
-            fecha: todayISO,
+            fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
             titularIngresadoEvento: false,
         });
-        setSolicitudHoy(null);
+        setSolicitudActual(null);
         setLoading(false);
         return;
     }
@@ -81,14 +87,15 @@ export function GestionInvitadosDiarios() {
 
     setLoading(true);
     try {
-        const userSolicitudHoy = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, todayISO);
-        setSolicitudHoy(userSolicitudHoy || null);
+        const userSolicitud = await getSolicitudInvitadosDiarios(loggedInUserNumeroSocio, selectedDateISO);
+        setSolicitudActual(userSolicitud || null);
 
-        if (userSolicitudHoy) {
+        if (userSolicitud) {
             form.reset({
-              ...userSolicitudHoy,
-              listaInvitadosDiarios: userSolicitudHoy.listaInvitadosDiarios.length > 0 
-                ? userSolicitudHoy.listaInvitadosDiarios.map(inv => ({
+              ...userSolicitud,
+              fecha: selectedDateISO, // Ensure form date matches selectedDateISO
+              listaInvitadosDiarios: userSolicitud.listaInvitadosDiarios.length > 0 
+                ? userSolicitud.listaInvitadosDiarios.map(inv => ({
                     ...inv,
                     id: inv.id || generateId(),
                     fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' 
@@ -102,7 +109,7 @@ export function GestionInvitadosDiarios() {
                 id: generateId(),
                 idSocioTitular: loggedInUserNumeroSocio,
                 nombreSocioTitular: userName || '',
-                fecha: todayISO,
+                fecha: selectedDateISO,
                 listaInvitadosDiarios: [createDefaultInvitado()],
                 titularIngresadoEvento: false,
             });
@@ -114,20 +121,20 @@ export function GestionInvitadosDiarios() {
             id: generateId(),
             idSocioTitular: loggedInUserNumeroSocio,
             nombreSocioTitular: userName || '',
-            fecha: todayISO,
+            fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
             titularIngresadoEvento: false,
         });
     } finally {
         setLoading(false);
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, toast, authIsLoading]);
+  }, [loggedInUserNumeroSocio, userName, selectedDateISO, form, toast, authIsLoading]);
 
   useEffect(() => {
     if (!authIsLoading) {
-      loadSolicitudHoy();
+      loadSolicitudParaFecha();
     }
-  }, [authIsLoading, loadSolicitudHoy]);
+  }, [authIsLoading, loadSolicitudParaFecha, selectedDateISO]); // Added selectedDateISO
 
   useEffect(() => {
     if (loggedInUserNumeroSocio && userName && !authIsLoading) {
@@ -136,11 +143,11 @@ export function GestionInvitadosDiarios() {
             form.setValue('idSocioTitular', loggedInUserNumeroSocio);
             form.setValue('nombreSocioTitular', userName);
         }
-        if (form.getValues('fecha') !== todayISO) {
-           form.setValue('fecha', todayISO);
+        if (form.getValues('fecha') !== selectedDateISO) {
+           form.setValue('fecha', selectedDateISO);
         }
     }
-  }, [loggedInUserNumeroSocio, userName, todayISO, form, authIsLoading]);
+  }, [loggedInUserNumeroSocio, userName, selectedDateISO, form, authIsLoading]);
 
 
   const onSubmit = async (data: SolicitudInvitadosDiarios) => {
@@ -153,8 +160,8 @@ export function GestionInvitadosDiarios() {
         ...data,
         idSocioTitular: loggedInUserNumeroSocio,
         nombreSocioTitular: userName || 'Socio',
-        fecha: todayISO,
-        id: solicitudHoy?.id || data.id || generateId(),
+        fecha: selectedDateISO, // Use the selected date
+        id: solicitudActual?.id || data.id || generateId(),
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv,
           id: inv.id || generateId(),
@@ -170,17 +177,24 @@ export function GestionInvitadosDiarios() {
           title: "Lista Guardada",
           description: (
             <div>
-              <p>Tu lista de invitados para hoy ha sido guardada/actualizada.</p>
+              <p>Tu lista de invitados para el {formatDate(selectedDateISO)} ha sido guardada/actualizada.</p>
               <p className="mt-2 font-semibold text-orange-600">Recuerde: Se solicitará DNI a cada uno de sus invitados para ingresar y para realizar la revisión médica.</p>
               <p className="mt-1 text-sm text-muted-foreground">Recuerde: Es responsable del comportamiento de sus invitados y puede ser sancionado.</p>
             </div>
           ),
           duration: 8000,
         });
-        loadSolicitudHoy();
+        loadSolicitudParaFecha();
     } catch (error) {
         console.error("Error guardando solicitud de invitados diarios:", error);
         toast({ title: "Error", description: "No se pudo guardar la lista de invitados.", variant: "destructive"});
+    }
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = parseISO(e.target.value);
+    if (isValid(newDate)) {
+        setSelectedDate(newDate);
     }
   };
 
@@ -201,16 +215,34 @@ export function GestionInvitadosDiarios() {
       <Card className="w-full max-w-2xl mx-auto shadow-xl">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados para Hoy</CardTitle>
+            <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día de hoy ({format(parseISO(todayISO), "dd 'de' MMMM yyyy")}).
+            Registra aquí a tus invitados para el día: {format(selectedDate, "dd 'de' MMMM yyyy", { locale: es })}.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="p-6">
               <div className="space-y-6">
+                <div className="space-y-2">
+                    <FormLabel htmlFor="selected-event-date" className="text-sm font-medium flex items-center">
+                        <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground"/>
+                        Seleccionar Fecha para Cargar Invitados
+                    </FormLabel>
+                    <Input
+                        id="selected-event-date"
+                        type="date"
+                        value={format(selectedDate, 'yyyy-MM-dd')}
+                        onChange={handleDateChange}
+                        min={minSelectableDate}
+                        max={maxSelectableDate}
+                        className="w-full sm:w-[280px]"
+                        disabled={!minSelectableDate || !maxSelectableDate}
+                    />
+                    <FormMessage>{form.formState.errors.fecha?.message}</FormMessage>
+                </div>
+
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertTitle>Importante</AlertTitle>
@@ -323,7 +355,7 @@ export function GestionInvitadosDiarios() {
             </CardContent>
             <CardFooter className="pt-6">
               <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading}>
-                {form.formState.isSubmitting ? 'Guardando...' : (solicitudHoy ? 'Actualizar Lista de Hoy' : 'Guardar Lista de Hoy')}
+                {form.formState.isSubmitting ? 'Guardando...' : (solicitudActual ? `Actualizar Lista para ${formatDate(selectedDateISO)}` : `Guardar Lista para ${formatDate(selectedDateISO)}`)}
               </Button>
             </CardFooter>
           </form>
@@ -332,3 +364,4 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
+
