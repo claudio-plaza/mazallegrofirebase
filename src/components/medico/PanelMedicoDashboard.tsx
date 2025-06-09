@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import type { Socio, RevisionMedica, SolicitudInvitadosDiarios, InvitadoDiario, TipoPersona } from '@/types';
+import type { Socio, RevisionMedica, SolicitudInvitadosDiarios, InvitadoDiario, TipoPersona, AptoMedicoInfo as AptoMedicoInfoType } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -26,13 +26,13 @@ interface Stats {
 }
 
 export interface SearchedPersonForPanel {
-  id: string; // DNI para familiares/adherentes/invitados, numeroSocio para titulares
+  id: string; 
   nombreCompleto: string;
   dni?: string;
   numeroSocio?: string;
   fechaNacimiento?: string | Date;
   fotoUrl?: string;
-  aptoMedico?: any; 
+  aptoMedico?: AptoMedicoInfoType; 
   tipo: TipoPersona;
   socioAnfitrionNombre?: string;
   socioAnfitrionNumero?: string;
@@ -115,10 +115,10 @@ export function PanelMedicoDashboard() {
     let vencProximos = 0;
 
     const allPeopleForStats = [
-        ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona})),
-        ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio })) || []),
-        ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio })) || []),
-        ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona}))
+        ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
+        ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
+        ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
+        ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
     ];
 
     allPeopleForStats.forEach(p => {
@@ -238,23 +238,27 @@ export function PanelMedicoDashboard() {
       setSearchedPersonDisplay(found);
       setSearchMessage('');
     } else {
+      setSearchedPersonDisplay(null);
       setSearchMessage('Persona no encontrada.');
     }
     setSearchLoading(false);
   }, [searchTerm, socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
+
+  useEffect(() => {
+    // This effect refreshes the searched person's data if the underlying data sources change
+    // while a person is being displayed.
+    if (searchedPersonDisplay) {
+       handleSearchPersona();
+    }
+  // IMPORTANT FIX: Removed searchedPersonDisplay from dependencies to prevent infinite loop
+  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona]);
+
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       handleSearchPersona();
     }
   };
-
-  useEffect(() => {
-    if (searchedPersonDisplay) {
-       handleSearchPersona(); 
-    }
-  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona, searchedPersonDisplay]);
-
 
   const handleViewRevision = (revisionId: string) => {
     toast({
@@ -264,7 +268,16 @@ export function PanelMedicoDashboard() {
   };
 
   const handleOpenRevisionDialogParaInvitado = (invitado: SearchedPersonForPanel) => {
-    setSelectedInvitadoParaRevision(invitado);
+    const personaParaDialog: SearchedPerson = {
+      id: invitado.id,
+      nombreCompleto: invitado.nombreCompleto,
+      fechaNacimiento: invitado.fechaNacimiento || new Date(0).toISOString(),
+      tipo: invitado.tipo,
+      socioTitularId: invitado.socioAnfitrionNumero,
+      aptoMedicoActual: invitado.aptoMedico,
+      fechaVisitaInvitado: invitado.tipo === 'Invitado Diario' ? formatISO(new Date(), { representation: 'date'}) : undefined,
+    };
+    setSelectedInvitadoParaRevision(personaParaDialog);
     setIsDialogOpen(true);
   };
 
@@ -398,8 +411,8 @@ export function PanelMedicoDashboard() {
                   {searchedPersonDisplay.aptoMedico?.observaciones && (
                     <p className="text-xs text-muted-foreground mt-1">Observaciones: {searchedPersonDisplay.aptoMedico.observaciones}</p>
                   )}
-                  {searchedPersonDisplay.tipo === 'Socio Titular' && (searchedPersonDisplay as Socio).ultimaRevisionMedica && (
-                     <p className="text-xs text-muted-foreground mt-1">Última Revisión Médica Registrada: {formatDate((searchedPersonDisplay as Socio).ultimaRevisionMedica!)}</p>
+                  {searchedPersonDisplay.tipo === 'Socio Titular' && (searchedPersonDisplay as unknown as Socio).ultimaRevisionMedica && (
+                     <p className="text-xs text-muted-foreground mt-1">Última Revisión Médica Registrada: {formatDate(((searchedPersonDisplay as unknown as Socio).ultimaRevisionMedica!))} </p>
                    )}
               </div>
             </Card>
@@ -521,5 +534,3 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
-
-
