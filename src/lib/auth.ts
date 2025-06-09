@@ -27,7 +27,7 @@ export const mockUsers: UserDetails[] = [
   { id: 'admin2', name: 'Admin Prueba', email: 'admin2@example.com', role: 'administrador', password: 'password123' },
   { id: 'medico2', name: 'Medico Prueba', email: 'medico2@example.com', role: 'medico', password: 'password123' },
   { id: 'portero2', name: 'Portero Prueba', email: 'portero2@example.com', role: 'portero', password: 'password123' },
-  ...mockSocios.filter(socio => socio.email).map(socio => ({
+  ...mockSocios.filter(socio => socio.email && socio.id !== '2006').map(socio => ({ // Excluir Olivia Cumple para añadirla explícitamente
     id: `socio-${socio.numeroSocio}`,
     name: `${socio.nombre} ${socio.apellido}`,
     email: socio.email!.toLowerCase(),
@@ -35,6 +35,8 @@ export const mockUsers: UserDetails[] = [
     numeroSocio: socio.numeroSocio,
     password: 'password123', // Unified password
   })),
+  { id: 'socio-2006', name: 'Olivia Cumple', email: 'olivia.cumple@example.com', role: 'socio', numeroSocio: '2006', password: 'password123' },
+  // Manteniendo los otros explícitos por si acaso, aunque algunos podrían duplicarse si están en mockSocios con email
   { id: 'socio-2001', name: 'Carlos Solari', email: 'carlos.solari@example.com', role: 'socio', numeroSocio: '2001', password: 'password123' },
   { id: 'socio-2002', name: 'Laura Fernández', email: 'laura.fernandez@example.com', role: 'socio', numeroSocio: '2002', password: 'password123' },
   { id: 'socio-2003', name: 'Miguel Ángel Russo', email: 'miguel.russo@example.com', role: 'socio', numeroSocio: '2003', password: 'password123' },
@@ -43,10 +45,11 @@ export const mockUsers: UserDetails[] = [
 ];
 
 export const loginUser = (email: string, passwordInput: string): UserDetails | null => {
-  // Ensure 'socio@example.com' corresponds to Juan Pérez after mockData changes.
   const targetEmail = email.toLowerCase();
-  const user = mockUsers.find(u => u.email.toLowerCase() === targetEmail && u.password === passwordInput);
-  
+  // Asegurarse de que no haya duplicados de Olivia Cumple si ya se generó desde mockSocios.filter
+  const uniqueMockUsers = Array.from(new Map(mockUsers.map(user => [user.email.toLowerCase(), user])).values());
+  const user = uniqueMockUsers.find(u => u.email.toLowerCase() === targetEmail && u.password === passwordInput);
+
   if (user) {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userRole', user.role);
@@ -57,10 +60,8 @@ export const loginUser = (email: string, passwordInput: string): UserDetails | n
     } else {
       localStorage.removeItem('loggedInUserNumeroSocio');
     }
-    // Ensure firestoreService has a chance to initialize its DBs if not already done.
-    // This explicit call might be redundant if module imports handle it, but it's safe.
-    initializeSociosInFirestoreService(); // Make sure firestoreService has its DBs ready
-    initializeMockDatabases(); // Initialize other mock DBs like revisiones, etc.
+    initializeSociosInFirestoreService();
+    initializeMockDatabases();
     window.dispatchEvent(new Event('authChange'));
     return user;
   }
@@ -89,11 +90,8 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
 
 export const initializeMockDatabases = () => {
   if (typeof window !== 'undefined') {
-    // sociosDB (KEYS.SOCIOS) is initialized by firestoreService.ts when it's imported.
-    // No need to: localStorage.setItem(KEYS.SOCIOS, JSON.stringify(mockSocios));
-
-    const storedRevisiones = localStorage.getItem('revisionesDB'); // Assuming 'revisionesDB' for these.
-    if (!storedRevisiones) { 
+    const storedRevisiones = localStorage.getItem('revisionesDB');
+    if (!storedRevisiones) {
        localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
     }
 
@@ -108,4 +106,3 @@ export const initializeMockDatabases = () => {
     }
   }
 };
-
