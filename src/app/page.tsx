@@ -13,22 +13,21 @@ export default function HomePage() {
         <CardHeader className="text-center">
           <Image 
             src="https://placehold.co/100x100.png" 
-            alt={`${siteConfig.name} Logo`} 
+            alt={`${siteConfig.name} Logo Circular`} 
             width={100} 
             height={100} 
             className="mx-auto mb-4 rounded-full" 
             data-ai-hint="club logo"
           />
-          {/* Replaced CardTitle with an Image component for the site name */}
           <Image
-            src="https://placehold.co/240x50.png" 
-            alt={`${siteConfig.name} Name Logo`}
-            width={240}
-            height={50}
-            className="mx-auto" 
-            data-ai-hint="club name wordmark"
+            src="/logo-mazallegro.png" 
+            alt={`${siteConfig.name} Logo`}
+            width={153} // Using original image dimensions
+            height={76}
+            className="mx-auto"
+            priority 
           />
-          <CardDescription className="text-muted-foreground">
+          <CardDescription className="text-muted-foreground pt-2">
             Bienvenido al sistema de gestión de {siteConfig.name}.
           </CardDescription>
         </CardHeader>

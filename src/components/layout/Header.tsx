@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 import { LogOut, UserCircle, Settings, LayoutDashboard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const Header = () => {
   const { isLoggedIn, userRole, userName, logout } = useAuth();
@@ -21,10 +22,15 @@ const Header = () => {
     <header className="bg-[#0E4291] shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
-          <div className="flex items-center justify-center h-8 w-8 bg-primary-foreground/10 rounded-sm" data-ai-hint="logo">
-            <span className="font-bold text-lg text-primary">MA</span>
-          </div>
-          <span className="text-2xl font-bold text-primary">{siteConfig.name}</span>
+          <Image 
+            src="/logo-mazallegro.png" 
+            alt={`${siteConfig.name} Logo`}
+            width={76} 
+            height={38} 
+            className="h-auto" // Adjust height as needed, width will scale
+            priority // Preload logo as it's LCP
+          />
+          <span className="text-2xl font-bold text-primary sr-only">{siteConfig.name}</span>
         </Link>
         <nav className="flex items-center space-x-2 sm:space-x-4">
           {isLoggedIn ? (
