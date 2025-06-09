@@ -81,18 +81,33 @@ export function ControlAcceso() {
       let fechaNac: Date;
 
       if (typeof fechaNacimientoInput === 'string') {
+        console.log('[esCumpleanosHoy] Input string:', fechaNacimientoInput);
         fechaNac = parseISO(fechaNacimientoInput);
       } else if (fechaNacimientoInput instanceof Date) {
+        console.log('[esCumpleanosHoy] Input Date object:', fechaNacimientoInput.toISOString());
         fechaNac = fechaNacimientoInput;
       } else {
-        return false; 
-      }
-      
-      if (!isValid(fechaNac)) {
+        console.log('[esCumpleanosHoy] Invalid input type');
         return false;
       }
+
+      if (!isValid(fechaNac)) {
+        console.log('[esCumpleanosHoy] Parsed fechaNac is invalid');
+        return false;
+      }
+
+      const hoyMes = getMonth(hoy);
+      const hoyDia = getDayOfMonth(hoy);
+      const nacMes = getMonth(fechaNac);
+      const nacDia = getDayOfMonth(fechaNac);
+
+      console.log(`[esCumpleanosHoy] Comparando: Hoy (${hoyDia}/${hoyMes + 1}) con Nacimiento (${nacDia}/${nacMes + 1}) para fecha ${fechaNac.toISOString()}`);
       
-      return getMonth(hoy) === getMonth(fechaNac) && getDayOfMonth(hoy) === getDayOfMonth(fechaNac);
+      const esCumple = hoyMes === nacMes && hoyDia === nacDia;
+      if (esCumple) {
+        console.log('[esCumpleanosHoy] Es cumpleaños HOY!');
+      }
+      return esCumple;
   };
 
 
@@ -350,7 +365,7 @@ export function ControlAcceso() {
 
   const handleInvitadoCumpleanosCheckboxChange = (invitadoDni: string, checked: boolean) => {
     setInvitadosCumpleanosCheckboxState(prev => ({...prev, [invitadoDni]: checked}));
-     if (!checked) { 
+     if (!checked) {
       setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
     }
   };
@@ -367,7 +382,7 @@ export function ControlAcceso() {
     const invitadoOriginal = (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni)) ||
                              (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) || festejosDelDia.find(f => f.id === festejoId)?.listaInvitados.find(inv => inv.dni === invitadoDni)));
 
-    if (!invitadoOriginal?.ingresado) { 
+    if (!invitadoOriginal?.ingresado) {
         if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
             const invitadoInfo = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
             if (invitadoInfo?.fechaNacimiento) {
@@ -383,7 +398,7 @@ export function ControlAcceso() {
                 return;
               }
             }
-        } else if (tipoInvitado === 'cumpleanos') { 
+        } else if (tipoInvitado === 'cumpleanos') {
             metodoPagoSeleccionado = metodosPagoSeleccionados[invitadoDni] || null;
             if (!metodoPagoSeleccionado) {
                  toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado de cumpleaños.", variant: "destructive" });
@@ -411,7 +426,7 @@ export function ControlAcceso() {
           toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
           return;
         }
-    } else { 
+    } else {
         if (!solicitudInvitadosDiariosHoySocioBuscado) return;
         targetInvitados = invitadosDiariosSocioBuscado;
         targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
@@ -437,26 +452,26 @@ export function ControlAcceso() {
 
         if (tipoInvitado === 'diario') {
           const eraDeCumpleanos = inv.esDeCumpleanos;
-          if (nuevoEstadoIngreso) { 
+          if (nuevoEstadoIngreso) {
             if (esDeCumpleanosSeleccionado && !eraDeCumpleanos) nuevoConteoInvitadosCumple++;
-          } else { 
+          } else {
             if (eraDeCumpleanos) nuevoConteoInvitadosCumple--;
           }
           setInvitadosCumpleRegistradosHoy(Math.max(0, nuevoConteoInvitadosCumple));
         }
-        
-        return { 
-          ...inv, 
+
+        return {
+          ...inv,
           ingresado: nuevoEstadoIngreso,
-          esDeCumpleanos: tipoInvitado === 'diario' ? esDeCumpleanosSeleccionado : undefined, 
-          metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || esMenorDeTresSinCosto ? null : metodoPagoSeleccionado) : inv.metodoPago 
+          esDeCumpleanos: tipoInvitado === 'diario' ? esDeCumpleanosSeleccionado : undefined,
+          metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || esMenorDeTresSinCosto ? null : metodoPagoSeleccionado) : inv.metodoPago
         };
       }
       return inv;
     });
 
     const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
-    const esDeCumpleReal = tipoInvitado === 'diario' ? invitado?.esDeCumpleanos : true; 
+    const esDeCumpleReal = tipoInvitado === 'diario' ? invitado?.esDeCumpleanos : true;
 
     toast({
         title: `Ingreso Invitado ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
@@ -615,7 +630,7 @@ export function ControlAcceso() {
         puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
         cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-400' : 'border-red-400';
         if (socioEncontrado?.estadoSocio === 'Activo' && aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
-            cardBorderClass = 'border-orange-400'; 
+            cardBorderClass = 'border-orange-400';
         }
 
     } else if (person.isAdherente) {
@@ -628,7 +643,7 @@ export function ControlAcceso() {
         puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo';
         cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo') ? 'border-green-300' : 'border-red-300';
         if (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
-             cardBorderClass = 'border-orange-300'; 
+             cardBorderClass = 'border-orange-300';
         }
     }
 
@@ -648,7 +663,7 @@ export function ControlAcceso() {
               {person.nombreCompleto}
               <Badge variant="outline" className="ml-2 align-middle">{person.relacion}</Badge>
                {esCumpleanosHoy(person.fechaNacimiento) && (
-                  <Badge variant="secondary" className="ml-2 bg-pink-500 text-white"><Gift className="mr-1 h-3.5 w-3.5" /> Hoy Cumple!</Badge>
+                  <Badge variant="secondary" className="ml-2 bg-pink-500 text-white"><Gift className="mr-1 h-3.5 w-3.5" /> ¡Hoy Cumple!</Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">DNI: {person.dni}</p>
@@ -817,7 +832,7 @@ export function ControlAcceso() {
                   {solicitudInvitadosDiariosHoySocioBuscado && (
                     <div className="border-t border-border px-4 py-4 mt-6">
                       <h4 className="text-lg font-semibold mb-3 flex items-center">
-                          <Users2 className="mr-2 h-5 w-5 text-blue-500" />
+                          <Users2 className="mr-2 h-5 w-5 text-primary" />
                           Invitados Diarios (Hoy: {format(parseISO(todayISO), "dd/MM/yyyy")})
                       </h4>
                       {countCumpleanerosEnGrupo > 0 && (
@@ -857,7 +872,7 @@ export function ControlAcceso() {
                                       <p className="font-medium text-sm flex items-center">
                                         {invitado.nombre} {invitado.apellido}
                                         {esMenorDeTres && <Baby className="ml-2 h-4 w-4 text-purple-500" title="Menor de 3 años (Ingreso Gratuito)" />}
-                                        {esCumpleanosHoy(invitado.fechaNacimiento) && <Badge variant="secondary" className="ml-2 text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> Hoy Cumple!</Badge>}
+                                        {esCumpleanosHoy(invitado.fechaNacimiento) && <Badge variant="secondary" className="ml-2 text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}
                                       </p>
                                       {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, esMenorDeTres, invitado.esDeCumpleanos)}
                                     </div>
