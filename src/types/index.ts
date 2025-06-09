@@ -160,33 +160,20 @@ const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
 const optionalFileField = (config: FileSchemaConfig) =>
   z.custom<FileList | null | undefined>((val): val is FileList | null | undefined => {
     if (val === null || val === undefined) {
-      return true; // Allow null or undefined for optional fields
+      return true; 
     }
     if (!(val instanceof FileListInstance)) {
-      // If not null/undefined, it must be a FileList, but this check is more for type safety
-      // The baseFileSchema will handle if it's not a FileList.
-      // However, z.custom expects a boolean return, so if it's not FileList here, we might say false.
-      // But it's better to let baseFileSchema try to parse it and fail there for consistent error messages.
-      // For simplicity in z.custom, we just check if it's an instance of FileList.
-      // If it is something else (e.g. string that was an old URL), baseFileSchema will fail.
       return val instanceof FileListInstance;
     }
-    // If it is a FileList, apply baseFileSchema validations
     const parseResult = baseFileSchema(config).safeParse(val);
     return parseResult.success;
   }, {
-    // This message is a fallback. The actual refine messages from baseFileSchema are more specific.
     message: config.typeError,
-    // Augmenting path for errors from `baseFileSchema` inside `z.custom` is complex.
-    // For now, the errors will be associated with the field itself.
-    // If `baseFileSchema.safeParse(val)` fails, `parseResult.error.issues[0].message` could be used.
-    // Let's refine this later if error reporting isn't clear enough.
-    // For now, just returning parseResult.success ensures the validation logic is run.
-  }).refine(val => { // Add this refine to ensure baseFileSchema is actually run for FileList
+  }).refine(val => { 
     if (val instanceof FileListInstance) {
       return baseFileSchema(config).safeParse(val).success;
     }
-    return true; // If null/undefined, it's already valid for an optional field
+    return true; 
   }).optional().nullable();
 
 
@@ -252,8 +239,8 @@ export interface Socio extends TitularData {
   fotoUrl?: string;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string | Date; // Allow Date for runtime consistency
-  ultimaRevisionMedica?: string | Date; // Allow Date for runtime consistency
+  miembroDesde: string | Date; 
+  ultimaRevisionMedica?: string | Date; 
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
@@ -272,13 +259,17 @@ export interface Socio extends TitularData {
   motivoRechazoCambioGrupoFamiliar?: string;
 }
 
+export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado Diario';
+
 export interface RevisionMedica {
   id: string;
-  fechaRevision: string | Date; // Allow Date for runtime consistency
-  socioId: string;
+  fechaRevision: string | Date; 
+  socioId: string; 
   socioNombre: string;
+  tipoPersona: TipoPersona;
+  idSocioAnfitrion?: string; 
   resultado: 'Apto' | 'No Apto';
-  fechaVencimientoApto?: string | Date; // Allow Date for runtime consistency
+  fechaVencimientoApto?: string | Date; 
   observaciones?: string;
   medicoResponsable?: string;
 }
@@ -388,6 +379,7 @@ export const invitadoDiarioSchema = z.object({
     .refine(date => isValid(date), { message: "Fecha de nacimiento inválida." }),
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
+  aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(), // Nuevo campo para apto medico del invitado diario
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
 

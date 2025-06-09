@@ -14,15 +14,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar } from '@/types';
+import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar, TipoPersona, SolicitudInvitadosDiarios } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
-import { addDays, format, formatISO, parseISO, differenceInYears, isValid, subYears } from 'date-fns';
-import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle } from 'lucide-react';
+import { addDays, format, formatISO, parseISO, differenceInYears, isValid, subYears, isToday } from 'date-fns';
+import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle, UserTie } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Label } from '@/components/ui/label'; 
 import { Card } from '@/components/ui/card'; 
 import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio } from '@/lib/firebase/firestoreService';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -36,9 +37,10 @@ interface SearchedPerson {
   id: string; 
   nombreCompleto: string;
   fechaNacimiento: string | Date;
-  tipo: 'Socio Titular' | 'Familiar' | 'Adherente';
+  tipo: TipoPersona;
   socioTitularId?: string; 
   aptoMedicoActual?: AptoMedicoInfo;
+  fechaVisitaInvitado?: string; // ISO date string for daily guests
 }
 
 interface NuevaRevisionDialogProps {
@@ -90,17 +92,21 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
   }, [searchedPerson]);
 
 
-  const handleSearchSocio = () => {
+  const handleSearchSocio = async () => {
     if (!searchTerm.trim()) {
       setSearchMessage('Ingrese N° Socio, DNI, Nombre o Apellido.');
       setSearchedPerson(null);
       return;
     }
     const storedSocios = localStorage.getItem('sociosDB');
+    const storedInvitadosDiarios = localStorage.getItem('invitadosDiariosDB');
+    const todayISO = formatISO(new Date(), { representation: 'date' });
+    
+    let personFound: SearchedPerson | null = null;
+
     if (storedSocios) {
       const socios: Socio[] = JSON.parse(storedSocios);
       const term = searchTerm.trim().toLowerCase();
-      let personFound: SearchedPerson | null = null;
 
       for (const socio of socios) {
         if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
@@ -138,22 +144,44 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           break;
         }
       }
+    }
 
-      if (personFound) {
-        setSearchedPerson(personFound);
-        setSearchMessage('');
-        form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
-      } else {
-        setSearchedPerson(null);
-        setSearchMessage('Persona no encontrada (Socio, Familiar o Adherente).');
-      }
+    if (!personFound && storedInvitadosDiarios) {
+        const solicitudesHoy: SolicitudInvitadosDiarios[] = JSON.parse(storedInvitadosDiarios)
+            .filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
+        
+        for (const solicitud of solicitudesHoy) {
+            const invitadoFound = solicitud.listaInvitadosDiarios.find(inv => 
+                inv.dni.toLowerCase() === searchTerm.trim().toLowerCase() || 
+                `${inv.nombre.toLowerCase()} ${inv.apellido.toLowerCase()}`.includes(searchTerm.trim().toLowerCase())
+            );
+            if (invitadoFound) {
+                personFound = {
+                    id: invitadoFound.dni,
+                    nombreCompleto: `${invitadoFound.nombre} ${invitadoFound.apellido}`,
+                    fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0).toISOString(), // Default if undefined
+                    tipo: 'Invitado Diario',
+                    socioTitularId: solicitud.idSocioTitular,
+                    aptoMedicoActual: invitadoFound.aptoMedico || undefined,
+                    fechaVisitaInvitado: solicitud.fecha,
+                };
+                break;
+            }
+        }
+    }
+
+
+    if (personFound) {
+      setSearchedPerson(personFound);
+      setSearchMessage('');
+      form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
     } else {
       setSearchedPerson(null);
-      setSearchMessage('No hay socios en la base de datos local.');
+      setSearchMessage('Persona no encontrada (Socio, Familiar, Adherente o Invitado Diario de hoy).');
     }
   };
   
-  const onSubmit = (data: RevisionFormValues) => {
+  const onSubmit = async (data: RevisionFormValues) => {
     if (!searchedPerson) {
       toast({ title: 'Error', description: 'Debe seleccionar una persona.', variant: 'destructive' });
       return;
@@ -163,61 +191,55 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       return;
     }
 
-    const nuevaRevision: RevisionMedica = {
-      id: generateId(),
+    const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: formatISO(data.fechaRevision),
       socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
+      tipoPersona: searchedPerson.tipo,
+      idSocioAnfitrion: searchedPerson.tipo === 'Invitado Diario' ? searchedPerson.socioTitularId : undefined,
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
+      fechaVencimientoApto: data.resultado === 'Apto' ? formatISO(addDays(data.fechaRevision, 14)) : undefined,
     };
 
     const aptoMedicoUpdate: AptoMedicoInfo = {
       valido: data.resultado === 'Apto',
       fechaEmision: formatISO(data.fechaRevision),
       observaciones: data.observaciones,
+      fechaVencimiento: data.resultado === 'Apto' ? formatISO(addDays(data.fechaRevision, 14)) : undefined,
+      razonInvalidez: data.resultado === 'No Apto' ? (data.observaciones || 'No Apto según última revisión') : undefined,
     };
 
-    if (data.resultado === 'Apto') {
-      aptoMedicoUpdate.fechaVencimiento = formatISO(addDays(data.fechaRevision, 14)); 
-      nuevaRevision.fechaVencimientoApto = aptoMedicoUpdate.fechaVencimiento;
-    } else {
-       aptoMedicoUpdate.razonInvalidez = 'No Apto según última revisión';
-       aptoMedicoUpdate.fechaVencimiento = undefined; 
-    }
+    try {
+        await addRevisionMedica(nuevaRevision); // This now also handles socio/familiar/adherente updates.
 
-    const storedSocios = localStorage.getItem('sociosDB');
-    if (storedSocios) {
-      let socios: Socio[] = JSON.parse(storedSocios);
-      socios = socios.map(s => {
-        if (searchedPerson.tipo === 'Socio Titular' && s.numeroSocio === searchedPerson.id) {
-          return { ...s, aptoMedico: aptoMedicoUpdate, ultimaRevisionMedica: formatISO(data.fechaRevision) };
+        if (searchedPerson.tipo === 'Invitado Diario' && searchedPerson.socioTitularId && searchedPerson.fechaVisitaInvitado) {
+            const solicitud = await getSolicitudInvitadosDiarios(searchedPerson.socioTitularId, searchedPerson.fechaVisitaInvitado);
+            if (solicitud) {
+                const updatedLista = solicitud.listaInvitadosDiarios.map(inv => 
+                    inv.dni === searchedPerson.id ? { ...inv, aptoMedico: aptoMedicoUpdate } : inv
+                );
+                await addOrUpdateSolicitudInvitadosDiarios({ ...solicitud, listaInvitadosDiarios: updatedLista });
+            } else {
+                 console.error("No se encontró la solicitud de invitados diarios para actualizar el apto del invitado.");
+                 toast({ title: "Advertencia", description: "Se guardó la revisión, pero no se encontró la lista de invitados para actualizar el apto del invitado directamente.", variant: "default"});
+            }
+        } else if (['Socio Titular', 'Familiar', 'Adherente'].includes(searchedPerson.tipo)) {
+            // This logic is now inside addRevisionMedica, but we ensure sociosDBUpdated is fired from there.
         }
-        if ((searchedPerson.tipo === 'Familiar' || searchedPerson.tipo === 'Adherente') && s.numeroSocio === searchedPerson.socioTitularId) {
-          return {
-            ...s,
-            grupoFamiliar: s.grupoFamiliar?.map(f => f.dni === searchedPerson.id ? { ...f, aptoMedico: aptoMedicoUpdate } : f),
-            adherentes: s.adherentes?.map(a => a.dni === searchedPerson.id ? { ...a, aptoMedico: aptoMedicoUpdate } : a),
-          };
-        }
-        return s;
-      });
-      localStorage.setItem('sociosDB', JSON.stringify(socios));
-    }
 
-    const storedRevisiones = localStorage.getItem('revisionesDB');
-    let revisiones: RevisionMedica[] = storedRevisiones ? JSON.parse(storedRevisiones) : [];
-    revisiones.unshift(nuevaRevision); 
-    localStorage.setItem('revisionesDB', JSON.stringify(revisiones));
-    
-    window.dispatchEvent(new Event('sociosDBUpdated'));
-    toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
-    onRevisionGuardada();
-    form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
-    setSearchedPerson(null);
-    setSearchTerm('');
-    onOpenChange(false);
+        toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
+        onRevisionGuardada(); 
+        form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
+        setSearchedPerson(null);
+        setSearchTerm('');
+        onOpenChange(false);
+
+    } catch (error) {
+        console.error("Error guardando revisión o actualizando socio/invitado:", error);
+        toast({ title: "Error", description: "No se pudo guardar la revisión o actualizar los datos de la persona.", variant: "destructive" });
+    }
   };
 
   const currentPersonAptoStatus = searchedPerson ? getAptoMedicoStatus(searchedPerson.aptoMedicoActual, searchedPerson.fechaNacimiento) : null;
@@ -245,7 +267,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
             Registrar Nueva Revisión Médica
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-1">
-            Busca un socio, familiar o adherente y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Menores de 3 años no requieren revisión.
+            Busca un socio, familiar, adherente o invitado diario (de hoy) y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Menores de 3 años no requieren revisión.
           </DialogDescription>
         </DialogHeader>
         
@@ -268,9 +290,12 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           {searchedPerson && (
             <Card className="p-3 bg-muted/30">
               <div className="flex items-center gap-2 mb-1">
-                <User className="h-4 w-4 text-primary" />
+                {searchedPerson.tipo === 'Invitado Diario' ? <UserTie className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-primary" />}
                 <h4 className="font-semibold text-sm">{searchedPerson.nombreCompleto} ({searchedPerson.tipo})</h4>
               </div>
+              {searchedPerson.tipo === 'Invitado Diario' && searchedPerson.socioTitularId && (
+                <p className="text-xs text-muted-foreground">Anfitrión (Socio N°): {searchedPerson.socioTitularId}</p>
+              )}
               {currentPersonAptoStatus && (
                 <p className={`text-xs ${currentPersonAptoStatus.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`}>
                   Apto actual: {currentPersonAptoStatus.status} - {currentPersonAptoStatus.message}
