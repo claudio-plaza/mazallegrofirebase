@@ -129,6 +129,102 @@ export function ControlAcceso() {
     }
   }, [toast]);
 
+  const displayablePeople = useMemo(() => {
+    if (!socioEncontrado) return [];
+    const people: DisplayablePerson[] = [];
+    people.push({
+      id: socioEncontrado.id,
+      nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
+      dni: socioEncontrado.dni,
+      fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png?text=${socioEncontrado.nombre[0]}${socioEncontrado.apellido[0]}`,
+      aptoMedico: socioEncontrado.aptoMedico,
+      fechaNacimiento: socioEncontrado.fechaNacimiento,
+      estadoSocioTitular: socioEncontrado.estadoSocio,
+      relacion: 'Titular',
+      isTitular: true,
+      isFamiliar: false,
+      isAdherente: false,
+    });
+    socioEncontrado.grupoFamiliar?.forEach(fam => {
+      let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
+      if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') {
+         fotoFamiliar = fam.fotoPerfil;
+      }
+      people.push({
+        id: fam.id || fam.dni,
+        nombreCompleto: `${fam.nombre} ${fam.apellido}`,
+        dni: fam.dni,
+        fotoUrl: fotoFamiliar,
+        aptoMedico: fam.aptoMedico,
+        fechaNacimiento: fam.fechaNacimiento,
+        estadoSocioTitular: socioEncontrado.estadoSocio,
+        relacion: fam.relacion,
+        isTitular: false,
+        isFamiliar: true,
+        isAdherente: false,
+      });
+    });
+    socioEncontrado.adherentes?.forEach(adh => {
+      people.push({
+        id: adh.id || adh.dni,
+        nombreCompleto: `${adh.nombre} ${adh.apellido}`,
+        dni: adh.dni,
+        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`),
+        aptoMedico: adh.aptoMedico,
+        fechaNacimiento: adh.fechaNacimiento,
+        estadoSocioTitular: socioEncontrado.estadoSocio,
+        relacion: 'Adherente',
+        isTitular: false,
+        isFamiliar: false,
+        isAdherente: true,
+        estadoAdherente: adh.estadoAdherente,
+      });
+    });
+    return people;
+  }, [socioEncontrado]);
+
+  const handleToggleIngresoMiembroGrupo = useCallback(async () => {
+    if (!socioEncontrado) return;
+
+    const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
+      p => ((p.isTitular && p.dni === socioEncontrado.dni) ||
+           (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))) &&
+           ingresosSesion[p.dni]
+    );
+
+    setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
+    setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
+
+    if (anyMemberOfGroupHasSessionIncome) {
+      try {
+        if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
+          const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
+          await updateSolicitudCumpleanos(updatedSolicitud);
+          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud);
+        }
+        if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
+          const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
+          await updateSolicitudInvitadosDiarios(updatedSolicitud);
+          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+        }
+      } catch (error) {
+        console.error("Error updating event status in DB:", error);
+        toast({ title: "Error", description: "No se pudo actualizar el estado del evento en la base de datos.", variant: "destructive" });
+      }
+    }
+    // Note: Reverting titularIngresadoEvento to false in DB on anulación is intentionally omitted
+    // to prevent accidental blocking of guests if a porter makes a mistake.
+    // The UI flags (eventoHabilitadoPor...) will reflect the current session accurately.
+  }, [socioEncontrado, displayablePeople, ingresosSesion, solicitudCumpleanosHoySocioBuscado, solicitudInvitadosDiariosHoySocioBuscado, toast]);
+
+
+  useEffect(() => {
+    if(socioEncontrado){ // Only run if a socio is found
+        handleToggleIngresoMiembroGrupo();
+    }
+  }, [ingresosSesion, socioEncontrado, handleToggleIngresoMiembroGrupo]);
+
+
   const handleSearch = useCallback(async (isRefresh = false) => {
     const currentSearchTerm = isRefresh && socioEncontrado ? (socioEncontrado.numeroSocio || socioEncontrado.dni) : searchTerm;
     if (!currentSearchTerm.trim()) {
@@ -286,36 +382,6 @@ export function ControlAcceso() {
     router.push(url);
   };
 
-  const handleToggleIngresoMiembroGrupo = async (changedMember: DisplayablePerson, isIngresoAction: boolean) => {
-    if (!socioEncontrado) return;
-  
-    const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
-      p => ((p.isTitular && p.dni === socioEncontrado.dni) || 
-           (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))) && ingresosSesion[p.dni]
-    );
-    
-    setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
-    setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
-  
-    if (isIngresoAction && anyMemberOfGroupHasSessionIncome) {
-      try {
-        if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
-          const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
-          await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
-        }
-        if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
-          const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
-          await updateSolicitudInvitadosDiarios(updatedSolicitud);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); 
-        }
-      } catch (error) {
-        console.error("Error updating event status in DB:", error);
-        toast({ title: "Error", description: "No se pudo actualizar el estado del evento en la base de datos.", variant: "destructive" });
-      }
-    }
-  };
-
   const handleRegistrarIngreso = (member: DisplayablePerson) => {
     if (!socioEncontrado) return;
 
@@ -354,7 +420,7 @@ export function ControlAcceso() {
 
     if (puedeIngresar) {
       setIngresosSesion(prev => ({ ...prev, [member.dni]: true }));
-      handleToggleIngresoMiembroGrupo(member, true);
+      // Note: handleToggleIngresoMiembroGrupo is now called via useEffect reacting to ingresosSesion change
     }
 
     toast({
@@ -367,12 +433,12 @@ export function ControlAcceso() {
 
   const handleAnularIngreso = (member: DisplayablePerson) => {
     setIngresosSesion(prev => ({ ...prev, [member.dni]: false }));
+    // Note: handleToggleIngresoMiembroGrupo is now called via useEffect reacting to ingresosSesion change
     toast({
       title: 'Ingreso Anulado',
       description: `Se anuló el registro de ingreso para ${member.nombreCompleto}.`,
       variant: 'default',
     });
-    handleToggleIngresoMiembroGrupo(member, false);
   };
 
   const handleMetodoPagoChange = (invitadoId: string, metodo: MetodoPagoInvitado | null) => {
@@ -556,58 +622,6 @@ export function ControlAcceso() {
     return <Badge variant={variant} className={`text-xs ${className}`}> {IconComponent && <IconComponent className="mr-1 h-3 w-3" />} {metodo}</Badge>;
   };
 
-
-  const displayablePeople: DisplayablePerson[] = [];
-  if (socioEncontrado) {
-    displayablePeople.push({
-      id: socioEncontrado.id,
-      nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
-      dni: socioEncontrado.dni,
-      fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png?text=${socioEncontrado.nombre[0]}${socioEncontrado.apellido[0]}`,
-      aptoMedico: socioEncontrado.aptoMedico,
-      fechaNacimiento: socioEncontrado.fechaNacimiento,
-      estadoSocioTitular: socioEncontrado.estadoSocio,
-      relacion: 'Titular',
-      isTitular: true,
-      isFamiliar: false,
-      isAdherente: false,
-    });
-    socioEncontrado.grupoFamiliar?.forEach(fam => {
-      let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
-      if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') {
-         fotoFamiliar = fam.fotoPerfil;
-      }
-      displayablePeople.push({
-        id: fam.id || fam.dni,
-        nombreCompleto: `${fam.nombre} ${fam.apellido}`,
-        dni: fam.dni,
-        fotoUrl: fotoFamiliar,
-        aptoMedico: fam.aptoMedico,
-        fechaNacimiento: fam.fechaNacimiento,
-        estadoSocioTitular: socioEncontrado.estadoSocio,
-        relacion: fam.relacion,
-        isTitular: false,
-        isFamiliar: true,
-        isAdherente: false,
-      });
-    });
-    socioEncontrado.adherentes?.forEach(adh => {
-      displayablePeople.push({
-        id: adh.id || adh.dni,
-        nombreCompleto: `${adh.nombre} ${adh.apellido}`,
-        dni: adh.dni,
-        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`),
-        aptoMedico: adh.aptoMedico,
-        fechaNacimiento: adh.fechaNacimiento,
-        estadoSocioTitular: socioEncontrado.estadoSocio,
-        relacion: 'Adherente',
-        isTitular: false,
-        isFamiliar: false,
-        isAdherente: true,
-        estadoAdherente: adh.estadoAdherente,
-      });
-    });
-  }
 
   let accesoGeneralPermitido = false;
   let mensajeAccesoGeneral = '';
