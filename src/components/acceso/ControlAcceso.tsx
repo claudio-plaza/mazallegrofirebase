@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente, MetodoPagoInvitado } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -184,14 +184,19 @@ export function ControlAcceso() {
   }, [socioEncontrado]);
 
   const handleToggleIngresoMiembroGrupo = useCallback(async () => {
-    if (!socioEncontrado) return;
+    if (!socioEncontrado) {
+      setEventoHabilitadoPorIngresoFamiliarCumple(false);
+      setEventoHabilitadoPorIngresoFamiliarDiario(false);
+      return;
+    }
 
     const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
-      p => ((p.isTitular && p.dni === socioEncontrado.dni) ||
-           (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))) &&
-           ingresosSesion[p.dni]
+      p => (
+            (p.isTitular && p.dni === socioEncontrado.dni) ||
+            (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))
+          ) && ingresosSesion[p.dni]
     );
-
+    
     setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
     setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
 
@@ -200,26 +205,30 @@ export function ControlAcceso() {
         if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud);
+          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); // Update local state
         }
         if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudInvitadosDiarios(updatedSolicitud);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
+          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); // Update local state
         }
       } catch (error) {
         console.error("Error updating event status in DB:", error);
         toast({ title: "Error", description: "No se pudo actualizar el estado del evento en la base de datos.", variant: "destructive" });
       }
     }
-    // Note: Reverting titularIngresadoEvento to false in DB on anulación is intentionally omitted
-    // to prevent accidental blocking of guests if a porter makes a mistake.
-    // The UI flags (eventoHabilitadoPor...) will reflect the current session accurately.
-  }, [socioEncontrado, displayablePeople, ingresosSesion, solicitudCumpleanosHoySocioBuscado, solicitudInvitadosDiariosHoySocioBuscado, toast]);
+  }, [
+    socioEncontrado, 
+    displayablePeople, 
+    ingresosSesion, 
+    solicitudCumpleanosHoySocioBuscado, 
+    solicitudInvitadosDiariosHoySocioBuscado, 
+    toast
+  ]);
 
 
   useEffect(() => {
-    if(socioEncontrado){ // Only run if a socio is found
+    if(socioEncontrado){ 
         handleToggleIngresoMiembroGrupo();
     }
   }, [ingresosSesion, socioEncontrado, handleToggleIngresoMiembroGrupo]);
@@ -293,6 +302,7 @@ export function ControlAcceso() {
         if (solicitudHoyCumple) {
           setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
           setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
+          // For initial load based on DB, set it. Subsequent changes are handled by handleToggleIngresoMiembroGrupo
           setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
         } else {
           setSolicitudCumpleanosHoySocioBuscado(null);
@@ -331,6 +341,9 @@ export function ControlAcceso() {
         }
         setInvitadosCumpleRegistradosHoy(currentInvitadosCumpleRegistrados);
         setInvitadosCumpleanosCheckboxState(initialCheckboxState);
+        // Trigger re-evaluation of event habilitation based on potentially pre-existing session incomes
+        handleToggleIngresoMiembroGrupo();
+
 
       } else {
         setMensajeBusqueda('Socio no encontrado.');
@@ -343,7 +356,7 @@ export function ControlAcceso() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, todayISO, socioEncontrado, toast]);
+  }, [searchTerm, todayISO, socioEncontrado, toast, handleToggleIngresoMiembroGrupo]);
 
   useEffect(() => {
     loadFestejosDelDia();
@@ -420,7 +433,6 @@ export function ControlAcceso() {
 
     if (puedeIngresar) {
       setIngresosSesion(prev => ({ ...prev, [member.dni]: true }));
-      // Note: handleToggleIngresoMiembroGrupo is now called via useEffect reacting to ingresosSesion change
     }
 
     toast({
@@ -433,7 +445,6 @@ export function ControlAcceso() {
 
   const handleAnularIngreso = (member: DisplayablePerson) => {
     setIngresosSesion(prev => ({ ...prev, [member.dni]: false }));
-    // Note: handleToggleIngresoMiembroGrupo is now called via useEffect reacting to ingresosSesion change
     toast({
       title: 'Ingreso Anulado',
       description: `Se anuló el registro de ingreso para ${member.nombreCompleto}.`,
