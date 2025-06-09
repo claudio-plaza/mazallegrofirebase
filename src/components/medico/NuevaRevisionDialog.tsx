@@ -17,10 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar, TipoPersona, SolicitudInvitadosDiarios } from '@/types';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO, differenceInYears, isValid, subYears, isToday } from 'date-fns';
-import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle, UserTie } from 'lucide-react';
+import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle, UserRound } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Label } from '@/components/ui/label'; 
-import { Card } from '@/components/ui/card'; 
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio } from '@/lib/firebase/firestoreService';
@@ -34,11 +34,11 @@ const revisionSchema = z.object({
 type RevisionFormValues = z.infer<typeof revisionSchema>;
 
 interface SearchedPerson {
-  id: string; 
+  id: string;
   nombreCompleto: string;
   fechaNacimiento: string | Date;
   tipo: TipoPersona;
-  socioTitularId?: string; 
+  socioTitularId?: string;
   aptoMedicoActual?: AptoMedicoInfo;
   fechaVisitaInvitado?: string; // ISO date string for daily guests
 }
@@ -58,7 +58,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
   const [searchedPerson, setSearchedPerson] = useState<SearchedPerson | null>(null);
   const [searchMessage, setSearchMessage] = useState('');
   const { toast } = useToast();
-  const { userName: medicoName } = useAuth(); 
+  const { userName: medicoName } = useAuth();
   const [isUnderThree, setIsUnderThree] = useState(false);
   const [maxRevisionDate, setMaxRevisionDate] = useState<string>('');
   const [minRevisionDate, setMinRevisionDate] = useState<string>('');
@@ -111,7 +111,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
       for (const socio of socios) {
         if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
           personFound = {
-            id: socio.numeroSocio, 
+            id: socio.numeroSocio,
             nombreCompleto: `${socio.nombre} ${socio.apellido}`,
             fechaNacimiento: socio.fechaNacimiento,
             tipo: 'Socio Titular',
@@ -122,7 +122,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
         if (familiarFound) {
           personFound = {
-            id: familiarFound.dni, 
+            id: familiarFound.dni,
             nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
             fechaNacimiento: familiarFound.fechaNacimiento,
             tipo: 'Familiar',
@@ -134,7 +134,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
         if (adherenteFound) {
            personFound = {
-            id: adherenteFound.dni, 
+            id: adherenteFound.dni,
             nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
             fechaNacimiento: adherenteFound.fechaNacimiento,
             tipo: 'Adherente',
@@ -193,7 +193,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: formatISO(data.fechaRevision),
-      socioId: searchedPerson.id, 
+      socioId: searchedPerson.id,
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
       idSocioAnfitrion: searchedPerson.tipo === 'Invitado Diario' ? searchedPerson.socioTitularId : undefined,
@@ -230,7 +230,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         }
 
         toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
-        onRevisionGuardada(); 
+        onRevisionGuardada();
         form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
         setSearchedPerson(null);
         setSearchTerm('');
@@ -275,9 +275,9 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           <div>
             <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Persona (N° Socio, DNI, Nombre o Apellido)</Label>
             <div className="flex gap-2 items-center mt-1">
-                <Input 
-                    id="searchSocio" 
-                    value={searchTerm} 
+                <Input
+                    id="searchSocio"
+                    value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Ej: S00123, 30123456 o Juan Pérez"
                     className="flex-grow"
@@ -290,7 +290,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
           {searchedPerson && (
             <Card className="p-3 bg-muted/30">
               <div className="flex items-center gap-2 mb-1">
-                {searchedPerson.tipo === 'Invitado Diario' ? <UserTie className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-primary" />}
+                {searchedPerson.tipo === 'Invitado Diario' ? <UserRound className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-primary" />}
                 <h4 className="font-semibold text-sm">{searchedPerson.nombreCompleto} ({searchedPerson.tipo})</h4>
               </div>
               {searchedPerson.tipo === 'Invitado Diario' && searchedPerson.socioTitularId && (
@@ -385,9 +385,9 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Observaciones</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Añade notas sobre la revisión (ej: reposo deportivo por 7 días, apto con preexistencia X, etc.)"
+                        {...field}
                         className="min-h-[100px]"
                       />
                     </FormControl>

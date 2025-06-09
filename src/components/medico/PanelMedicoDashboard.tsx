@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { parseISO, isToday, isSameMonth, differenceInDays, formatISO } from 'date-fns';
-import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserTie } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -109,7 +109,7 @@ export function PanelMedicoDashboard() {
       if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
         const fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
         const diff = differenceInDays(fechaVenc, today);
-        if (diff >= 0 && diff <= 7) { 
+        if (diff >= 0 && diff <= 7) {
           vencProximos++;
         }
       }
@@ -250,9 +250,9 @@ export function PanelMedicoDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
-        <Skeleton className="h-12 w-full" /> 
-        <Skeleton className="h-48 w-full" /> 
-        <Skeleton className="h-96 w-full" /> 
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -393,19 +393,22 @@ export function PanelMedicoDashboard() {
               </TableHeader>
               <TableBody>
                 {revisiones.slice(0, 10).map((revision) => {
+                  let iconType = <UserCircle className="mr-1 h-3.5 w-3.5" />;
+                  if (revision.tipoPersona === 'Invitado Diario') iconType = <UserRound className="mr-1 h-3.5 w-3.5" />;
+                  
                   return (
                     <TableRow key={revision.id}>
                       <TableCell>{formatDate(revision.fechaRevision)}</TableCell>
                       <TableCell>{revision.socioNombre} ({revision.socioId})</TableCell>
-                      <TableCell><Badge variant="outline">{revision.tipoPersona}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className="flex items-center">{iconType}{revision.tipoPersona}</Badge></TableCell>
                       <TableCell>
                         <Badge variant={revision.resultado === 'Apto' ? 'default' : 'destructive'} className={revision.resultado === 'Apto' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}>
                           {revision.resultado}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {revision.resultado === 'Apto' && revision.fechaVencimientoApto 
-                          ? formatDate(revision.fechaVencimientoApto) 
+                        {revision.resultado === 'Apto' && revision.fechaVencimientoApto
+                          ? formatDate(revision.fechaVencimientoApto)
                           : 'N/A'}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate" title={revision.observaciones}>{revision.observaciones || '-'}</TableCell>
