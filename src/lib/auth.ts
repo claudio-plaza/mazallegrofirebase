@@ -43,7 +43,10 @@ export const mockUsers: UserDetails[] = [
 ];
 
 export const loginUser = (email: string, passwordInput: string): UserDetails | null => {
-  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === passwordInput);
+  // Ensure 'socio@example.com' corresponds to Juan Pérez after mockData changes.
+  const targetEmail = email.toLowerCase();
+  const user = mockUsers.find(u => u.email.toLowerCase() === targetEmail && u.password === passwordInput);
+  
   if (user) {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userRole', user.role);
@@ -105,3 +108,4 @@ export const initializeMockDatabases = () => {
     }
   }
 };
+

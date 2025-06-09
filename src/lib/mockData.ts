@@ -1,9 +1,17 @@
 
 import type { Socio, RevisionMedica, MiembroFamiliar, Adherente } from '@/types';
 import { RelacionFamiliar, EstadoCambioGrupoFamiliar, EstadoAdherente, EstadoSolicitudAdherente } from '@/types';
-import { addDays, subDays, formatISO, subMonths, subYears } from 'date-fns';
+import { addDays, subDays, formatISO, subMonths, subYears, getDate, getMonth, setYear } from 'date-fns';
 
 const today = new Date();
+
+// Helper para que la fecha de nacimiento coincida con el día y mes actual, pero X años atrás
+const setBirthdayToTodayButYearsAgo = (yearsAgo: number): Date => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - yearsAgo);
+  return date;
+};
+
 
 const mockFamiliaresJuan: MiembroFamiliar[] = [
   {
@@ -86,7 +94,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Juan',
     apellido: 'Pérez',
     dni: '12345678',
-    fechaNacimiento: subYears(today, 30),
+    fechaNacimiento: setBirthdayToTodayButYearsAgo(30), // Cumpleaños hoy
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -95,10 +103,10 @@ export const mockSocios: Socio[] = [
       fechaVencimiento: formatISO(addDays(subDays(today, 10), 14)),
       observaciones: 'Apto para actividad física moderada.',
     },
-    email: 'juan.perez@example.com',
+    email: 'socio@example.com', // Aseguramos que este email esté en mockUsers
     telefono: '1122334455',
     direccion: 'Calle Falsa 123',
-    empresa: "OSDE", // Changed
+    empresa: "OSDE", 
     miembroDesde: formatISO(subMonths(today, 6)),
     ultimaRevisionMedica: formatISO(subDays(today, 10)),
     grupoFamiliar: mockFamiliaresJuan,
@@ -125,7 +133,7 @@ export const mockSocios: Socio[] = [
     email: 'ana.garcia@example.com',
     telefono: '5544332211',
     direccion: 'Avenida Siempreviva 742',
-    empresa: "Swiss Medical", // Changed
+    empresa: "Swiss Medical", 
     miembroDesde: formatISO(subMonths(today, 12)),
     ultimaRevisionMedica: formatISO(subDays(today, 20)),
     grupoFamiliar: [],
@@ -138,7 +146,7 @@ export const mockSocios: Socio[] = [
         estadoAdherente: EstadoAdherente.ACTIVO, 
         estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
         fechaNacimiento: subYears(today, 27),
-        empresa: "Particular", // Changed
+        empresa: "Particular", 
         telefono: '123123123',
         direccion: 'Adherente St 123',
         email: 'c.santana@example.com',
@@ -164,7 +172,7 @@ export const mockSocios: Socio[] = [
     email: 'carlos.rodriguez@example.com',
     telefono: '6677889900',
     direccion: 'Boulevard de los Sueños Rotos 45',
-    empresa: "Galeno", // Changed
+    empresa: "Galeno", 
     miembroDesde: formatISO(subMonths(today, 24)),
     grupoFamiliar: [],
     adherentes: [],
@@ -189,7 +197,7 @@ export const mockSocios: Socio[] = [
     email: 'laura.martinez@example.com',
     telefono: '9988776655',
     direccion: 'Pasaje de la Alegría 88',
-    empresa: "Medicus", // Changed
+    empresa: "Medicus", 
     miembroDesde: formatISO(subMonths(today, 3)),
     ultimaRevisionMedica: formatISO(subDays(today, 3)),
     grupoFamiliar: [],
@@ -228,7 +236,7 @@ export const mockSocios: Socio[] = [
     email: 'laura.gomez@example.com',
     telefono: '3344556677',
     direccion: 'Calle Sol Naciente 321',
-    empresa: "Sadop", // Changed
+    empresa: "Sadop", 
     miembroDesde: formatISO(subMonths(today, 18)),
     ultimaRevisionMedica: formatISO(subDays(today, 4)),
     grupoFamiliar: mockFamiliaresLaura,
@@ -250,7 +258,7 @@ export const mockSocios: Socio[] = [
     email: 'carlos.solari@example.com',
     telefono: '2610000001',
     direccion: 'Ruta 66 Km 1',
-    empresa: "Particular", // Changed
+    empresa: "Particular", 
     miembroDesde: formatISO(subMonths(today, 10)),
     grupoFamiliar: [],
     adherentes: [],
@@ -270,7 +278,7 @@ export const mockSocios: Socio[] = [
     email: 'laura.fernandez@example.com',
     telefono: '2610000002',
     direccion: 'Av. Principal 100',
-    empresa: "OSDE", // Changed
+    empresa: "OSDE", 
     miembroDesde: formatISO(subMonths(today, 5)),
     grupoFamiliar: [
       { id: 'fam-lf-1', nombre: 'Roberto', apellido: 'Gómez', dni: '30000012', fechaNacimiento: formatISO(subYears(today, 40)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)) } },
@@ -292,7 +300,7 @@ export const mockSocios: Socio[] = [
     email: 'miguel.russo@example.com',
     telefono: '2610000003',
     direccion: 'Calle Victoriosa 7',
-    empresa: "Sutiaga", // Changed
+    empresa: "Sutiaga", 
     miembroDesde: formatISO(subMonths(today, 15)),
     grupoFamiliar: [
       { id: 'fam-mr-1', nombre: 'Patricia', apellido: 'Sosa', dni: '30000013', fechaNacimiento: formatISO(subYears(today, 48)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
@@ -315,7 +323,7 @@ export const mockSocios: Socio[] = [
     email: 'valeria.lynch@example.com',
     telefono: '2610000004',
     direccion: 'Av. Cantora 1980',
-    empresa: "Ampros", // Changed
+    empresa: "Ampros", 
     miembroDesde: formatISO(subMonths(today, 7)),
     grupoFamiliar: [
       { id: 'fam-vl-1', nombre: 'Tais', apellido: 'Lynch', dni: '60000004', fechaNacimiento: formatISO(subYears(today, 15)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)) } },
@@ -338,7 +346,7 @@ export const mockSocios: Socio[] = [
     email: 'ricardo.darin@example.com',
     telefono: '2610000005',
     direccion: 'Nueve Reinas 101',
-    empresa: "Judiciales", // Changed
+    empresa: "Judiciales", 
     miembroDesde: formatISO(subMonths(today, 20)),
     grupoFamiliar: [
       { id: 'fam-rd-1', nombre: 'Norma', apellido: 'Aleandro', dni: '10000005', fechaNacimiento: formatISO(subYears(today, 75)), relacion: RelacionFamiliar.PADRE_MADRE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)) } },
