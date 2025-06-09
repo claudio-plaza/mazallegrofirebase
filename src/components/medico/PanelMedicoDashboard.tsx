@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog, type SearchedPerson } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
-import { parseISO, isToday, isSameMonth, differenceInDays, formatISO } from 'date-fns';
+import { parseISO, isToday, isSameMonth, differenceInDays, formatISO, isValid } from 'date-fns';
 import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit, CheckCircle2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -131,7 +131,16 @@ export function PanelMedicoDashboard() {
           aptosPendVenc++;
         }
         if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
-          const fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
+          let fechaVenc: Date;
+          if (typeof p.aptoMedico.fechaVencimiento === 'string') {
+            fechaVenc = parseISO(p.aptoMedico.fechaVencimiento);
+          } else if (p.aptoMedico.fechaVencimiento instanceof Date && isValid(p.aptoMedico.fechaVencimiento)) {
+            fechaVenc = p.aptoMedico.fechaVencimiento;
+          } else {
+            return; 
+          }
+          if (!isValid(fechaVenc)) return;
+
           const diff = differenceInDays(fechaVenc, today);
           if (diff >= 0 && diff <= 7) {
             vencProximos++;
@@ -258,7 +267,7 @@ export function PanelMedicoDashboard() {
        handleSearchPersona();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona]);
+  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
 
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -325,14 +334,7 @@ export function PanelMedicoDashboard() {
             bloquearBusqueda={!!selectedInvitadoParaRevision}
         />
         {!selectedInvitadoParaRevision && (
-             <Button 
-                onClick={() => {
-                    setSelectedInvitadoParaRevision(null);
-                    setIsDialogOpen(true);
-                }}
-             >
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario
-             </Button>
+             <Button onClick={() => { setSelectedInvitadoParaRevision(null); setIsDialogOpen(true);}}><CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario</Button>
         )}
       </div>
 
@@ -548,3 +550,4 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
