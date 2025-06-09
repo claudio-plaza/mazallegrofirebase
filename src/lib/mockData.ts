@@ -19,7 +19,7 @@ const mockFamiliaresJuan: MiembroFamiliar[] = [
     nombre: 'Maria',
     apellido: 'Gonzalez',
     dni: '12345679',
-    fechaNacimiento: formatISO(subYears(today, 28)),
+    fechaNacimiento: '1996-03-10', // Explicit distinct date
     relacion: RelacionFamiliar.CONYUGE,
     aptoMedico: {
       valido: true,
@@ -33,7 +33,7 @@ const mockFamiliaresJuan: MiembroFamiliar[] = [
     nombre: 'Pedro',
     apellido: 'Pérez',
     dni: '55667788',
-    fechaNacimiento: formatISO(subYears(today, 5)),
+    fechaNacimiento: '2019-08-22', // Explicit distinct date
     relacion: RelacionFamiliar.HIJO_A,
     aptoMedico: {
       valido: true,
@@ -50,7 +50,7 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Marcos',
     apellido: 'Diaz',
     dni: '21223344',
-    fechaNacimiento: formatISO(subYears(today, 33)),
+    fechaNacimiento: '1991-11-05', // Explicit distinct date
     relacion: RelacionFamiliar.CONYUGE,
     aptoMedico: {
       valido: true,
@@ -64,7 +64,7 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Sofia',
     apellido: 'Diaz',
     dni: '66778899',
-    fechaNacimiento: formatISO(subYears(today, 6)),
+    fechaNacimiento: '2018-01-30', // Explicit distinct date
     relacion: RelacionFamiliar.HIJO_A,
     aptoMedico: {
       valido: false,
@@ -76,7 +76,7 @@ const mockFamiliaresLaura: MiembroFamiliar[] = [
     nombre: 'Lucas',
     apellido: 'Diaz',
     dni: '77889900',
-    fechaNacimiento: formatISO(subYears(today, 4)),
+    fechaNacimiento: '2020-05-12', // Explicit distinct date
     relacion: RelacionFamiliar.HIJO_A,
     aptoMedico: {
       valido: true,
@@ -120,7 +120,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Ana',
     apellido: 'García',
     dni: '87654321',
-    fechaNacimiento: subYears(today, 25),
+    fechaNacimiento: subYears(today, 25), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -145,7 +145,7 @@ export const mockSocios: Socio[] = [
         dni: '99887766',
         estadoAdherente: EstadoAdherente.ACTIVO,
         estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
-        fechaNacimiento: subYears(today, 27),
+        fechaNacimiento: '1997-01-15', // Explicit distinct date
         empresa: "Particular",
         telefono: '123123123',
         direccion: 'Adherente St 123',
@@ -162,7 +162,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Carlos',
     apellido: 'Rodríguez',
     dni: '11223344',
-    fechaNacimiento: subYears(today, 40),
+    fechaNacimiento: subYears(today, 40), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Inactivo',
     aptoMedico: {
@@ -185,7 +185,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Martínez',
     dni: '44332211',
-    fechaNacimiento: subYears(today, 35),
+    fechaNacimiento: subYears(today, 35), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -212,7 +212,7 @@ export const mockSocios: Socio[] = [
           nombre: 'Martin',
           apellido: 'Martínez',
           dni: '12121212',
-          fechaNacimiento: formatISO(subYears(today, 2)),
+          fechaNacimiento: '2022-03-15', // Explicit distinct date
           relacion: RelacionFamiliar.HIJO_A,
         }]
       }
@@ -224,7 +224,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Gomez',
     dni: '22334455',
-    fechaNacimiento: subYears(today, 32),
+    fechaNacimiento: subYears(today, 32), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -250,7 +250,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Carlos',
     apellido: 'Solari',
     dni: '30000001',
-    fechaNacimiento: subYears(today, 45),
+    fechaNacimiento: subYears(today, 45), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 8)), fechaVencimiento: formatISO(addDays(subDays(today, 8), 14)), observaciones: 'Apto.' },
@@ -270,7 +270,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Fernández',
     dni: '30000002',
-    fechaNacimiento: subYears(today, 38),
+    fechaNacimiento: subYears(today, 38), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)), observaciones: 'Apta.' },
@@ -280,7 +280,7 @@ export const mockSocios: Socio[] = [
     empresa: "OSDE",
     miembroDesde: formatISO(subMonths(today, 5)),
     grupoFamiliar: [
-      { id: 'fam-lf-1', nombre: 'Roberto', apellido: 'Gómez', dni: '30000012', fechaNacimiento: formatISO(subYears(today, 40)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)) } },
+      { id: 'fam-lf-1', nombre: 'Roberto', apellido: 'Gómez', dni: '30000012', fechaNacimiento: '1984-07-19', relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)) } },
     ],
     adherentes: [],
     role: 'socio',
@@ -292,7 +292,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Miguel Ángel',
     apellido: 'Russo',
     dni: '30000003',
-    fechaNacimiento: subYears(today, 50),
+    fechaNacimiento: subYears(today, 50), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: false, razonInvalidez: 'Vencido', fechaEmision: formatISO(subDays(today, 20)), fechaVencimiento: formatISO(addDays(subDays(today, 20), 14)) },
@@ -302,8 +302,8 @@ export const mockSocios: Socio[] = [
     empresa: "Sutiaga",
     miembroDesde: formatISO(subMonths(today, 15)),
     grupoFamiliar: [
-      { id: 'fam-mr-1', nombre: 'Patricia', apellido: 'Sosa', dni: '30000013', fechaNacimiento: formatISO(subYears(today, 48)), relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
-      { id: 'fam-mr-2', nombre: 'Lionel', apellido: 'Russo', dni: '60000003', fechaNacimiento: formatISO(subYears(today, 10)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
+      { id: 'fam-mr-1', nombre: 'Patricia', apellido: 'Sosa', dni: '30000013', fechaNacimiento: '1976-10-01', relacion: RelacionFamiliar.CONYUGE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
+      { id: 'fam-mr-2', nombre: 'Lionel', apellido: 'Russo', dni: '60000003', fechaNacimiento: '2014-02-11', relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 1)), fechaVencimiento: formatISO(addDays(subDays(today, 1), 14)) } },
     ],
     adherentes: [],
     role: 'socio',
@@ -315,7 +315,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Valeria',
     apellido: 'Lynch',
     dni: '30000004',
-    fechaNacimiento: subYears(today, 42),
+    fechaNacimiento: subYears(today, 42), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)), observaciones: 'Apta.' },
@@ -325,8 +325,8 @@ export const mockSocios: Socio[] = [
     empresa: "Ampros",
     miembroDesde: formatISO(subMonths(today, 7)),
     grupoFamiliar: [
-      { id: 'fam-vl-1', nombre: 'Tais', apellido: 'Lynch', dni: '60000004', fechaNacimiento: formatISO(subYears(today, 15)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)) } },
-      { id: 'fam-vl-2', nombre: 'Federico', apellido: 'Lynch', dni: '60000014', fechaNacimiento: formatISO(subYears(today, 12)), relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' } },
+      { id: 'fam-vl-1', nombre: 'Tais', apellido: 'Lynch', dni: '60000004', fechaNacimiento: '2009-05-25', relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)) } },
+      { id: 'fam-vl-2', nombre: 'Federico', apellido: 'Lynch', dni: '60000014', fechaNacimiento: '2012-12-03', relacion: RelacionFamiliar.HIJO_A, aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' } },
     ],
     adherentes: [],
     role: 'socio',
@@ -338,7 +338,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Ricardo',
     apellido: 'Darín',
     dni: '30000005',
-    fechaNacimiento: subYears(today, 55),
+    fechaNacimiento: subYears(today, 55), // Not today
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)), observaciones: 'Apto.' },
@@ -348,35 +348,35 @@ export const mockSocios: Socio[] = [
     empresa: "Judiciales",
     miembroDesde: formatISO(subMonths(today, 20)),
     grupoFamiliar: [
-      { id: 'fam-rd-1', nombre: 'Norma', apellido: 'Aleandro', dni: '10000005', fechaNacimiento: formatISO(subYears(today, 75)), relacion: RelacionFamiliar.PADRE_MADRE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)) } },
+      { id: 'fam-rd-1', nombre: 'Norma', apellido: 'Aleandro', dni: '10000005', fechaNacimiento: '1949-09-17', relacion: RelacionFamiliar.PADRE_MADRE, aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)) } },
     ],
     adherentes: [],
     role: 'socio',
     estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
   {
-    id: '2006', // Nuevo ID
-    numeroSocio: '2006', // Nuevo Número de Socio
+    id: '2006', 
+    numeroSocio: '2006', 
     nombre: 'Olivia',
     apellido: 'Cumple',
-    dni: '30000006', // Nuevo DNI
+    dni: '30000006', 
     fechaNacimiento: setBirthdayToTodayButYearsAgo(28), // Cumpleaños hoy!
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
       valido: true,
-      fechaEmision: formatISO(subDays(today, 5)), // Apto vigente
+      fechaEmision: formatISO(subDays(today, 5)), 
       fechaVencimiento: formatISO(addDays(subDays(today, 5), 14)),
       observaciones: 'Apta para toda actividad.',
     },
-    email: 'olivia.cumple@example.com', // Nuevo email
+    email: 'olivia.cumple@example.com', 
     telefono: '2610000006',
     direccion: 'Calle Festejo 777',
     empresa: "AEC",
     miembroDesde: formatISO(subMonths(today, 1)),
     ultimaRevisionMedica: formatISO(subDays(today, 5)),
-    grupoFamiliar: [], // Sin familiares para mantener simple la prueba
-    adherentes: [],   // Sin adherentes
+    grupoFamiliar: [], 
+    adherentes: [],   
     role: 'socio',
     estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.NINGUNO,
   },
@@ -575,3 +575,4 @@ export const mockRevisiones: RevisionMedica[] = [
   },
 ];
 
+    

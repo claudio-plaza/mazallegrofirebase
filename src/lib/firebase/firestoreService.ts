@@ -47,53 +47,60 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
 export const initializeSociosDB = (): void => {
   if (typeof window === 'undefined') return;
 
-  // Always initialize from mockSocios for development to ensure data freshness
-  console.log(`Initializing/Re-initializing ${KEYS.SOCIOS} from mockData.ts.`);
+  console.log(`[firestoreService] Initializing/Re-initializing ${KEYS.SOCIOS} from mockData.ts.`);
 
   const sociosToStore = mockSocios.map(socio => {
     const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
       if (dateField instanceof Date) return dateField.toISOString();
-      if (typeof dateField === 'string') return dateField; // Assume already ISO string
+      if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField; // Accept valid ISO string
+      if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString(); // Accept YYYY-MM-DD
       return undefined;
     };
     const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
       if (dateField instanceof Date) return dateField.toISOString();
-      if (typeof dateField === 'string') return dateField;
-      return new Date(0).toISOString(); // Default to epoch if undefined/null
+      if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
+      if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
+      return new Date(0).toISOString(); 
     };
 
-    return {
-    ...socio,
-    fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
-    miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
-    ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
-    aptoMedico: socio.aptoMedico ? {
-        ...socio.aptoMedico,
-        fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
-        fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
-    } : undefined,
-    grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
-      ...familiar,
-      fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
-      aptoMedico: familiar.aptoMedico ? {
-          ...familiar.aptoMedico,
-          fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
-          fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
+    const processedSocio = {
+      ...socio,
+      fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
+      miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
+      ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
+      aptoMedico: socio.aptoMedico ? {
+          ...socio.aptoMedico,
+          fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
+          fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
       } : undefined,
-    })) || [],
-    adherentes: socio.adherentes?.map(adherente => ({
-      ...adherente,
-      fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
-      aptoMedico: adherente.aptoMedico ? {
-          ...adherente.aptoMedico,
-          fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
-          fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
-      } : undefined,
-    })) || [],
-    // Ensure all other potential Date fields are stringified
-    // cambiosPendientesGrupoFamiliar and its nested dates would also need similar treatment if they were part of mockSocios directly
-    // For now, mockSocios doesn't have cambiosPendientesGrupoFamiliar pre-filled with dates.
+      grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
+        ...familiar,
+        fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
+        aptoMedico: familiar.aptoMedico ? {
+            ...familiar.aptoMedico,
+            fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
+            fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
+        } : undefined,
+      })) || [],
+      adherentes: socio.adherentes?.map(adherente => ({
+        ...adherente,
+        fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
+        aptoMedico: adherente.aptoMedico ? {
+            ...adherente.aptoMedico,
+            fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
+            fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
+        } : undefined,
+      })) || [],
     };
+
+    // DEBUG LOG:
+    if (socio.numeroSocio === '1001') {
+      console.log('[firestoreService] Storing Juan Pérez:', processedSocio.fechaNacimiento);
+      processedSocio.grupoFamiliar.forEach(fam => {
+        console.log(`[firestoreService] Storing Familiar ${fam.nombre}:`, fam.fechaNacimiento);
+      });
+    }
+    return processedSocio;
   });
   saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
 };
@@ -231,7 +238,8 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
 
   const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
     if (dateField instanceof Date) return dateField.toISOString();
-    if (typeof dateField === 'string') return dateField; // Assume already ISO string
+    if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
+    if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
     return new Date(0).toISOString();
   };
 
@@ -341,12 +349,14 @@ const updateSocioInDb = (updatedSocioRaw: any): Socio | null => {
 export const updateSocio = async (updatedSocio: Socio): Promise<Socio | null> => {
   const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
     if (dateField instanceof Date) return dateField.toISOString();
-    if (typeof dateField === 'string') return dateField;
+    if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
+    if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
     return undefined;
   };
    const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
     if (dateField instanceof Date) return dateField.toISOString();
-    if (typeof dateField === 'string') return dateField; // Assume already ISO string
+    if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
+    if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
     return new Date(0).toISOString();
   };
 
@@ -582,5 +592,7 @@ if (typeof window !== 'undefined') {
     initializePreciosInvitadosDB();
 }
 isValid(new Date()); // Keep this import for date-fns
+
+    
 
     
