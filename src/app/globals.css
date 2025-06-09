@@ -8,97 +8,90 @@ body {
 
 @layer base {
   :root {
-    --background: 220 15% 12%; /* Dark Desaturated Blue - Matches image background */
-    --foreground: 0 0% 100%; /* White - Matches image text */
+    --background: 216 25% 95%; /* Light Gray (#f0f2f5) from PRD */
+    --foreground: 222 47% 11%; /* Dark Blue/Black for text */
 
-    --card: 220 15% 18%; /* Slightly Lighter Dark Desaturated Blue - Matches image card */
-    --card-foreground: 0 0% 100%; /* White */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 222 47% 11%; /* Dark Blue/Black */
 
-    --popover: 220 15% 15%; /* Darker for popovers */
-    --popover-foreground: 0 0% 100%; /* White */
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 222 47% 11%; /* Dark Blue/Black */
 
-    --primary: 27 86% 51%; /* #ED771B Orange - Matches "Iniciar Sesión" button */
+    --primary: 208 68% 53%; /* Saturated Blue (#3498db) from PRD */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 208 68% 53%; /* #3498db Saturated Blue - For "Crear Cuenta" button */
-    --secondary-foreground: 0 0% 100%; /* White */
+    --secondary: 220 15% 90%; /* Lighter gray for button */
+    --secondary-foreground: 222 47% 11%; /* Dark text for secondary button */
 
-    --muted: 220 15% 25%; /* Muted Background - For footer and other less prominent areas */
-    --muted-foreground: 220 10% 75%; /* Lighter Muted Text for dark bg */
+    --muted: 220 15% 92%; /* Slightly darker light gray for muted backgrounds (e.g., footer) */
+    --muted-foreground: 220 10% 45%; /* Medium gray for muted text */
 
-    --accent: 27 86% 65%; /* Lighter Orange - For hover states, etc. */
+    --accent: 283 39% 56%; /* Purple (#9b59b6) from PRD */
     --accent-foreground: 0 0% 100%; /* White */
 
-    --destructive: 0 70% 55%; /* Adjusted Red for dark theme */
+    --destructive: 0 84.2% 60.2%; /* Standard Red */
     --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 220 15% 30%; /* Visible Border for dark theme */
-    --input: 220 15% 22%; /* Input Background for dark theme */
-    --ring: 27 86% 51%; /* Primary Orange for focus rings */
+    --border: 220 13% 90%; /* Light gray border */
+    --input: 0 0% 100%; /* White for input background */
+    --ring: 208 68% 53%; /* Blue - same as primary for focus */
 
     --radius: 0.5rem;
 
-    /* Sidebar specific theme variables - Dark Theme */
-    --sidebar-background: 220 15% 15%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 27 86% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 27 86% 65%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 27 86% 51%;
+    /* Sidebar specific theme variables - Light Theme */
+    --sidebar-background: 0 0% 100%; /* White sidebar */
+    --sidebar-foreground: 222 47% 11%; /* Dark text */
+    --sidebar-primary: 208 68% 53%; /* Blue */
+    --sidebar-primary-foreground: 0 0% 100%; /* White */
+    --sidebar-accent: 283 39% 56%; /* Purple */
+    --sidebar-accent-foreground: 0 0% 100%; /* White */
+    --sidebar-border: 220 13% 90%; /* Light gray border */
+    --sidebar-ring: 208 68% 53%; /* Blue */
 
     /* Chart colors (can be adjusted based on new theme) */
-    --chart-1: 27 86% 51%; /* Primary Orange */
-    --chart-2: 208 68% 60%; /* Lighter version of Secondary Blue */
-    --chart-3: 27 86% 70%; /* Lighter Orange */
-    --chart-4: 208 68% 70%; /* Even Lighter Blue */
-    --chart-5: 45 70% 55%; /* A contrasting Yellow/Gold */
+    --chart-1: 208 68% 53%; /* Primary Blue */
+    --chart-2: 283 39% 56%; /* Accent Purple */
+    --chart-3: 27 86% 51%;  /* Orange (from previous dark theme) */
+    --chart-4: 140 60% 50%; /* A Green */
+    --chart-5: 45 70% 55%;  /* A Yellow/Gold */
   }
 
   .dark {
-    /* For now, the dark theme is the same as the default root theme */
-    --background: 220 15% 12%;
-    --foreground: 0 0% 100%;
-
-    --card: 220 15% 18%;
-    --card-foreground: 0 0% 100%;
-
-    --popover: 220 15% 15%;
-    --popover-foreground: 0 0% 100%;
-
-    --primary: 27 86% 51%;
+    /* For now, the dark theme is the same as the :root (light theme) */
+    /* If a proper dark theme is needed later, these values would differ */
+    --background: 216 25% 95%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 208 68% 53%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 208 68% 53%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 220 15% 25%;
-    --muted-foreground: 220 10% 75%;
-
-    --accent: 27 86% 65%;
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 283 39% 56%;
     --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 70% 55%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    --input: 0 0% 100%;
+    --ring: 208 68% 53%;
 
-    --border: 220 15% 30%;
-    --input: 220 15% 22%;
-    --ring: 27 86% 51%;
-
-    --sidebar-background: 220 15% 15%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 27 86% 51%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 208 68% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 27 86% 65%;
+    --sidebar-accent: 283 39% 56%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 27 86% 51%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 208 68% 53%;
     
-    --chart-1: 27 86% 51%;
-    --chart-2: 208 68% 60%;
-    --chart-3: 27 86% 70%;
-    --chart-4: 208 68% 70%;
+    --chart-1: 208 68% 53%;
+    --chart-2: 283 39% 56%;
+    --chart-3: 27 86% 51%;
+    --chart-4: 140 60% 50%;
     --chart-5: 45 70% 55%;
   }
 }
