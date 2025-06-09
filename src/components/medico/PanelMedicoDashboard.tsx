@@ -132,10 +132,10 @@ export function PanelMedicoDashboard() {
         }
         if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
           let fechaVenc: Date;
-          if (typeof p.aptoMedico.fechaVencimiento === 'string') {
-            fechaVenc = parseISO(p.aptoMedico.fechaVencimiento);
-          } else if (p.aptoMedico.fechaVencimiento instanceof Date && isValid(p.aptoMedico.fechaVencimiento)) {
+          if (p.aptoMedico.fechaVencimiento instanceof Date && isValid(p.aptoMedico.fechaVencimiento)) {
             fechaVenc = p.aptoMedico.fechaVencimiento;
+          } else if (typeof p.aptoMedico.fechaVencimiento === 'string' && isValid(parseISO(p.aptoMedico.fechaVencimiento as string))) {
+            fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
           } else {
             return; 
           }
@@ -264,6 +264,8 @@ export function PanelMedicoDashboard() {
 
   useEffect(() => {
     if (searchedPersonDisplay) {
+       // This effect will run if searchedPersonDisplay is already set and underlying data (socios, etc.) changes.
+       // It re-runs the search logic to ensure the displayed person's data is fresh.
        handleSearchPersona();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -455,7 +457,7 @@ export function PanelMedicoDashboard() {
                     </TableHeader>
                     <TableBody>
                         {invitadosIngresadosSinAptoHoy.length === 0 && (
-                            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
+                            <TableRow key="no-invitados-row"><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
                         )}
                         {invitadosIngresadosSinAptoHoy.map(invitado => {
                             const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
@@ -550,4 +552,3 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
-
