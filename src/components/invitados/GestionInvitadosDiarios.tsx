@@ -16,6 +16,7 @@ import { formatDate, generateId } from '@/lib/helpers';
 import { PlusCircle, Trash2, Users, Info, CalendarDays } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid, addDays } from 'date-fns';
+import { es } from 'date-fns/locale'; // Added import
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -134,7 +135,7 @@ export function GestionInvitadosDiarios() {
     if (!authIsLoading) {
       loadSolicitudParaFecha();
     }
-  }, [authIsLoading, loadSolicitudParaFecha, selectedDateISO]); // Added selectedDateISO
+  }, [authIsLoading, loadSolicitudParaFecha, selectedDateISO]); 
 
   useEffect(() => {
     if (loggedInUserNumeroSocio && userName && !authIsLoading) {
@@ -160,7 +161,7 @@ export function GestionInvitadosDiarios() {
         ...data,
         idSocioTitular: loggedInUserNumeroSocio,
         nombreSocioTitular: userName || 'Socio',
-        fecha: selectedDateISO, // Use the selected date
+        fecha: selectedDateISO, 
         id: solicitudActual?.id || data.id || generateId(),
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv,
@@ -364,4 +365,3 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
-
