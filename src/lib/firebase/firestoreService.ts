@@ -47,7 +47,7 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
 export const initializeSociosDB = (): void => {
   if (typeof window === 'undefined') return;
 
-  console.log(`[firestoreService] Initializing/Re-initializing ${KEYS.SOCIOS} from mockData.ts.`);
+  // console.log(`[firestoreService] Initializing/Re-initializing ${KEYS.SOCIOS} from mockData.ts.`);
 
   const sociosToStore = mockSocios.map(socio => {
     const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
@@ -92,14 +92,7 @@ export const initializeSociosDB = (): void => {
         } : undefined,
       })) || [],
     };
-
-    // DEBUG LOG:
-    if (socio.numeroSocio === '1001') {
-      console.log('[firestoreService] Storing Juan Pérez:', processedSocio.fechaNacimiento);
-      processedSocio.grupoFamiliar.forEach(fam => {
-        console.log(`[firestoreService] Storing Familiar ${fam.nombre}:`, fam.fechaNacimiento);
-      });
-    }
+    
     return processedSocio;
   });
   saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
