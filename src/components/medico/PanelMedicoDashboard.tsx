@@ -99,7 +99,7 @@ export function PanelMedicoDashboard() {
             const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
             if (aptoStatus.status !== 'Válido') {
               return {
-                  id: inv.id!, // Use the unique ID of the InvitadoDiario record
+                  id: inv.id!, 
                   nombreCompleto: `${inv.nombre} ${inv.apellido}`,
                   dni: inv.dni,
                   fechaNacimiento: inv.fechaNacimiento,
@@ -139,7 +139,7 @@ export function PanelMedicoDashboard() {
           } else {
             return; 
           }
-          if (!isValid(fechaVenc)) return; // Double check validity after potential parsing
+          if (!isValid(fechaVenc)) return;
 
           const diff = differenceInDays(fechaVenc, today);
           if (diff >= 0 && diff <= 7) {
@@ -266,7 +266,7 @@ export function PanelMedicoDashboard() {
     if (searchedPersonDisplay) {
        handleSearchPersona();
     }
-  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
+  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, searchedPersonDisplay, handleSearchPersona]);
 
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -284,7 +284,7 @@ export function PanelMedicoDashboard() {
 
   const handleOpenRevisionDialogParaInvitado = (invitado: SearchedPersonForPanel) => {
     const personaParaDialog: SearchedPerson = {
-      id: invitado.id, // Use el ID único del invitado para el diálogo.
+      id: invitado.id, 
       nombreCompleto: invitado.nombreCompleto,
       fechaNacimiento: invitado.fechaNacimiento || new Date(0).toISOString(),
       tipo: invitado.tipo,
@@ -456,10 +456,11 @@ export function PanelMedicoDashboard() {
                         {invitadosIngresadosSinAptoHoy.length === 0 && (
                             <TableRow key="no-invitados-row"><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
                         )}
-                        {invitadosIngresadosSinAptoHoy.map(invitado => {
+                        {invitadosIngresadosSinAptoHoy.map((invitado, index) => {
                             const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
+                            const key = `invitado-${invitado.id || 'no-id'}-${invitado.dni || 'no-dni'}-${index}`;
                             return (
-                                <TableRow key={invitado.id}>
+                                <TableRow key={key}>
                                     <TableCell className="font-medium">{invitado.nombreCompleto}</TableCell>
                                     <TableCell>{invitado.dni}</TableCell>
                                     <TableCell>{invitado.socioAnfitrionNombre} (N°{invitado.socioAnfitrionNumero})</TableCell>
@@ -549,3 +550,4 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
