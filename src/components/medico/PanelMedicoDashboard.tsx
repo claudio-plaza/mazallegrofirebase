@@ -44,7 +44,7 @@ export interface SearchedPersonForPanel {
 export function PanelMedicoDashboard() {
   const [socios, setSocios] = useState<Socio[]>([]);
   const [revisiones, setRevisiones] = useState<RevisionMedica[]>([]);
-  const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<InvitadoDiario[]>([]);
+  const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<(InvitadoDiario & { idSocioAnfitrion?: string })[]>([]);
   const [mapaSociosAnfitriones, setMapaSociosAnfitriones] = useState<Record<string, {nombre: string, numeroSocio: string}>>({});
   const [invitadosIngresadosSinAptoHoy, setInvitadosIngresadosSinAptoHoy] = useState<SearchedPersonForPanel[]>([]);
   const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPerson | null>(null);
@@ -99,7 +99,7 @@ export function PanelMedicoDashboard() {
             const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
             if (aptoStatus.status !== 'Válido') {
               return {
-                  id: inv.dni,
+                  id: inv.id!, // Use the unique ID of the InvitadoDiario record
                   nombreCompleto: `${inv.nombre} ${inv.apellido}`,
                   dni: inv.dni,
                   fechaNacimiento: inv.fechaNacimiento,
@@ -139,7 +139,7 @@ export function PanelMedicoDashboard() {
           } else {
             return; 
           }
-          if (!isValid(fechaVenc)) return;
+          if (!isValid(fechaVenc)) return; // Double check validity after potential parsing
 
           const diff = differenceInDays(fechaVenc, today);
           if (diff >= 0 && diff <= 7) {
@@ -240,7 +240,7 @@ export function PanelMedicoDashboard() {
         if (invitado) {
             const anfitrion = mapaSociosAnfitriones[invitado.idSocioAnfitrion!];
             found = {
-                id: invitado.dni,
+                id: invitado.id!,
                 nombreCompleto: `${invitado.nombre} ${invitado.apellido}`,
                 dni: invitado.dni,
                 fechaNacimiento: invitado.fechaNacimiento,
@@ -264,11 +264,8 @@ export function PanelMedicoDashboard() {
 
   useEffect(() => {
     if (searchedPersonDisplay) {
-       // This effect will run if searchedPersonDisplay is already set and underlying data (socios, etc.) changes.
-       // It re-runs the search logic to ensure the displayed person's data is fresh.
        handleSearchPersona();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
 
 
@@ -287,7 +284,7 @@ export function PanelMedicoDashboard() {
 
   const handleOpenRevisionDialogParaInvitado = (invitado: SearchedPersonForPanel) => {
     const personaParaDialog: SearchedPerson = {
-      id: invitado.id,
+      id: invitado.id, // Use el ID único del invitado para el diálogo.
       nombreCompleto: invitado.nombreCompleto,
       fechaNacimiento: invitado.fechaNacimiento || new Date(0).toISOString(),
       tipo: invitado.tipo,
