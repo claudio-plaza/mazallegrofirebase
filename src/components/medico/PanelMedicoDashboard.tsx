@@ -45,7 +45,7 @@ export function PanelMedicoDashboard() {
   const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<InvitadoDiario[]>([]);
   const [mapaSociosAnfitriones, setMapaSociosAnfitriones] = useState<Record<string, {nombre: string, numeroSocio: string}>>({});
   const [invitadosIngresadosSinAptoHoy, setInvitadosIngresadosSinAptoHoy] = useState<SearchedPersonForPanel[]>([]);
-  const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPersonForPanel | null>(null);
+  const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPerson | null>(null);
 
 
   const [stats, setStats] = useState<Stats>({
@@ -93,20 +93,25 @@ export function PanelMedicoDashboard() {
     setInvitadosDiariosHoy(invitadosDeHoyRaw);
     
     const invitadosQueIngresaronHoyConInfoCompleta = invitadosDeHoyRaw
-      .filter(inv => inv.ingresado)
+      .filter(inv => inv.ingresado) // Filtrar solo los que ingresaron
       .map(inv => {
           const anfitrion = anfitrionesMap[inv.idSocioAnfitrion!];
-          return {
-              id: inv.dni,
-              nombreCompleto: `${inv.nombre} ${inv.apellido}`,
-              dni: inv.dni,
-              fechaNacimiento: inv.fechaNacimiento,
-              aptoMedico: inv.aptoMedico,
-              tipo: 'Invitado Diario' as TipoPersona,
-              socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
-              socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
-          };
-      });
+          const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
+          // Incluir solo si el apto no es válido o es un invitado sin apto
+          if (aptoStatus.status !== 'Válido') {
+            return {
+                id: inv.dni,
+                nombreCompleto: `${inv.nombre} ${inv.apellido}`,
+                dni: inv.dni,
+                fechaNacimiento: inv.fechaNacimiento,
+                aptoMedico: inv.aptoMedico,
+                tipo: 'Invitado Diario' as TipoPersona,
+                socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
+                socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
+            };
+          }
+          return null; 
+      }).filter(Boolean) as SearchedPersonForPanel[]; // Filtrar nulls
     setInvitadosIngresadosSinAptoHoy(invitadosQueIngresaronHoyConInfoCompleta);
     
     const revHoy = revisionesData.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
@@ -245,12 +250,9 @@ export function PanelMedicoDashboard() {
   }, [searchTerm, socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
 
   useEffect(() => {
-    // This effect refreshes the searched person's data if the underlying data sources change
-    // while a person is being displayed.
     if (searchedPersonDisplay) {
        handleSearchPersona();
     }
-  // IMPORTANT FIX: Removed searchedPersonDisplay from dependencies to prevent infinite loop
   }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona]);
 
 
@@ -309,7 +311,7 @@ export function PanelMedicoDashboard() {
         <h1 className="text-3xl font-bold flex items-center"><Stethoscope className="mr-3 h-8 w-8 text-primary"/>Panel Médico</h1>
         <NuevaRevisionDialog
             onRevisionGuardada={loadData}
-            open={isDialogOpen && !!selectedInvitadoParaRevision}
+            open={isDialogOpen}
             onOpenChange={(open) => {
                 setIsDialogOpen(open);
                 if (!open) setSelectedInvitadoParaRevision(null);
@@ -318,7 +320,14 @@ export function PanelMedicoDashboard() {
             bloquearBusqueda={!!selectedInvitadoParaRevision}
         />
         {!selectedInvitadoParaRevision && (
-             <Button onClick={() => setIsDialogOpen(true)}><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión (Búsqueda)</Button>
+             <Button 
+                onClick={() => {
+                    setSelectedInvitadoParaRevision(null);
+                    setIsDialogOpen(true);
+                }}
+             >
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario
+             </Button>
         )}
       </div>
 
@@ -534,3 +543,5 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
+    
