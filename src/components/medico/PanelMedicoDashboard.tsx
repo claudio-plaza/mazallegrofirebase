@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog, type SearchedPerson } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { parseISO, isToday, isSameMonth, differenceInDays, formatISO } from 'date-fns';
-import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit, CheckCircle2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -521,4 +521,5 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
 
