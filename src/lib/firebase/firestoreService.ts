@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig } from '@/types';
@@ -46,73 +47,55 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
 export const initializeSociosDB = (): void => {
   if (typeof window === 'undefined') return;
 
-  let shouldInitialize = false;
-  const existingDataString = localStorage.getItem(KEYS.SOCIOS);
+  // Always initialize from mockSocios for development to ensure data freshness
+  console.log(`Initializing/Re-initializing ${KEYS.SOCIOS} from mockData.ts.`);
 
-  if (!existingDataString) {
-    shouldInitialize = true;
-    console.log(`${KEYS.SOCIOS} not found in localStorage. Initializing.`);
-  } else {
-    try {
-      const existingData = JSON.parse(existingDataString);
-      if (!Array.isArray(existingData) || existingData.length === 0) {
-        shouldInitialize = true;
-        console.log(`${KEYS.SOCIOS} found but is empty or not an array. Re-initializing.`);
-      }
-    } catch (e) {
-      shouldInitialize = true;
-      console.warn(`Data for ${KEYS.SOCIOS} in localStorage was corrupted. Re-initializing. Error:`, e);
-    }
-  }
+  const sociosToStore = mockSocios.map(socio => {
+    const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
+      if (dateField instanceof Date) return dateField.toISOString();
+      if (typeof dateField === 'string') return dateField; // Assume already ISO string
+      return undefined;
+    };
+    const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
+      if (dateField instanceof Date) return dateField.toISOString();
+      if (typeof dateField === 'string') return dateField;
+      return new Date(0).toISOString(); // Default to epoch if undefined/null
+    };
 
-  if (shouldInitialize) {
-    const sociosToStore = mockSocios.map(socio => {
-      const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
-        if (dateField instanceof Date) return dateField.toISOString();
-        if (typeof dateField === 'string') return dateField; // Assume already ISO string
-        return undefined;
-      };
-      const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
-        if (dateField instanceof Date) return dateField.toISOString();
-        if (typeof dateField === 'string') return dateField;
-        return new Date(0).toISOString(); // Default to epoch if undefined/null
-      };
-
-      return {
-      ...socio,
-      fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
-      miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
-      ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
-      aptoMedico: socio.aptoMedico ? {
-          ...socio.aptoMedico,
-          fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
-          fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
+    return {
+    ...socio,
+    fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
+    miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
+    ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
+    aptoMedico: socio.aptoMedico ? {
+        ...socio.aptoMedico,
+        fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
+        fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
+    } : undefined,
+    grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
+      ...familiar,
+      fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
+      aptoMedico: familiar.aptoMedico ? {
+          ...familiar.aptoMedico,
+          fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
+          fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
       } : undefined,
-      grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
-        ...familiar,
-        fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
-        aptoMedico: familiar.aptoMedico ? {
-            ...familiar.aptoMedico,
-            fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
-            fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
-        } : undefined,
-      })) || [],
-      adherentes: socio.adherentes?.map(adherente => ({
-        ...adherente,
-        fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
-        aptoMedico: adherente.aptoMedico ? {
-            ...adherente.aptoMedico,
-            fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
-            fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
-        } : undefined,
-      })) || [],
-      // Ensure all other potential Date fields are stringified
-      // cambiosPendientesGrupoFamiliar and its nested dates would also need similar treatment if they were part of mockSocios directly
-      // For now, mockSocios doesn't have cambiosPendientesGrupoFamiliar pre-filled with dates.
-      };
-    });
-    saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
-  }
+    })) || [],
+    adherentes: socio.adherentes?.map(adherente => ({
+      ...adherente,
+      fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
+      aptoMedico: adherente.aptoMedico ? {
+          ...adherente.aptoMedico,
+          fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
+          fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
+      } : undefined,
+    })) || [],
+    // Ensure all other potential Date fields are stringified
+    // cambiosPendientesGrupoFamiliar and its nested dates would also need similar treatment if they were part of mockSocios directly
+    // For now, mockSocios doesn't have cambiosPendientesGrupoFamiliar pre-filled with dates.
+    };
+  });
+  saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
 };
 
 export const initializeRevisionesDB = (): void => {
@@ -599,3 +582,5 @@ if (typeof window !== 'undefined') {
     initializePreciosInvitadosDB();
 }
 isValid(new Date()); // Keep this import for date-fns
+
+    
