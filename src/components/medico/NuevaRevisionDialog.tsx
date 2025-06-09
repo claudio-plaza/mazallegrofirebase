@@ -33,12 +33,12 @@ const revisionSchema = z.object({
 
 type RevisionFormValues = z.infer<typeof revisionSchema>;
 
-interface SearchedPerson {
-  id: string;
+export interface SearchedPerson {
+  id: string; // DNI para familiares/adherentes/invitados, numeroSocio para titulares
   nombreCompleto: string;
   fechaNacimiento: string | Date;
   tipo: TipoPersona;
-  socioTitularId?: string;
+  socioTitularId?: string; // numeroSocio del titular asociado
   aptoMedicoActual?: AptoMedicoInfo;
   fechaVisitaInvitado?: string; // ISO date string for daily guests
 }
@@ -47,9 +47,17 @@ interface NuevaRevisionDialogProps {
   onRevisionGuardada: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  personaPreseleccionada?: SearchedPerson | null;
+  bloquearBusqueda?: boolean;
 }
 
-export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, onOpenChange: controlledOnOpenChange }: NuevaRevisionDialogProps) {
+export function NuevaRevisionDialog({
+  onRevisionGuardada,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  personaPreseleccionada,
+  bloquearBusqueda = false
+}: NuevaRevisionDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const onOpenChange = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
@@ -91,6 +99,23 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     }
   }, [searchedPerson]);
 
+  useEffect(() => {
+    if (open) {
+      if (personaPreseleccionada) {
+        setSearchedPerson(personaPreseleccionada);
+        setSearchTerm(`${personaPreseleccionada.nombreCompleto} (DNI: ${personaPreseleccionada.id})`);
+        setSearchMessage('');
+        form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
+      } else {
+        form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
+        setSearchedPerson(null);
+        setSearchTerm('');
+        setSearchMessage('');
+        setIsUnderThree(false);
+      }
+    }
+  }, [open, personaPreseleccionada, form]);
+
 
   const handleSearchSocio = async () => {
     if (!searchTerm.trim()) {
@@ -103,15 +128,15 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     const todayISO = formatISO(new Date(), { representation: 'date' });
     
     let personFound: SearchedPerson | null = null;
+    const term = searchTerm.trim().toLowerCase();
 
     if (storedSocios) {
       const socios: Socio[] = JSON.parse(storedSocios);
-      const term = searchTerm.trim().toLowerCase();
 
       for (const socio of socios) {
         if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
           personFound = {
-            id: socio.numeroSocio,
+            id: socio.numeroSocio, // Usar numeroSocio como ID para titulares
             nombreCompleto: `${socio.nombre} ${socio.apellido}`,
             fechaNacimiento: socio.fechaNacimiento,
             tipo: 'Socio Titular',
@@ -122,7 +147,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
         if (familiarFound) {
           personFound = {
-            id: familiarFound.dni,
+            id: familiarFound.dni, // Usar DNI como ID para familiares
             nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
             fechaNacimiento: familiarFound.fechaNacimiento,
             tipo: 'Familiar',
@@ -134,7 +159,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
         if (adherenteFound) {
            personFound = {
-            id: adherenteFound.dni,
+            id: adherenteFound.dni, // Usar DNI como ID para adherentes
             nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
             fechaNacimiento: adherenteFound.fechaNacimiento,
             tipo: 'Adherente',
@@ -147,19 +172,19 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     }
 
     if (!personFound && storedInvitadosDiarios) {
-        const solicitudesHoy: SolicitudInvitadosDiarios[] = JSON.parse(storedInvitadosDiarios)
-            .filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
+        const todasSolicitudes: SolicitudInvitadosDiarios[] = JSON.parse(storedInvitadosDiarios);
+        const solicitudesHoy = todasSolicitudes.filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
         
         for (const solicitud of solicitudesHoy) {
             const invitadoFound = solicitud.listaInvitadosDiarios.find(inv => 
-                inv.dni.toLowerCase() === searchTerm.trim().toLowerCase() || 
-                `${inv.nombre.toLowerCase()} ${inv.apellido.toLowerCase()}`.includes(searchTerm.trim().toLowerCase())
+                inv.dni.toLowerCase() === term || 
+                `${inv.nombre.toLowerCase()} ${inv.apellido.toLowerCase()}`.includes(term)
             );
             if (invitadoFound) {
                 personFound = {
-                    id: invitadoFound.dni,
+                    id: invitadoFound.dni, // Usar DNI como ID para invitados
                     nombreCompleto: `${invitadoFound.nombre} ${invitadoFound.apellido}`,
-                    fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0).toISOString(), // Default if undefined
+                    fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0).toISOString(),
                     tipo: 'Invitado Diario',
                     socioTitularId: solicitud.idSocioTitular,
                     aptoMedicoActual: invitadoFound.aptoMedico || undefined,
@@ -193,7 +218,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: formatISO(data.fechaRevision),
-      socioId: searchedPerson.id,
+      socioId: searchedPerson.id, // Este es el DNI para familiares/adherentes/invitados, o numeroSocio para titulares
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
       idSocioAnfitrion: searchedPerson.tipo === 'Invitado Diario' ? searchedPerson.socioTitularId : undefined,
@@ -212,7 +237,7 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
     };
 
     try {
-        await addRevisionMedica(nuevaRevision); // This now also handles socio/familiar/adherente updates.
+        await addRevisionMedica(nuevaRevision);
 
         if (searchedPerson.tipo === 'Invitado Diario' && searchedPerson.socioTitularId && searchedPerson.fechaVisitaInvitado) {
             const solicitud = await getSolicitudInvitadosDiarios(searchedPerson.socioTitularId, searchedPerson.fechaVisitaInvitado);
@@ -225,9 +250,8 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
                  console.error("No se encontró la solicitud de invitados diarios para actualizar el apto del invitado.");
                  toast({ title: "Advertencia", description: "Se guardó la revisión, pero no se encontró la lista de invitados para actualizar el apto del invitado directamente.", variant: "default"});
             }
-        } else if (['Socio Titular', 'Familiar', 'Adherente'].includes(searchedPerson.tipo)) {
-            // This logic is now inside addRevisionMedica, but we ensure sociosDBUpdated is fired from there.
         }
+        // La lógica para actualizar Socio/Familiar/Adherente ya está en addRevisionMedica -> updateSocio
 
         toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
         onRevisionGuardada();
@@ -243,17 +267,6 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
   };
 
   const currentPersonAptoStatus = searchedPerson ? getAptoMedicoStatus(searchedPerson.aptoMedicoActual, searchedPerson.fechaNacimiento) : null;
-
-  useEffect(() => {
-    if (!open) {
-      form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
-      setSearchedPerson(null);
-      setSearchTerm('');
-      setSearchMessage('');
-      setIsUnderThree(false);
-    }
-  }, [open, form]);
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -272,20 +285,22 @@ export function NuevaRevisionDialog({ onRevisionGuardada, open: controlledOpen, 
         </DialogHeader>
         
         <div className="space-y-4 pt-4 pb-2">
-          <div>
-            <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Persona (N° Socio, DNI, Nombre o Apellido)</Label>
-            <div className="flex gap-2 items-center mt-1">
-                <Input
-                    id="searchSocio"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Ej: S00123, 30123456 o Juan Pérez"
-                    className="flex-grow"
-                />
-                <Button onClick={handleSearchSocio} type="button" variant="outline" size="icon" className="shrink-0"><Search className="h-4 w-4" /></Button>
+          {!bloquearBusqueda && (
+            <div>
+              <Label htmlFor="searchSocio" className="text-sm font-medium">Buscar Persona (N° Socio, DNI, Nombre o Apellido)</Label>
+              <div className="flex gap-2 items-center mt-1">
+                  <Input
+                      id="searchSocio"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Ej: S00123, 30123456 o Juan Pérez"
+                      className="flex-grow"
+                  />
+                  <Button onClick={handleSearchSocio} type="button" variant="outline" size="icon" className="shrink-0"><Search className="h-4 w-4" /></Button>
+              </div>
             </div>
-          </div>
-          {searchMessage && <p className="text-sm text-destructive">{searchMessage}</p>}
+          )}
+          {searchMessage && !bloquearBusqueda && <p className="text-sm text-destructive">{searchMessage}</p>}
 
           {searchedPerson && (
             <Card className="p-3 bg-muted/30">

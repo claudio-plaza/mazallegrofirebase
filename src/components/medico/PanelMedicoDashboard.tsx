@@ -2,17 +2,17 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import type { Socio, RevisionMedica, SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
+import type { Socio, RevisionMedica, SolicitudInvitadosDiarios, InvitadoDiario, TipoPersona } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NuevaRevisionDialog } from './NuevaRevisionDialog';
+import { NuevaRevisionDialog, type SearchedPerson } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { parseISO, isToday, isSameMonth, differenceInDays, formatISO } from 'date-fns';
-import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -25,15 +25,15 @@ interface Stats {
   revisionesEsteMes: number;
 }
 
-interface SearchedPersonForPanel {
-  id: string;
+export interface SearchedPersonForPanel {
+  id: string; // DNI para familiares/adherentes/invitados, numeroSocio para titulares
   nombreCompleto: string;
   dni?: string;
   numeroSocio?: string;
   fechaNacimiento?: string | Date;
   fotoUrl?: string;
-  aptoMedico?: any; // Podría ser AptoMedicoInfo o el aptoMedico de InvitadoDiario
-  tipo: 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado Diario';
+  aptoMedico?: any; 
+  tipo: TipoPersona;
   socioAnfitrionNombre?: string;
   socioAnfitrionNumero?: string;
 }
@@ -44,6 +44,9 @@ export function PanelMedicoDashboard() {
   const [revisiones, setRevisiones] = useState<RevisionMedica[]>([]);
   const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<InvitadoDiario[]>([]);
   const [mapaSociosAnfitriones, setMapaSociosAnfitriones] = useState<Record<string, {nombre: string, numeroSocio: string}>>({});
+  const [invitadosIngresadosSinAptoHoy, setInvitadosIngresadosSinAptoHoy] = useState<SearchedPersonForPanel[]>([]);
+  const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPersonForPanel | null>(null);
+
 
   const [stats, setStats] = useState<Stats>({
     revisionesHoy: 0,
@@ -84,24 +87,41 @@ export function PanelMedicoDashboard() {
 
     const storedInvitados = localStorage.getItem('invitadosDiariosDB');
     const todasSolicitudesInvitados: SolicitudInvitadosDiarios[] = storedInvitados ? JSON.parse(storedInvitados) : [];
-    const invitadosDeHoy = todasSolicitudesInvitados
+    const invitadosDeHoyRaw = todasSolicitudesInvitados
         .filter(sol => sol.fecha === todayISO)
         .flatMap(sol => sol.listaInvitadosDiarios.map(inv => ({...inv, idSocioAnfitrion: sol.idSocioTitular})));
-    setInvitadosDiariosHoy(invitadosDeHoy);
+    setInvitadosDiariosHoy(invitadosDeHoyRaw);
+    
+    const invitadosQueIngresaronHoyConInfoCompleta = invitadosDeHoyRaw
+      .filter(inv => inv.ingresado)
+      .map(inv => {
+          const anfitrion = anfitrionesMap[inv.idSocioAnfitrion!];
+          return {
+              id: inv.dni,
+              nombreCompleto: `${inv.nombre} ${inv.apellido}`,
+              dni: inv.dni,
+              fechaNacimiento: inv.fechaNacimiento,
+              aptoMedico: inv.aptoMedico,
+              tipo: 'Invitado Diario' as TipoPersona,
+              socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
+              socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
+          };
+      });
+    setInvitadosIngresadosSinAptoHoy(invitadosQueIngresaronHoyConInfoCompleta);
     
     const revHoy = revisionesData.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
     
     let aptosPendVenc = 0;
     let vencProximos = 0;
 
-    const allPeople = [
-        ...sociosData.map(s => ({...s, tipo: 'Socio Titular'})),
-        ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar', socioTitularId: s.id })) || []),
-        ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente', socioTitularId: s.id })) || []),
-        ...invitadosDeHoy.map(i => ({...i, tipo: 'Invitado Diario'}))
+    const allPeopleForStats = [
+        ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona})),
+        ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio })) || []),
+        ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio })) || []),
+        ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona}))
     ];
 
-    allPeople.forEach(p => {
+    allPeopleForStats.forEach(p => {
       const status = getAptoMedicoStatus(p.aptoMedico, p.fechaNacimiento as string | Date);
       if (status.status === 'Vencido' || status.status === 'Inválido' || status.status === 'Pendiente') {
         aptosPendVenc++;
@@ -154,7 +174,7 @@ export function PanelMedicoDashboard() {
     for (const socio of socios) {
       if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
         found = {
-          id: socio.id,
+          id: socio.numeroSocio,
           nombreCompleto: `${socio.nombre} ${socio.apellido}`,
           dni: socio.dni,
           numeroSocio: socio.numeroSocio,
@@ -231,10 +251,9 @@ export function PanelMedicoDashboard() {
 
   useEffect(() => {
     if (searchedPersonDisplay) {
-       handleSearchPersona(); // Re-search to refresh data if socio list changed
+       handleSearchPersona(); 
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socios, invitadosDiariosHoy]);
+  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona, searchedPersonDisplay]);
 
 
   const handleViewRevision = (revisionId: string) => {
@@ -242,6 +261,11 @@ export function PanelMedicoDashboard() {
       title: 'Función no implementada',
       description: `Ver detalles de revisión ${revisionId} (simulado).`,
     });
+  };
+
+  const handleOpenRevisionDialogParaInvitado = (invitado: SearchedPersonForPanel) => {
+    setSelectedInvitadoParaRevision(invitado);
+    setIsDialogOpen(true);
   };
 
   if (loading) {
@@ -270,7 +294,19 @@ export function PanelMedicoDashboard() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold flex items-center"><Stethoscope className="mr-3 h-8 w-8 text-primary"/>Panel Médico</h1>
-        <NuevaRevisionDialog onRevisionGuardada={loadData} open={isDialogOpen} onOpenChange={setIsDialogOpen} />
+        <NuevaRevisionDialog
+            onRevisionGuardada={loadData}
+            open={isDialogOpen && !!selectedInvitadoParaRevision}
+            onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) setSelectedInvitadoParaRevision(null);
+            }}
+            personaPreseleccionada={selectedInvitadoParaRevision}
+            bloquearBusqueda={!!selectedInvitadoParaRevision}
+        />
+        {!selectedInvitadoParaRevision && (
+             <Button onClick={() => setIsDialogOpen(true)}><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión (Búsqueda)</Button>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -289,7 +325,7 @@ export function PanelMedicoDashboard() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center"><Search className="mr-2 h-6 w-6 text-primary"/>Buscar Persona</CardTitle>
+          <CardTitle className="flex items-center"><Search className="mr-2 h-6 w-6 text-primary"/>Buscar Persona (General)</CardTitle>
           <CardDescription>Ingrese N° Socio, DNI o Nombre para verificar su apto médico (socios, familiares, adherentes o invitados de hoy).</CardDescription>
           <div className="flex space-x-2 pt-4">
             <Input
@@ -370,6 +406,55 @@ export function PanelMedicoDashboard() {
           </CardContent>
         )}
       </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+            <CardTitle className="flex items-center"><UserRound className="mr-2 h-6 w-6 text-primary"/>Invitados del Día Ingresados (Hoy)</CardTitle>
+            <CardDescription>Lista de invitados que han registrado su ingreso hoy. Puede registrar o actualizar su revisión médica desde aquí.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <ScrollArea className="h-[300px] w-full">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Invitado</TableHead>
+                            <TableHead>DNI</TableHead>
+                            <TableHead>Anfitrión</TableHead>
+                            <TableHead>Apto Médico (Hoy)</TableHead>
+                            <TableHead className="text-right">Acción</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {invitadosIngresadosSinAptoHoy.length === 0 && (
+                            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
+                        )}
+                        {invitadosIngresadosSinAptoHoy.map(invitado => {
+                            const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
+                            return (
+                                <TableRow key={invitado.id}>
+                                    <TableCell className="font-medium">{invitado.nombreCompleto}</TableCell>
+                                    <TableCell>{invitado.dni}</TableCell>
+                                    <TableCell>{invitado.socioAnfitrionNombre} (N°{invitado.socioAnfitrionNumero})</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={`${aptoStatusInvitado.colorClass} border-current font-medium`}>
+                                            {aptoStatusInvitado.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => handleOpenRevisionDialogParaInvitado(invitado)}>
+                                            <FileEdit className="mr-1.5 h-4 w-4"/>
+                                            Revisión
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </CardContent>
+      </Card>
+
 
       <Card className="shadow-lg">
         <CardHeader>
