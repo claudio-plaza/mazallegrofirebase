@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby } from 'lucide-react'; // Changed Child to Baby
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -32,13 +32,13 @@ type DisplayablePerson = {
   dni: string;
   fotoUrl?: string;
   aptoMedico?: AptoMedicoInfo;
-  fechaNacimiento?: string | Date; // Added for age check
-  estadoSocioTitular?: Socio['estadoSocio']; // Estado del titular al que pertenece
+  fechaNacimiento?: string | Date;
+  estadoSocioTitular?: Socio['estadoSocio'];
   relacion?: string;
   isTitular: boolean;
   isFamiliar: boolean;
   isAdherente: boolean;
-  estadoAdherente?: Adherente['estadoAdherente']; // Solo para adherentes
+  estadoAdherente?: Adherente['estadoAdherente'];
 };
 
 type FestejoHoy = SolicitudCumpleanos & {
@@ -209,34 +209,42 @@ export function ControlAcceso() {
 
     let puedeIngresar = false;
     let mensajeIngreso = '';
+    let mensajeAdvertenciaApto = '';
     const aptoStatus = getAptoMedicoStatus(member.aptoMedico, member.fechaNacimiento);
 
     if (member.isTitular || member.isFamiliar) {
-      if (socioEncontrado.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) {
+      if (socioEncontrado.estadoSocio === 'Activo') {
         puedeIngresar = true;
-        mensajeIngreso = `Acceso permitido para ${member.nombreCompleto} (${member.relacion}). Apto Médico: ${aptoStatus.status}.`;
-      } else if (socioEncontrado.estadoSocio !== 'Activo') {
+        mensajeIngreso = `Acceso permitido para ${member.nombreCompleto} (${member.relacion}).`;
+        if (aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
+          mensajeAdvertenciaApto = ` ADVERTENCIA: Apto Médico ${aptoStatus.status}. ${aptoStatus.message}`;
+        } else {
+          mensajeAdvertenciaApto = ` Apto Médico: ${aptoStatus.status}.`;
+        }
+      } else {
         mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
-      } else { // Titular activo pero apto no válido
-        mensajeIngreso = `Acceso Denegado. ${member.nombreCompleto} (${member.relacion}) tiene Apto Médico ${aptoStatus.status}. ${aptoStatus.message}.`;
       }
     } else if (member.isAdherente) {
-      if (socioEncontrado.estadoSocio === 'Activo' && member.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) {
+      if (socioEncontrado.estadoSocio === 'Activo' && member.estadoAdherente === 'Activo') {
         puedeIngresar = true;
-        mensajeIngreso = `Acceso permitido para Adherente: ${member.nombreCompleto}. Apto Médico: ${aptoStatus.status}.`;
+        mensajeIngreso = `Acceso permitido para Adherente: ${member.nombreCompleto}.`;
+        if (aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
+          mensajeAdvertenciaApto = ` ADVERTENCIA: Apto Médico ${aptoStatus.status}. ${aptoStatus.message}`;
+        } else {
+          mensajeAdvertenciaApto = ` Apto Médico: ${aptoStatus.status}.`;
+        }
       } else if (socioEncontrado.estadoSocio !== 'Activo') {
         mensajeIngreso = `Acceso Denegado. Socio titular ${socioEncontrado.nombre} ${socioEncontrado.apellido} está ${socioEncontrado.estadoSocio}.`;
       } else if (member.estadoAdherente !== 'Activo') {
         mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} está ${member.estadoAdherente}.`;
-      } else { // Titular y adherente activos, pero apto no válido
-        mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} tiene Apto Médico ${aptoStatus.status}. ${aptoStatus.message}.`;
       }
     }
 
     toast({
       title: puedeIngresar ? 'Ingreso Registrado' : 'Acceso Denegado',
-      description: mensajeIngreso,
-      variant: puedeIngresar ? 'default' : 'destructive',
+      description: `${mensajeIngreso}${mensajeAdvertenciaApto}`,
+      variant: puedeIngresar ? (mensajeAdvertenciaApto.includes('ADVERTENCIA') ? 'default' : 'default') : 'destructive', // 'default' para advertencia, 'success' podría ser otra opción
+      duration: mensajeAdvertenciaApto.includes('ADVERTENCIA') || !puedeIngresar ? 7000 : 5000,
     });
 
     if (puedeIngresar && (member.isTitular || member.isFamiliar)) {
@@ -289,7 +297,7 @@ export function ControlAcceso() {
             const edad = differenceInYears(new Date(), parseISO(invitadoInfo.fechaNacimiento as unknown as string));
             if (edad < 3) {
                 esMenorDeTresSinCosto = true;
-                metodoPagoSeleccionado = null; // No se cobra, no hay método de pago
+                metodoPagoSeleccionado = null;
             }
         }
     }
@@ -298,7 +306,6 @@ export function ControlAcceso() {
         toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado.", variant: "destructive" });
         return;
     }
-    // Para cumpleaños, el método de pago es siempre requerido (a menos que se cambie la lógica)
     if (tipoInvitado === 'cumpleanos' && !metodoPagoSeleccionado) {
         toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado de cumpleaños.", variant: "destructive" });
         return;
@@ -323,7 +330,7 @@ export function ControlAcceso() {
           toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
           return;
         }
-    } else { // tipoInvitado === 'diario'
+    } else { 
         if (!solicitudInvitadosDiariosHoySocioBuscado) return;
         targetInvitados = invitadosDiariosSocioBuscado;
         targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
@@ -374,7 +381,7 @@ export function ControlAcceso() {
             toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
         }
     }
-    setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null })); // Reset selection for this guest
+    setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
   };
 
   const getMetodoPagoBadge = (metodo: MetodoPagoInvitado | null | undefined, esGratuito?: boolean) => {
@@ -443,7 +450,7 @@ export function ControlAcceso() {
     });
     socioEncontrado.adherentes?.forEach(adh => {
       displayablePeople.push({
-        id: adh.id || adh.dni, // Use DNI if ID is undefined
+        id: adh.id || adh.dni,
         nombreCompleto: `${adh.nombre} ${adh.apellido}`,
         dni: adh.dni,
         fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`),
@@ -493,8 +500,13 @@ export function ControlAcceso() {
                 <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
             </div>
         );
-        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica') ? 'border-green-400' : 'border-red-400';
-        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica');
+        // Titular/Familiar puede ingresar si el titular está activo. El estado del apto es informativo/advertencia.
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
+        cardBorderClass = socioEncontrado?.estadoSocio === 'Activo' ? 'border-green-400' : 'border-red-400';
+        if (socioEncontrado?.estadoSocio === 'Activo' && aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
+            cardBorderClass = 'border-orange-400'; // Borde naranja si hay advertencia de apto pero puede ingresar
+        }
+
     } else if (person.isAdherente) {
         statusBadge = <Badge variant={person.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={person.estadoAdherente === 'Activo' ? 'bg-green-500' : 'bg-slate-500'}>{person.estadoAdherente}</Badge>;
          aptoMedicoDisplay = (
@@ -502,8 +514,12 @@ export function ControlAcceso() {
                 <span className="font-medium">Apto Médico (Adh.): {aptoStatus.status}.</span> {aptoStatus.message}.
             </div>
         );
-        cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica')) ? 'border-green-300' : 'border-red-300';
-        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && (aptoStatus.status === 'Válido' || aptoStatus.status === 'No Aplica');
+        // Adherente puede ingresar si él está activo y el titular también. El estado del apto es informativo/advertencia.
+        puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo';
+        cardBorderClass = (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo') ? 'border-green-300' : 'border-red-300';
+        if (socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo' && aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica') {
+             cardBorderClass = 'border-orange-300'; // Borde naranja si hay advertencia de apto pero puede ingresar
+        }
     }
 
     const fotoToShow = person.fotoUrl || `https://placehold.co/60x60.png?text=${person.nombreCompleto[0]}${person.nombreCompleto.split(' ')[1]?.[0] || ''}`;
@@ -860,3 +876,4 @@ export function ControlAcceso() {
   );
 }
 
+    
