@@ -28,7 +28,7 @@ export function VistaPerfilSocio() {
 
   const fetchSocioData = useCallback(async () => {
     if (authLoading || !loggedInUserNumeroSocio) {
-      if (!authLoading) setLoading(false); 
+      if (!authLoading) setLoading(false);
       return;
     }
     setLoading(true);
@@ -96,7 +96,7 @@ export function VistaPerfilSocio() {
         </div>
     ) : null
   );
-  
+
   const ProfileSection = ({ title, icon: Icon, children }: { title: string, icon: React.ElementType, children: React.ReactNode }) => (
     <section className="space-y-3">
         <h3 className="text-lg font-semibold flex items-center text-primary mb-3">
@@ -127,7 +127,7 @@ export function VistaPerfilSocio() {
           </div>
         </CardHeader>
         <CardContent className="p-6 sm:p-8 space-y-8">
-            
+
             {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
                 <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-700">
                     <MailQuestion className="h-5 w-5" />
@@ -138,7 +138,7 @@ export function VistaPerfilSocio() {
                 </Alert>
             )}
             {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.RECHAZADO && (
-                 <Alert variant="destructive">
+                 <Alert variant="destructive" className="mt-4">
                     <XSquare className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud de Cambio Rechazada</AlertTitle>
                     <AlertDescription>
@@ -176,8 +176,8 @@ export function VistaPerfilSocio() {
                             {(aptoStatusTitular.status === 'Vencido' || aptoStatusTitular.status === 'Inválido') && <ShieldAlert className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                             {aptoStatusTitular.status === 'Pendiente' && <AlertTriangle className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                             {aptoStatusTitular.status === 'No Aplica' && <Info className={`h-5 w-5 mr-2 ${aptoStatusTitular.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                            <Badge 
-                                variant="outline" 
+                            <Badge
+                                variant="outline"
                                 className={cn(
                                     "text-sm",
                                     aptoStatusTitular.status === 'Válido' ? "text-green-700" :
@@ -202,7 +202,7 @@ export function VistaPerfilSocio() {
                     </Card>
                 </div>
             </ProfileSection>
-          
+
             {socio.grupoFamiliar && socio.grupoFamiliar.length > 0 && (
                 <>
                 <Separator />
@@ -236,8 +236,8 @@ export function VistaPerfilSocio() {
                                         {(aptoStatusFamiliar.status === 'Vencido' || aptoStatusFamiliar.status === 'Inválido') && <ShieldAlert className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                                         {aptoStatusFamiliar.status === 'Pendiente' && <AlertTriangle className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
                                         {aptoStatusFamiliar.status === 'No Aplica' && <Info className={`h-4 w-4 mr-1.5 ${aptoStatusFamiliar.colorClass.replace('bg-', 'text-').replace('-100', '-500')}`} />}
-                                        <Badge 
-                                            variant="outline" 
+                                        <Badge
+                                            variant="outline"
                                             className={cn(
                                                 "text-xs",
                                                 aptoStatusFamiliar.status === 'Válido' ? "text-green-700" :
