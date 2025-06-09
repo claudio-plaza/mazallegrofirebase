@@ -85,7 +85,7 @@ export function ControlAcceso() {
       } else if (fechaNacimientoInput instanceof Date) {
         fechaNac = fechaNacimientoInput;
       } else {
-        return false; // Tipo inesperado
+        return false; 
       }
       
       if (!isValid(fechaNac)) {
@@ -211,8 +211,7 @@ export function ControlAcceso() {
                 return {
                     ...inv,
                     id: inv.dni,
-                    // Parseo aquí para el componente, firestoreService maneja el string
-                    fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : undefined
+                    fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : inv.fechaNacimiento,
                 };
             });
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
@@ -368,11 +367,11 @@ export function ControlAcceso() {
     const invitadoOriginal = (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni)) ||
                              (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) || festejosDelDia.find(f => f.id === festejoId)?.listaInvitados.find(inv => inv.dni === invitadoDni)));
 
-    if (!invitadoOriginal?.ingresado) { // Solo validar método de pago si se está intentando registrar un nuevo ingreso
+    if (!invitadoOriginal?.ingresado) { 
         if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
             const invitadoInfo = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
             if (invitadoInfo?.fechaNacimiento) {
-                const edad = differenceInYears(new Date(), invitadoInfo.fechaNacimiento as Date);
+                const edad = differenceInYears(new Date(), new Date(invitadoInfo.fechaNacimiento));
                 if (edad < 3) {
                     esMenorDeTresSinCosto = true;
                 }
@@ -786,7 +785,7 @@ export function ControlAcceso() {
                                 <RadioGroup
                                     onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
                                     defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
-                                    className="flex flex-row gap-2 sm:gap-3 py-1 sm:py-0 items-center"
+                                    className="flex flex-col sm:flex-row gap-1 sm:gap-3 py-1 sm:py-0 items-start sm:items-center"
                                 >
                                     {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
                                         <div key={metodo} className="flex items-center space-x-1.5">
@@ -841,8 +840,8 @@ export function ControlAcceso() {
                       <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                         {invitadosDiariosSocioBuscado.map(invitado => {
                           let esMenorDeTres = false;
-                          if (invitado.fechaNacimiento) {
-                            const edad = differenceInYears(new Date(), invitado.fechaNacimiento as Date);
+                          if (invitado.fechaNacimiento && isValid(new Date(invitado.fechaNacimiento))) {
+                            const edad = differenceInYears(new Date(), new Date(invitado.fechaNacimiento));
                             if (edad < 3) {
                               esMenorDeTres = true;
                             }
@@ -885,7 +884,7 @@ export function ControlAcceso() {
                                       <RadioGroup
                                           onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
                                           defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
-                                          className="flex flex-row gap-2 sm:gap-3 py-1 sm:py-0 items-center"
+                                          className="flex flex-col sm:flex-row gap-1 sm:gap-3 py-1 sm:py-0 items-start sm:items-center"
                                       >
                                           {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
                                               <div key={metodo} className="flex items-center space-x-1.5">
@@ -985,7 +984,7 @@ export function ControlAcceso() {
                                                         <RadioGroup
                                                             onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
                                                             defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
-                                                            className="flex flex-row gap-1.5 py-0.5 items-center"
+                                                            className="flex flex-col sm:flex-row gap-0.5 sm:gap-1.5 py-0.5 items-start sm:items-center"
                                                         >
                                                             {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
                                                                 <div key={metodo} className="flex items-center space-x-1">
