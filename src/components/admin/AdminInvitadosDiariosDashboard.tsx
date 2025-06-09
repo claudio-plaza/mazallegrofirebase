@@ -15,8 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+// Importar KEYS de firestoreService para usar la clave correcta
+import { getAllSolicitudesInvitadosDiarios as fetchAllSolicitudesInvitadosDiarios } from '@/lib/firebase/firestoreService';
 
-const INVITADOS_DIARIOS_DB_KEY = 'invitadosDiariosDB';
 
 interface StatsInvitadosDiarios {
   sociosConListas: number;
@@ -36,20 +37,34 @@ export function AdminInvitadosDiariosDashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
-    setLoading(true);
-    const storedData = localStorage.getItem(INVITADOS_DIARIOS_DB_KEY);
-    if (storedData) {
-      const allSolicitudes: SolicitudInvitadosDiarios[] = JSON.parse(storedData);
-      setTodasLasSolicitudes(allSolicitudes.map(s => ({
-        ...s,
-        listaInvitadosDiarios: s.listaInvitadosDiarios.map(inv => ({
-            ...inv,
-            fechaNacimiento: inv.fechaNacimiento && isValid(parseISO(inv.fechaNacimiento as string)) ? parseISO(inv.fechaNacimiento as string) : undefined
-        }))
-      })));
-    }
-    setLoading(false);
-  }, []);
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const allSolicitudes = await fetchAllSolicitudesInvitadosDiarios();
+            setTodasLasSolicitudes(allSolicitudes.map(s => ({
+                ...s,
+                listaInvitadosDiarios: s.listaInvitadosDiarios.map(inv => ({
+                    ...inv,
+                    fechaNacimiento: inv.fechaNacimiento && isValid(parseISO(inv.fechaNacimiento as string)) ? parseISO(inv.fechaNacimiento as string) : undefined
+                }))
+            })));
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron cargar las listas de invitados.", variant: "destructive"});
+            console.error("Error fetching daily guest lists:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    loadData();
+
+    // Listener para recargar si los datos cambian en otra parte
+    const handleDbUpdate = () => loadData();
+    window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
+    return () => {
+        window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
+    };
+
+  }, [toast]);
 
   const solicitudesFiltradas = useMemo(() => {
     if (!selectedDate) return [];
