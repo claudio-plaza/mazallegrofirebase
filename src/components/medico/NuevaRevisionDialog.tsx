@@ -142,9 +142,9 @@ export function NuevaRevisionDialog({
     }
     
     if (!personFound) {
-        const socios = await getSocioByNumeroSocioOrDNI(''); // Get all socios to search within them
-        if (socios) { // Assuming getSocioByNumeroSocioOrDNI can return an array if term is empty, adjust if not
-            const allSociosArray = Array.isArray(socios) ? socios : [socios]; // Ensure it's an array
+        const socios = await getSocioByNumeroSocioOrDNI(''); 
+        if (socios) { 
+            const allSociosArray = Array.isArray(socios) ? socios : [socios]; 
             for (const socio of allSociosArray) {
                 const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
                 if (familiarFound) {
@@ -174,7 +174,6 @@ export function NuevaRevisionDialog({
         }
     }
 
-
     if (!personFound) {
         const todasSolicitudes = await getAllSolicitudesInvitadosDiarios();
         const solicitudesHoy = todasSolicitudes.filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
@@ -199,7 +198,6 @@ export function NuevaRevisionDialog({
         }
     }
 
-
     if (personFound) {
       setSearchedPerson(personFound);
       setSearchMessage('');
@@ -220,8 +218,27 @@ export function NuevaRevisionDialog({
       return;
     }
 
+    const fechaRevisionSeleccionada = new Date(data.fechaRevision); // Fecha de la revisión del formulario
+
+    let fechaDeEmisionFinal = fechaRevisionSeleccionada;
+    let fechaDeVencimientoFinal: Date | undefined;
+
+    if (data.resultado === 'Apto') {
+      if (searchedPerson.tipo === 'Invitado Diario') {
+        // Para invitados, el apto es solo por el día de la revisión.
+        // La fecha de emisión es la fecha de la revisión.
+        // La fecha de vencimiento es el final del día de la revisión.
+        fechaDeVencimientoFinal = new Date(fechaRevisionSeleccionada);
+        fechaDeVencimientoFinal.setHours(23, 59, 59, 999);
+      } else {
+        // Para otros (socios, familiares, adherentes), vence en 15 días (revisión + 14 días)
+        fechaDeVencimientoFinal = addDays(fechaRevisionSeleccionada, 14);
+      }
+    }
+    // Si no es 'Apto', fechaDeVencimientoFinal permanece undefined.
+
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
-      fechaRevision: formatISO(data.fechaRevision),
+      fechaRevision: formatISO(fechaDeEmisionFinal), // Usar la fecha de emisión final
       socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
@@ -229,14 +246,14 @@ export function NuevaRevisionDialog({
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
-      fechaVencimientoApto: data.resultado === 'Apto' ? formatISO(addDays(data.fechaRevision, 14)) : undefined,
+      fechaVencimientoApto: fechaDeVencimientoFinal ? formatISO(fechaDeVencimientoFinal) : undefined,
     };
 
     const aptoMedicoUpdate: AptoMedicoInfo = {
       valido: data.resultado === 'Apto',
-      fechaEmision: formatISO(data.fechaRevision),
+      fechaEmision: formatISO(fechaDeEmisionFinal), // Usar la fecha de emisión final
       observaciones: data.observaciones,
-      fechaVencimiento: data.resultado === 'Apto' ? formatISO(addDays(data.fechaRevision, 14)) : undefined,
+      fechaVencimiento: fechaDeVencimientoFinal ? formatISO(fechaDeVencimientoFinal) : undefined,
       razonInvalidez: data.resultado === 'No Apto' ? (data.observaciones || 'No Apto según última revisión') : undefined,
     };
 
@@ -256,7 +273,6 @@ export function NuevaRevisionDialog({
             }
         }
         
-
         toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
         onRevisionGuardada();
         form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
@@ -274,7 +290,7 @@ export function NuevaRevisionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {!personaPreseleccionada && ( // Solo mostrar trigger si no hay preselección
+      {!personaPreseleccionada && ( 
           <DialogTrigger asChild>
             <Button><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión</Button>
           </DialogTrigger>
@@ -286,7 +302,7 @@ export function NuevaRevisionDialog({
             Registrar Nueva Revisión Médica
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-1">
-            Busca un socio, familiar, adherente o invitado diario (de hoy) y registra el resultado. El apto físico será válido por 15 días, incluyendo el día de la revisión. Menores de 3 años no requieren revisión.
+            Busca un socio, familiar, adherente o invitado diario (de hoy) y registra el resultado. El apto físico será válido por 15 días (socios/familiares/adherentes) o solo por el día de la visita (invitados). Menores de 3 años no requieren revisión.
           </DialogDescription>
         </DialogHeader>
         
