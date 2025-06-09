@@ -17,6 +17,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
+import { getAllSolicitudesInvitadosDiarios, getSocios as fetchSociosFromService, getRevisionesMedicas as fetchRevisionesFromService } from '@/lib/firebase/firestoreService';
+
 
 interface Stats {
   revisionesHoy: number;
@@ -26,13 +28,13 @@ interface Stats {
 }
 
 export interface SearchedPersonForPanel {
-  id: string; 
+  id: string;
   nombreCompleto: string;
   dni?: string;
   numeroSocio?: string;
   fechaNacimiento?: string | Date;
   fotoUrl?: string;
-  aptoMedico?: AptoMedicoInfoType; 
+  aptoMedico?: AptoMedicoInfoType;
   tipo: TipoPersona;
   socioAnfitrionNombre?: string;
   socioAnfitrionNumero?: string;
@@ -66,90 +68,92 @@ export function PanelMedicoDashboard() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const storedSocios = localStorage.getItem('sociosDB');
-    const sociosData: Socio[] = storedSocios ? JSON.parse(storedSocios) : [];
-    setSocios(sociosData);
+    try {
+      const sociosData = await fetchSociosFromService();
+      setSocios(sociosData);
 
-    const anfitrionesMap: Record<string, {nombre: string, numeroSocio: string}> = {};
-    sociosData.forEach(s => {
-        anfitrionesMap[s.numeroSocio] = { nombre: `${s.nombre} ${s.apellido}`, numeroSocio: s.numeroSocio};
-    });
-    setMapaSociosAnfitriones(anfitrionesMap);
+      const anfitrionesMap: Record<string, {nombre: string, numeroSocio: string}> = {};
+      sociosData.forEach(s => {
+          anfitrionesMap[s.numeroSocio] = { nombre: `${s.nombre} ${s.apellido}`, numeroSocio: s.numeroSocio};
+      });
+      setMapaSociosAnfitriones(anfitrionesMap);
 
-    const storedRevisiones = localStorage.getItem('revisionesDB');
-    const revisionesData: RevisionMedica[] = storedRevisiones ? JSON.parse(storedRevisiones) : [];
-    revisionesData.sort((a, b) => parseISO(b.fechaRevision as string).getTime() - parseISO(a.fechaRevision as string).getTime());
-    setRevisiones(revisionesData);
-    
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const todayISO = formatISO(today, { representation: 'date' });
+      const revisionesData = await fetchRevisionesFromService();
+      revisionesData.sort((a, b) => parseISO(b.fechaRevision as string).getTime() - parseISO(a.fechaRevision as string).getTime());
+      setRevisiones(revisionesData);
+      
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const todayISO = formatISO(today, { representation: 'date' });
 
-    const storedInvitados = localStorage.getItem('invitadosDiariosDB');
-    const todasSolicitudesInvitados: SolicitudInvitadosDiarios[] = storedInvitados ? JSON.parse(storedInvitados) : [];
-    const invitadosDeHoyRaw = todasSolicitudesInvitados
-        .filter(sol => sol.fecha === todayISO)
-        .flatMap(sol => sol.listaInvitadosDiarios.map(inv => ({...inv, idSocioAnfitrion: sol.idSocioTitular})));
-    setInvitadosDiariosHoy(invitadosDeHoyRaw);
-    
-    const invitadosQueIngresaronHoyConInfoCompleta = invitadosDeHoyRaw
-      .filter(inv => inv.ingresado) // Filtrar solo los que ingresaron
-      .map(inv => {
-          const anfitrion = anfitrionesMap[inv.idSocioAnfitrion!];
-          const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
-          // Incluir solo si el apto no es válido o es un invitado sin apto
-          if (aptoStatus.status !== 'Válido') {
-            return {
-                id: inv.dni,
-                nombreCompleto: `${inv.nombre} ${inv.apellido}`,
-                dni: inv.dni,
-                fechaNacimiento: inv.fechaNacimiento,
-                aptoMedico: inv.aptoMedico,
-                tipo: 'Invitado Diario' as TipoPersona,
-                socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
-                socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
-            };
-          }
-          return null; 
-      }).filter(Boolean) as SearchedPersonForPanel[]; // Filtrar nulls
-    setInvitadosIngresadosSinAptoHoy(invitadosQueIngresaronHoyConInfoCompleta);
-    
-    const revHoy = revisionesData.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
-    
-    let aptosPendVenc = 0;
-    let vencProximos = 0;
+      const todasSolicitudesInvitados = await getAllSolicitudesInvitadosDiarios();
+      const invitadosDeHoyRaw = todasSolicitudesInvitados
+          .filter(sol => sol.fecha === todayISO)
+          .flatMap(sol => sol.listaInvitadosDiarios.map(inv => ({...inv, idSocioAnfitrion: sol.idSocioTitular})));
+      setInvitadosDiariosHoy(invitadosDeHoyRaw);
+      
+      const invitadosQueIngresaronHoyConInfoCompleta = invitadosDeHoyRaw
+        .filter(inv => inv.ingresado) 
+        .map(inv => {
+            const anfitrion = anfitrionesMap[inv.idSocioAnfitrion!];
+            const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
+            if (aptoStatus.status !== 'Válido') {
+              return {
+                  id: inv.dni,
+                  nombreCompleto: `${inv.nombre} ${inv.apellido}`,
+                  dni: inv.dni,
+                  fechaNacimiento: inv.fechaNacimiento,
+                  aptoMedico: inv.aptoMedico,
+                  tipo: 'Invitado Diario' as TipoPersona,
+                  socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
+                  socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
+              };
+            }
+            return null;
+        }).filter(Boolean) as SearchedPersonForPanel[];
+      setInvitadosIngresadosSinAptoHoy(invitadosQueIngresaronHoyConInfoCompleta);
+      
+      const revHoy = revisionesData.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
+      
+      let aptosPendVenc = 0;
+      let vencProximos = 0;
 
-    const allPeopleForStats = [
-        ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
-        ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
-        ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
-        ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
-    ];
+      const allPeopleForStats = [
+          ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
+          ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
+          ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
+          ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
+      ];
 
-    allPeopleForStats.forEach(p => {
-      const status = getAptoMedicoStatus(p.aptoMedico, p.fechaNacimiento as string | Date);
-      if (status.status === 'Vencido' || status.status === 'Inválido' || status.status === 'Pendiente') {
-        aptosPendVenc++;
-      }
-      if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
-        const fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
-        const diff = differenceInDays(fechaVenc, today);
-        if (diff >= 0 && diff <= 7) {
-          vencProximos++;
+      allPeopleForStats.forEach(p => {
+        const status = getAptoMedicoStatus(p.aptoMedico, p.fechaNacimiento as string | Date);
+        if (status.status === 'Vencido' || status.status === 'Inválido' || status.status === 'Pendiente') {
+          aptosPendVenc++;
         }
-      }
-    });
+        if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
+          const fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
+          const diff = differenceInDays(fechaVenc, today);
+          if (diff >= 0 && diff <= 7) {
+            vencProximos++;
+          }
+        }
+      });
 
-    const revMes = revisionesData.filter(r => isSameMonth(parseISO(r.fechaRevision as string), today)).length;
+      const revMes = revisionesData.filter(r => isSameMonth(parseISO(r.fechaRevision as string), today)).length;
 
-    setStats({
-      revisionesHoy: revHoy,
-      aptosPendientesVencidos: aptosPendVenc,
-      vencimientosProximos: vencProximos,
-      revisionesEsteMes: revMes,
-    });
-    setLoading(false);
-  }, []);
+      setStats({
+        revisionesHoy: revHoy,
+        aptosPendientesVencidos: aptosPendVenc,
+        vencimientosProximos: vencProximos,
+        revisionesEsteMes: revMes,
+      });
+    } catch (error) {
+        console.error("Error loading data for medical panel:", error);
+        toast({ title: "Error", description: "No se pudieron cargar los datos del panel médico.", variant: "destructive" });
+    } finally {
+        setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     loadData();
@@ -164,7 +168,7 @@ export function PanelMedicoDashboard() {
     };
   }, [loadData]);
 
-  const handleSearchPersona = useCallback(() => {
+  const handleSearchPersona = useCallback(async () => {
     if (!searchTerm.trim()) {
       setSearchMessage('Por favor, ingrese N° Socio, DNI o Nombre.');
       setSearchedPersonDisplay(null);
@@ -253,6 +257,7 @@ export function PanelMedicoDashboard() {
     if (searchedPersonDisplay) {
        handleSearchPersona();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, handleSearchPersona]);
 
 
@@ -543,5 +548,3 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
-
-    

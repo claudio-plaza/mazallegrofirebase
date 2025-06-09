@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio } from '@/lib/firebase/firestoreService';
+import { getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio, getAllSolicitudesInvitadosDiarios } from '@/lib/firebase/firestoreService';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -34,13 +34,13 @@ const revisionSchema = z.object({
 type RevisionFormValues = z.infer<typeof revisionSchema>;
 
 export interface SearchedPerson {
-  id: string; // DNI para familiares/adherentes/invitados, numeroSocio para titulares
+  id: string; 
   nombreCompleto: string;
   fechaNacimiento: string | Date;
   tipo: TipoPersona;
-  socioTitularId?: string; // numeroSocio del titular asociado
+  socioTitularId?: string; 
   aptoMedicoActual?: AptoMedicoInfo;
-  fechaVisitaInvitado?: string; // ISO date string for daily guests
+  fechaVisitaInvitado?: string; 
 }
 
 interface NuevaRevisionDialogProps {
@@ -123,56 +123,60 @@ export function NuevaRevisionDialog({
       setSearchedPerson(null);
       return;
     }
-    const storedSocios = localStorage.getItem('sociosDB');
-    const storedInvitadosDiarios = localStorage.getItem('invitadosDiariosDB');
-    const todayISO = formatISO(new Date(), { representation: 'date' });
     
     let personFound: SearchedPerson | null = null;
     const term = searchTerm.trim().toLowerCase();
+    const todayISO = formatISO(new Date(), { representation: 'date' });
 
-    if (storedSocios) {
-      const socios: Socio[] = JSON.parse(storedSocios);
-
-      for (const socio of socios) {
-        if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
-          personFound = {
-            id: socio.numeroSocio, // Usar numeroSocio como ID para titulares
-            nombreCompleto: `${socio.nombre} ${socio.apellido}`,
-            fechaNacimiento: socio.fechaNacimiento,
-            tipo: 'Socio Titular',
-            aptoMedicoActual: socio.aptoMedico
-          };
-          break;
+    const socioTitular = await getSocioByNumeroSocioOrDNI(term);
+    if (socioTitular) {
+        if (socioTitular.numeroSocio.toLowerCase() === term || socioTitular.dni.toLowerCase() === term || `${socioTitular.nombre.toLowerCase()} ${socioTitular.apellido.toLowerCase()}`.includes(term)) {
+            personFound = {
+                id: socioTitular.numeroSocio, 
+                nombreCompleto: `${socioTitular.nombre} ${socioTitular.apellido}`,
+                fechaNacimiento: socioTitular.fechaNacimiento,
+                tipo: 'Socio Titular',
+                aptoMedicoActual: socioTitular.aptoMedico
+            };
         }
-        const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
-        if (familiarFound) {
-          personFound = {
-            id: familiarFound.dni, // Usar DNI como ID para familiares
-            nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
-            fechaNacimiento: familiarFound.fechaNacimiento,
-            tipo: 'Familiar',
-            socioTitularId: socio.numeroSocio,
-            aptoMedicoActual: familiarFound.aptoMedico
-          };
-          break;
+    }
+    
+    if (!personFound) {
+        const socios = await getSocioByNumeroSocioOrDNI(''); // Get all socios to search within them
+        if (socios) { // Assuming getSocioByNumeroSocioOrDNI can return an array if term is empty, adjust if not
+            const allSociosArray = Array.isArray(socios) ? socios : [socios]; // Ensure it's an array
+            for (const socio of allSociosArray) {
+                const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
+                if (familiarFound) {
+                  personFound = {
+                    id: familiarFound.dni, 
+                    nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
+                    fechaNacimiento: familiarFound.fechaNacimiento,
+                    tipo: 'Familiar',
+                    socioTitularId: socio.numeroSocio,
+                    aptoMedicoActual: familiarFound.aptoMedico
+                  };
+                  break;
+                }
+                const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
+                if (adherenteFound) {
+                   personFound = {
+                    id: adherenteFound.dni, 
+                    nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
+                    fechaNacimiento: adherenteFound.fechaNacimiento,
+                    tipo: 'Adherente',
+                    socioTitularId: socio.numeroSocio,
+                    aptoMedicoActual: adherenteFound.aptoMedico
+                  };
+                  break;
+                }
+            }
         }
-        const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
-        if (adherenteFound) {
-           personFound = {
-            id: adherenteFound.dni, // Usar DNI como ID para adherentes
-            nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
-            fechaNacimiento: adherenteFound.fechaNacimiento,
-            tipo: 'Adherente',
-            socioTitularId: socio.numeroSocio,
-            aptoMedicoActual: adherenteFound.aptoMedico
-          };
-          break;
-        }
-      }
     }
 
-    if (!personFound && storedInvitadosDiarios) {
-        const todasSolicitudes: SolicitudInvitadosDiarios[] = JSON.parse(storedInvitadosDiarios);
+
+    if (!personFound) {
+        const todasSolicitudes = await getAllSolicitudesInvitadosDiarios();
         const solicitudesHoy = todasSolicitudes.filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
         
         for (const solicitud of solicitudesHoy) {
@@ -182,7 +186,7 @@ export function NuevaRevisionDialog({
             );
             if (invitadoFound) {
                 personFound = {
-                    id: invitadoFound.dni, // Usar DNI como ID para invitados
+                    id: invitadoFound.dni, 
                     nombreCompleto: `${invitadoFound.nombre} ${invitadoFound.apellido}`,
                     fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0).toISOString(),
                     tipo: 'Invitado Diario',
@@ -218,7 +222,7 @@ export function NuevaRevisionDialog({
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: formatISO(data.fechaRevision),
-      socioId: searchedPerson.id, // Este es el DNI para familiares/adherentes/invitados, o numeroSocio para titulares
+      socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
       idSocioAnfitrion: searchedPerson.tipo === 'Invitado Diario' ? searchedPerson.socioTitularId : undefined,
@@ -251,7 +255,7 @@ export function NuevaRevisionDialog({
                  toast({ title: "Advertencia", description: "Se guardó la revisión, pero no se encontró la lista de invitados para actualizar el apto del invitado directamente.", variant: "default"});
             }
         }
-        // La lógica para actualizar Socio/Familiar/Adherente ya está en addRevisionMedica -> updateSocio
+        
 
         toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
         onRevisionGuardada();
@@ -270,9 +274,11 @@ export function NuevaRevisionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión</Button>
-      </DialogTrigger>
+      {!personaPreseleccionada && ( // Solo mostrar trigger si no hay preselección
+          <DialogTrigger asChild>
+            <Button><CheckCircle2 className="mr-2 h-4 w-4" /> Nueva Revisión</Button>
+          </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl">
