@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift } from 'lucide-react';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -72,6 +72,8 @@ export function ControlAcceso() {
   const [cupoTotalInvitadosCumple, setCupoTotalInvitadosCumple] = useState(0);
   const [invitadosCumpleRegistradosHoy, setInvitadosCumpleRegistradosHoy] = useState(0);
 
+  const [ingresosSesion, setIngresosSesion] = useState<Record<string, boolean>>({});
+
 
   const todayISO = formatISO(new Date(), { representation: 'date' });
 
@@ -81,18 +83,14 @@ export function ControlAcceso() {
       let fechaNac: Date;
 
       if (typeof fechaNacimientoInput === 'string') {
-        console.log('[esCumpleanosHoy] Input string:', fechaNacimientoInput);
         fechaNac = parseISO(fechaNacimientoInput);
       } else if (fechaNacimientoInput instanceof Date) {
-        console.log('[esCumpleanosHoy] Input Date object:', fechaNacimientoInput.toISOString());
         fechaNac = fechaNacimientoInput;
       } else {
-        console.log('[esCumpleanosHoy] Invalid input type');
         return false;
       }
 
       if (!isValid(fechaNac)) {
-        console.log('[esCumpleanosHoy] Parsed fechaNac is invalid');
         return false;
       }
 
@@ -100,14 +98,8 @@ export function ControlAcceso() {
       const hoyDia = getDayOfMonth(hoy);
       const nacMes = getMonth(fechaNac);
       const nacDia = getDayOfMonth(fechaNac);
-
-      console.log(`[esCumpleanosHoy] Comparando: Hoy (${hoyDia}/${hoyMes + 1}) con Nacimiento (${nacDia}/${nacMes + 1}) para fecha ${fechaNac.toISOString()}`);
       
-      const esCumple = hoyMes === nacMes && hoyDia === nacDia;
-      if (esCumple) {
-        console.log('[esCumpleanosHoy] Es cumpleaños HOY!');
-      }
-      return esCumple;
+      return hoyMes === nacMes && hoyDia === nacDia;
   };
 
 
@@ -152,6 +144,7 @@ export function ControlAcceso() {
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
       setInvitadosCumpleRegistradosHoy(0);
+      setIngresosSesion({});
       return;
     }
     setLoading(true);
@@ -169,6 +162,7 @@ export function ControlAcceso() {
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
       setInvitadosCumpleRegistradosHoy(0);
+      setIngresosSesion({});
     }
 
     try {
@@ -285,6 +279,41 @@ export function ControlAcceso() {
     });
   };
 
+  const handleToggleIngresoMiembroGrupo = async (changedMember: DisplayablePerson, isIngresoAction: boolean) => {
+    if (!socioEncontrado) return;
+  
+    // Determine if any member of the *searched socio's group* has an active session income
+    const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
+      p => (
+        (p.isTitular && p.dni === socioEncontrado.dni) || // Is titular of searched socio
+        (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni)) // Is familiar of searched socio
+      ) && ingresosSesion[p.dni] // AND this person has an active session income
+    );
+    
+    // Update local UI flags immediately based on the current session state
+    setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
+    setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
+  
+    // If this is an ingreso action AND it results in the event being enabled for the first time *in the DB*
+    if (isIngresoAction && anyMemberOfGroupHasSessionIncome) {
+      try {
+        if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
+          const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
+          await updateSolicitudCumpleanos(updatedSolicitud);
+          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); // Reflect DB change locally
+        }
+        if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
+          const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
+          await updateSolicitudInvitadosDiarios(updatedSolicitud);
+          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); // Reflect DB change locally
+        }
+      } catch (error) {
+        console.error("Error updating event status in DB:", error);
+        toast({ title: "Error", description: "No se pudo actualizar el estado del evento en la base de datos.", variant: "destructive" });
+      }
+    }
+  };
+
   const handleRegistrarIngreso = (member: DisplayablePerson) => {
     if (!socioEncontrado) return;
 
@@ -321,42 +350,27 @@ export function ControlAcceso() {
       }
     }
 
+    if (puedeIngresar) {
+      setIngresosSesion(prev => ({ ...prev, [member.dni]: true }));
+      handleToggleIngresoMiembroGrupo(member, true);
+    }
+
     toast({
       title: puedeIngresar ? 'Ingreso Registrado' : 'Acceso Denegado',
       description: `${mensajeIngreso}${mensajeAdvertenciaApto}`,
       variant: puedeIngresar ? (mensajeAdvertenciaApto.includes('ADVERTENCIA') && aptoStatus.status !== 'No Aplica' && aptoStatus.status !== 'Válido' ? 'default' : 'default') : 'destructive',
       duration: (mensajeAdvertenciaApto.includes('ADVERTENCIA') && aptoStatus.status !== 'No Aplica' && aptoStatus.status !== 'Válido') || !puedeIngresar ? 7000 : 5000,
     });
+  };
 
-    if (puedeIngresar && (member.isTitular || member.isFamiliar)) {
-        let isMemberOfSearchedSocioGroup = false;
-        if (socioEncontrado) {
-            if (member.isTitular && member.id === socioEncontrado.id) {
-                isMemberOfSearchedSocioGroup = true;
-            } else if (socioEncontrado.grupoFamiliar?.some(fam => fam.dni === member.dni)) {
-                isMemberOfSearchedSocioGroup = true;
-            }
-        }
-        if (isMemberOfSearchedSocioGroup) {
-          try {
-            if (solicitudCumpleanosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarCumple) {
-                const updatedSolicitud = {...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true};
-                updateSolicitudCumpleanos(updatedSolicitud);
-                setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud);
-                setEventoHabilitadoPorIngresoFamiliarCumple(true);
-            }
-            if (solicitudInvitadosDiariosHoySocioBuscado && !eventoHabilitadoPorIngresoFamiliarDiario) {
-                const updatedSolicitudDiaria = {...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true};
-                updateSolicitudInvitadosDiarios(updatedSolicitudDiaria);
-                setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitudDiaria);
-                setEventoHabilitadoPorIngresoFamiliarDiario(true);
-            }
-          } catch (error) {
-            console.error("Error actualizando estado de ingreso del grupo para evento/lista:", error);
-            toast({ title: "Error", description: "No se pudo actualizar el estado del evento/lista.", variant: "destructive" });
-          }
-        }
-    }
+  const handleAnularIngreso = (member: DisplayablePerson) => {
+    setIngresosSesion(prev => ({ ...prev, [member.dni]: false }));
+    toast({
+      title: 'Ingreso Anulado',
+      description: `Se anuló el registro de ingreso para ${member.nombreCompleto}.`,
+      variant: 'default',
+    });
+    handleToggleIngresoMiembroGrupo(member, false);
   };
 
   const handleMetodoPagoChange = (invitadoId: string, metodo: MetodoPagoInvitado | null) => {
@@ -676,7 +690,7 @@ export function ControlAcceso() {
                  <div className="text-sm text-muted-foreground">Estado Adherente: {statusBadge}</div>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-stretch pt-2 sm:pt-0">
+          <div className="flex flex-col items-center gap-2 pt-2 sm:pt-0 sm:ml-auto">
             {!person.isAdherente && (
               <Button variant="outline" size="sm" onClick={() => handleVerCarnet(person.nombreCompleto)} className="w-full sm:w-auto">
                 <Ticket className="mr-2 h-4 w-4" /> Ver Carnet
@@ -687,15 +701,32 @@ export function ControlAcceso() {
                    <FileText className="mr-2 h-3 w-3" /> Carnet Adh. (Sim.)
                 </Button>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => handleRegistrarIngreso(person)}
-              className="w-full sm:w-auto"
-              disabled={!puedeIngresarIndividualmente}
-            >
-              <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso
-            </Button>
+            {ingresosSesion[person.dni] ? (
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-3 text-xs sm:text-sm whitespace-nowrap w-full justify-center sm:w-auto">
+                  <CheckCircle className="mr-1.5 h-4 w-4" />
+                  Ingresó
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAnularIngreso(person)}
+                  className="w-full sm:w-auto"
+                >
+                  <LogOut className="mr-2 h-4 w-4" /> Anular Ingreso
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => handleRegistrarIngreso(person)}
+                className="w-full sm:w-auto"
+                disabled={!puedeIngresarIndividualmente}
+              >
+                <LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso
+              </Button>
+            )}
           </div>
         </div>
         {aptoMedicoDisplay && (
@@ -883,7 +914,7 @@ export function ControlAcceso() {
                                  </div>
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
                                     {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarDiario && !esMenorDeTres && (
-                                      <div className="flex items-center space-x-2 py-1 border-2 border-pink-500 p-1 ">
+                                      <div className="flex items-center space-x-2 py-1 sm:border-2 sm:border-pink-500 sm:p-1">
                                         <Checkbox
                                           id={`cumple-diario-${invitado.dni}`}
                                           checked={!!invitadosCumpleanosCheckboxState[invitado.dni]}
