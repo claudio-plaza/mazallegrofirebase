@@ -218,27 +218,19 @@ export function NuevaRevisionDialog({
       return;
     }
 
-    const fechaRevisionSeleccionada = new Date(data.fechaRevision); // Fecha de la revisión del formulario
+    const fechaRevisionSeleccionada = new Date(data.fechaRevision);
 
     let fechaDeEmisionFinal = fechaRevisionSeleccionada;
     let fechaDeVencimientoFinal: Date | undefined;
 
     if (data.resultado === 'Apto') {
-      if (searchedPerson.tipo === 'Invitado Diario') {
-        // Para invitados, el apto es solo por el día de la revisión.
-        // La fecha de emisión es la fecha de la revisión.
-        // La fecha de vencimiento es el final del día de la revisión.
-        fechaDeVencimientoFinal = new Date(fechaRevisionSeleccionada);
-        fechaDeVencimientoFinal.setHours(23, 59, 59, 999);
-      } else {
-        // Para otros (socios, familiares, adherentes), vence en 15 días (revisión + 14 días)
-        fechaDeVencimientoFinal = addDays(fechaRevisionSeleccionada, 14);
-      }
+      // Apto médico es válido por 15 días (fecha revisión + 14 días) para TODOS los tipos de persona
+      fechaDeVencimientoFinal = addDays(fechaRevisionSeleccionada, 14);
     }
     // Si no es 'Apto', fechaDeVencimientoFinal permanece undefined.
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
-      fechaRevision: formatISO(fechaDeEmisionFinal), // Usar la fecha de emisión final
+      fechaRevision: formatISO(fechaDeEmisionFinal),
       socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
@@ -251,7 +243,7 @@ export function NuevaRevisionDialog({
 
     const aptoMedicoUpdate: AptoMedicoInfo = {
       valido: data.resultado === 'Apto',
-      fechaEmision: formatISO(fechaDeEmisionFinal), // Usar la fecha de emisión final
+      fechaEmision: formatISO(fechaDeEmisionFinal),
       observaciones: data.observaciones,
       fechaVencimiento: fechaDeVencimientoFinal ? formatISO(fechaDeVencimientoFinal) : undefined,
       razonInvalidez: data.resultado === 'No Apto' ? (data.observaciones || 'No Apto según última revisión') : undefined,
@@ -302,7 +294,7 @@ export function NuevaRevisionDialog({
             Registrar Nueva Revisión Médica
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-1">
-            Busca un socio, familiar, adherente o invitado diario (de hoy) y registra el resultado. El apto físico será válido por 15 días (socios/familiares/adherentes) o solo por el día de la visita (invitados). Menores de 3 años no requieren revisión.
+            Busca un socio, familiar, adherente o invitado diario (de hoy) y registra el resultado. El apto físico será válido por 15 días. Menores de 3 años no requieren revisión.
           </DialogDescription>
         </DialogHeader>
         
