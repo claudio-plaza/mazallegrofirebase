@@ -42,9 +42,10 @@ type DisplayablePerson = {
   estadoAdherente?: Adherente['estadoAdherente'];
 };
 
-type FestejoHoy = SolicitudCumpleanos & {
-    socioTitularNombreCompleto?: string;
-};
+// Type FestejoHoy was used by the removed section
+// type FestejoHoy = SolicitudCumpleanos & {
+//     socioTitularNombreCompleto?: string;
+// };
 
 export function ControlAcceso() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,8 +65,9 @@ export function ControlAcceso() {
   const [eventoHabilitadoPorIngresoFamiliarCumple, setEventoHabilitadoPorIngresoFamiliarCumple] = useState(false);
   const [eventoHabilitadoPorIngresoFamiliarDiario, setEventoHabilitadoPorIngresoFamiliarDiario] = useState(false);
 
-  const [festejosDelDia, setFestejosDelDia] = useState<FestejoHoy[]>([]);
-  const [loadingFestejos, setLoadingFestejos] = useState(true);
+  // State for removed "Festejos del Dia" card
+  // const [festejosDelDia, setFestejosDelDia] = useState<FestejoHoy[]>([]);
+  // const [loadingFestejos, setLoadingFestejos] = useState(true);
 
   const [metodosPagoSeleccionados, setMetodosPagoSeleccionados] = useState<Record<string, MetodoPagoInvitado | null>>({});
   const [invitadosCumpleanosCheckboxState, setInvitadosCumpleanosCheckboxState] = useState<Record<string, boolean>>({});
@@ -104,30 +106,30 @@ export function ControlAcceso() {
       return hoyMes === nacMes && hoyDia === nacDia;
   };
 
-
-  const loadFestejosDelDia = useCallback(async () => {
-    setLoadingFestejos(true);
-    try {
-      const todasSolicitudes = await getAllSolicitudesCumpleanos();
-      const festejosHoyPromises = todasSolicitudes
-        .filter(sol => sol.fechaEvento && isToday(sol.fechaEvento as Date) && sol.estado === 'Aprobada')
-        .map(async (festejo) => {
-          const titularDelFestejo = await getSocioByNumeroSocioOrDNI(festejo.idSocioTitular);
-          return {
-            ...festejo,
-            socioTitularNombreCompleto: titularDelFestejo ? `${titularDelFestejo.nombre} ${titularDelFestejo.apellido}` : 'Socio no encontrado',
-            listaInvitados: festejo.listaInvitados.map(inv => ({ ...inv, id: inv.dni }))
-          };
-        });
-      const festejosHoy = await Promise.all(festejosHoyPromises);
-      setFestejosDelDia(festejosHoy);
-    } catch (error) {
-      console.error("Error cargando festejos del dia:", error);
-      toast({ title: "Error", description: "No se pudieron cargar los festejos del día.", variant: "destructive" });
-    } finally {
-      setLoadingFestejos(false);
-    }
-  }, [toast]);
+  // loadFestejosDelDia was used by the removed section
+  // const loadFestejosDelDia = useCallback(async () => {
+  //   setLoadingFestejos(true);
+  //   try {
+  //     const todasSolicitudes = await getAllSolicitudesCumpleanos();
+  //     const festejosHoyPromises = todasSolicitudes
+  //       .filter(sol => sol.fechaEvento && isToday(sol.fechaEvento as Date) && sol.estado === 'Aprobada')
+  //       .map(async (festejo) => {
+  //         const titularDelFestejo = await getSocioByNumeroSocioOrDNI(festejo.idSocioTitular);
+  //         return {
+  //           ...festejo,
+  //           socioTitularNombreCompleto: titularDelFestejo ? `${titularDelFestejo.nombre} ${titularDelFestejo.apellido}` : 'Socio no encontrado',
+  //           listaInvitados: festejo.listaInvitados.map(inv => ({ ...inv, id: inv.dni }))
+  //         };
+  //       });
+  //     const festejosHoy = await Promise.all(festejosHoyPromises);
+  //     setFestejosDelDia(festejosHoy);
+  //   } catch (error) {
+  //     console.error("Error cargando festejos del dia:", error);
+  //     toast({ title: "Error", description: "No se pudieron cargar los festejos del día.", variant: "destructive" });
+  //   } finally {
+  //     setLoadingFestejos(false);
+  //   }
+  // }, [toast]);
 
   const displayablePeople = useMemo(() => {
     if (!socioEncontrado) return [];
@@ -302,7 +304,6 @@ export function ControlAcceso() {
         if (solicitudHoyCumple) {
           setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
           setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
-          // For initial load based on DB, set it. Subsequent changes are handled by handleToggleIngresoMiembroGrupo
           setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
         } else {
           setSolicitudCumpleanosHoySocioBuscado(null);
@@ -341,7 +342,6 @@ export function ControlAcceso() {
         }
         setInvitadosCumpleRegistradosHoy(currentInvitadosCumpleRegistrados);
         setInvitadosCumpleanosCheckboxState(initialCheckboxState);
-        // Trigger re-evaluation of event habilitation based on potentially pre-existing session incomes
         handleToggleIngresoMiembroGrupo();
 
 
@@ -359,10 +359,10 @@ export function ControlAcceso() {
   }, [searchTerm, todayISO, socioEncontrado, toast, handleToggleIngresoMiembroGrupo]);
 
   useEffect(() => {
-    loadFestejosDelDia();
+    // Removed loadFestejosDelDia() call as the section is removed.
     const refreshData = async () => {
         if (socioEncontrado) await handleSearch(true);
-        await loadFestejosDelDia();
+        // Removed await loadFestejosDelDia();
     };
 
     window.addEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
@@ -374,7 +374,7 @@ export function ControlAcceso() {
         window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
         window.removeEventListener('firestore/sociosUpdated', refreshData);
     };
-  }, [loadFestejosDelDia, socioEncontrado, handleSearch]);
+  }, [socioEncontrado, handleSearch]); // Removed loadFestejosDelDia from dependencies
 
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -464,7 +464,7 @@ export function ControlAcceso() {
   };
 
   const handleRegistrarIngresoInvitado = async (invitadoDni: string, tipoInvitado: 'cumpleanos' | 'diario', festejoId?: string) => {
-    let targetFestejo: SolicitudCumpleanos | FestejoHoy | null = null;
+    let targetFestejo: SolicitudCumpleanos | null = null; // Removed FestejoHoy type as it's related to removed section
     let targetInvitados: (InvitadoCumpleanos | InvitadoDiario)[] = [];
     let targetEventoHabilitado: boolean = false;
     let isFestejoDelSocioBuscado = false;
@@ -473,7 +473,7 @@ export function ControlAcceso() {
     const esDeCumpleanosSeleccionado = !!invitadosCumpleanosCheckboxState[invitadoDni];
 
     const invitadoOriginal = (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni)) ||
-                             (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) || festejosDelDia.find(f => f.id === festejoId)?.listaInvitados.find(inv => inv.dni === invitadoDni)));
+                             (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) /* || festejosDelDia.find(f => f.id === festejoId)?.listaInvitados.find(inv => inv.dni === invitadoDni) Removed festejosDelDia reference */ ));
 
     if (!invitadoOriginal?.ingresado) {
         if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
@@ -507,19 +507,17 @@ export function ControlAcceso() {
             targetInvitados = invitadosCumpleanosSocioBuscado;
             targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple;
             isFestejoDelSocioBuscado = true;
-        } else {
-            const generalFestejo = festejosDelDia.find(f => f.id === festejoId);
-            if (generalFestejo) {
-                targetFestejo = generalFestejo;
-                targetInvitados = generalFestejo.listaInvitados;
-                targetEventoHabilitado = generalFestejo.titularIngresadoEvento || false;
-            }
+        } 
+        // Removed else block that referred to festejosDelDia
+        if (!targetFestejo) { // If not found in socio's specific list, it's an error now
+            toast({ title: "Error", description: "Festejo de cumpleaños no encontrado.", variant: "destructive" });
+            return;
         }
         if (!targetEventoHabilitado) {
           toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
           return;
         }
-    } else {
+    } else { // tipoInvitado === 'diario'
         if (!solicitudInvitadosDiariosHoySocioBuscado) return;
         targetInvitados = invitadosDiariosSocioBuscado;
         targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
@@ -578,11 +576,8 @@ export function ControlAcceso() {
             if (isFestejoDelSocioBuscado) {
                 setInvitadosCumpleanosSocioBuscado(updatedInvitados as InvitadoCumpleanos[]);
                 setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
-            } else {
-                setFestejosDelDia(prevFestejos =>
-                    prevFestejos.map(f => f.id === festejoId ? (updatedFestejo as FestejoHoy) : f)
-                );
-            }
+            } 
+            // Removed else block updating festejosDelDia
         } catch (error) {
             console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
             toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
@@ -772,7 +767,7 @@ export function ControlAcceso() {
       <Card className="w-full max-w-3xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><ShieldCheck className="mr-3 h-7 w-7 text-primary" /> Control de Acceso</CardTitle>
-          <CardDescription>Busque un socio titular (por N° Socio, DNI o Nombre) o consulte los festejos del día.</CardDescription>
+          <CardDescription>Busque un socio titular (por N° Socio, DNI o Nombre).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex space-x-2">
@@ -998,99 +993,7 @@ export function ControlAcceso() {
         </CardContent>
       </Card>
 
-      <Card className="w-full max-w-3xl mx-auto shadow-xl">
-        <CardHeader>
-            <CardTitle className="text-xl flex items-center">
-                <CalendarDays className="mr-3 h-6 w-6 text-primary" />
-                Festejos de Cumpleaños (Listas Pre-cargadas) Programados para Hoy
-            </CardTitle>
-            <CardDescription>Lista de todos los festejos aprobados para la fecha actual (cargados por socios en "Mis Cumpleaños").</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {loadingFestejos && <p>Cargando festejos del día...</p>}
-            {!loadingFestejos && festejosDelDia.length === 0 && (
-                 <p className="text-sm text-center text-muted-foreground py-4">No hay festejos de cumpleaños (listas pre-cargadas) programados para hoy.</p>
-            )}
-            {!loadingFestejos && festejosDelDia.length > 0 && (
-                <Accordion type="multiple" className="w-full space-y-2">
-                    {festejosDelDia.map((festejo) => (
-                        <AccordionItem value={festejo.id} key={festejo.id}>
-                            <AccordionTrigger className="p-3 rounded-md hover:bg-muted/50 bg-muted/20 text-left">
-                                <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center">
-                                        <Cake className="mr-2 h-5 w-5 text-pink-400" />
-                                        <div>
-                                            <span className="font-semibold text-sm">
-                                                Festejo de: {festejo.nombreCumpleanero}
-                                            </span>
-                                            <p className="text-xs text-muted-foreground">
-                                                Socio Titular: {festejo.socioTitularNombreCompleto} (N°: {festejo.idSocioTitular})
-                                                {' | '} {festejo.listaInvitados.length} invitado(s)
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Badge variant={festejo.titularIngresadoEvento ? 'default' : 'outline'} className={festejo.titularIngresadoEvento ? 'bg-green-500' : ''}>
-                                        {festejo.titularIngresadoEvento ? 'Grupo Ingresó' : 'Grupo Pendiente'}
-                                    </Badge>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pt-0">
-                                <div className="border-t border-border px-3 py-3">
-                                    {!festejo.titularIngresadoEvento && (
-                                        <p className="text-xs text-orange-500 bg-orange-500/10 p-2 rounded-md mb-2">
-                                            <Info className="inline mr-1 h-3 w-3" /> Un miembro del grupo familiar del socio titular de este evento aún no ha registrado su ingreso. Los invitados no pueden ingresar hasta que lo haga.
-                                        </p>
-                                    )}
-                                    <h5 className="text-xs font-medium text-muted-foreground mb-2">Invitados (Lista Cumpleaños):</h5>
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                        {festejo.listaInvitados.map(invitado => (
-                                            <Card key={invitado.dni} className={`p-2 text-xs ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
-                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                                                    <div className="flex-1">
-                                                      <div className="flex items-center justify-between">
-                                                        <p className="font-medium">{invitado.nombre} {invitado.apellido}</p>
-                                                        {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago)}
-                                                      </div>
-                                                      <p className="text-muted-foreground">DNI: {invitado.dni}</p>
-                                                    </div>
-                                                    {!invitado.ingresado && festejo.titularIngresadoEvento && (
-                                                        <RadioGroup
-                                                            onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
-                                                            defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
-                                                            className="flex flex-col sm:flex-row gap-0.5 sm:gap-1.5 py-0.5 items-start sm:items-center"
-                                                        >
-                                                            {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
-                                                                <div key={metodo} className="flex items-center space-x-1">
-                                                                    <RadioGroupItem value={metodo} id={`general-cumple-${festejo.id}-${invitado.dni}-${metodo}`} className="h-3 w-3" />
-                                                                    <Label htmlFor={`general-cumple-${festejo.id}-${invitado.dni}-${metodo}`} className="text-xs font-normal cursor-pointer">{metodo}</Label>
-                                                                </div>
-                                                            ))}
-                                                        </RadioGroup>
-                                                    )}
-                                                    <div className="flex items-center space-x-2 self-end sm:self-center">
-                                                        <Button
-                                                           size="sm"
-                                                           variant={invitado.ingresado ? "outline" : "default"}
-                                                           onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'cumpleanos', festejo.id)}
-                                                           disabled={!festejo.titularIngresadoEvento || (!invitado.ingresado && !metodosPagoSeleccionados[invitado.dni])}
-                                                           className="min-w-[90px] text-xs h-7"
-                                                         >
-                                                          {invitado.ingresado ? "Anular" : "Ingresar"}
-                                                         </Button>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        ))}
-                                        {festejo.listaInvitados.length === 0 && <p className="text-xs text-muted-foreground">No hay invitados en la lista para este festejo.</p>}
-                                    </div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-            )}
-        </CardContent>
-      </Card>
+      {/* Card for Festejos del Dia removed */}
     </div>
   );
 }
