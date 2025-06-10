@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog, type SearchedPerson } from './NuevaRevisionDialog';
 import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
-import { parseISO, isToday, isSameMonth, differenceInDays, formatISO, isValid } from 'date-fns';
+import { parseISO, isToday, isSameMonth, differenceInDays, formatISO, isValid, differenceInYears } from 'date-fns';
 import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit, CheckCircle2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -169,7 +169,7 @@ export function PanelMedicoDashboard() {
     const handleDbUpdates = () => loadData();
     window.addEventListener('sociosDBUpdated', handleDbUpdates);
     window.addEventListener('revisionesDBUpdated', handleDbUpdates);
-    window.addEventListener('invitadosDiariosDBUpdated', handleDbUpdates);
+    window.addEventListener('invitadosDiariosDBUpdated', handleDbUpdates); // Ensure this matches the event dispatched in firestoreService
     return () => {
       window.removeEventListener('sociosDBUpdated', handleDbUpdates);
       window.removeEventListener('revisionesDBUpdated', handleDbUpdates);
@@ -264,7 +264,13 @@ export function PanelMedicoDashboard() {
 
   useEffect(() => {
     if (searchedPersonDisplay) {
-       handleSearchPersona();
+       // This effect aims to re-trigger search logic if underlying data changes *while* a person is displayed.
+       // However, directly calling handleSearchPersona here if it's already the result of a search
+       // can cause loops if not careful with dependencies.
+       // For now, simply relying on loadData to refresh the base arrays (socios, invitadosDiariosHoy)
+       // and then a user re-initiating a search might be safer if infinite loops are a concern.
+       // If a specific re-validation of the *currently displayed person* is needed when base data changes,
+       // this logic would need to be more nuanced, perhaps re-fetching only that person.
     }
   }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, searchedPersonDisplay, handleSearchPersona]);
 
@@ -284,7 +290,7 @@ export function PanelMedicoDashboard() {
 
   const handleOpenRevisionDialogParaInvitado = (invitado: SearchedPersonForPanel) => {
     const personaParaDialog: SearchedPerson = {
-      id: invitado.id, 
+      id: invitado.dni || invitado.id, // Use DNI as primary ID for guests if available, fallback to id.
       nombreCompleto: invitado.nombreCompleto,
       fechaNacimiento: invitado.fechaNacimiento || new Date(0).toISOString(),
       tipo: invitado.tipo,
@@ -295,6 +301,11 @@ export function PanelMedicoDashboard() {
     setSelectedInvitadoParaRevision(personaParaDialog);
     setIsDialogOpen(true);
   };
+
+  const handleOpenGeneralRevisionDialog = () => {
+    setSelectedInvitadoParaRevision(null);
+    setIsDialogOpen(true);
+  }
 
   if (loading) {
     return (
@@ -325,15 +336,15 @@ export function PanelMedicoDashboard() {
         <NuevaRevisionDialog
             onRevisionGuardada={loadData}
             open={isDialogOpen}
-            onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) setSelectedInvitadoParaRevision(null);
+            onOpenChange={(openState) => {
+                setIsDialogOpen(openState);
+                if (!openState) setSelectedInvitadoParaRevision(null);
             }}
             personaPreseleccionada={selectedInvitadoParaRevision}
             bloquearBusqueda={!!selectedInvitadoParaRevision}
         />
         {!selectedInvitadoParaRevision && (
-             <Button onClick={() => { setSelectedInvitadoParaRevision(null); setIsDialogOpen(true);}}><CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario</Button>
+             <Button onClick={handleOpenGeneralRevisionDialog}><CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario</Button>
         )}
       </div>
 
@@ -458,7 +469,11 @@ export function PanelMedicoDashboard() {
                         )}
                         {invitadosIngresadosSinAptoHoy.map((invitado, index) => {
                             const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
-                            const key = `invitado-${invitado.id || 'no-id'}-${invitado.dni || 'no-dni'}-${index}`;
+                            const key_prefix = "invitado-";
+                            const id_part = String(invitado.id || 'no-id');
+                            const dni_part = String(invitado.dni || 'no-dni');
+                            const index_part = String(index);
+                            const key = key_prefix + id_part + "-" + dni_part + "-" + index_part;
                             return (
                                 <TableRow key={key}>
                                     <TableCell className="font-medium">{invitado.nombreCompleto}</TableCell>
@@ -488,7 +503,7 @@ export function PanelMedicoDashboard() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-6 w-6 text-primary"/> Últimas Revisiones Registradas</CardTitle>
-          <CardDescription>Mostrando las últimas 10 revisiones. El apto es válido por 15 días desde la fecha de revisión (incluida).</CardDescription>
+          <CardDescription>Mostrando las últimas 10 revisiones. El apto es válido por 15 días desde la fecha de revisión (incluida) para socios/familiares/adherentes, o solo por el día para invitados.</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[400px] w-full">
@@ -550,4 +565,3 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
-
