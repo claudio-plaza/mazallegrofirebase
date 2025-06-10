@@ -261,7 +261,7 @@ export function GestionSociosDashboard() {
                   <TableHead>Estado Club</TableHead>
                   <TableHead>Cambio GF</TableHead>
                   <TableHead>Apto Médico</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -319,7 +319,7 @@ export function GestionSociosDashboard() {
                           {aptoStatus.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right min-w-[80px]">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
