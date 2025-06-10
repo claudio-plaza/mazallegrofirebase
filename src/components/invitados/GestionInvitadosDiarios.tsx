@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { SolicitudInvitadosDiarios, InvitadoDiario } from '@/types';
-import { solicitudInvitadosDiariosSchema } from '@/types';
+import { solicitudInvitadosDiariosSchema, EstadoSolicitudInvitados } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,13 +13,17 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Users, Info, CalendarDays } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Info, CalendarDays, Send, Edit, ListChecks, Clock } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatISO, parseISO, isValid, addDays } from 'date-fns';
-import { es } from 'date-fns/locale'; // Added import
+import { format, formatISO, parseISO, isValid, addDays, isBefore, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const createDefaultInvitado = (): InvitadoDiario => ({
   id: generateId(),
@@ -41,12 +45,17 @@ export function GestionInvitadosDiarios() {
   const [minSelectableDate, setMinSelectableDate] = useState<string>('');
   const [maxSelectableDate, setMaxSelectableDate] = useState<string>('');
 
-  useEffect(() => {
-    const today = new Date();
-    setMaxBirthDate(format(today, 'yyyy-MM-dd'));
-    setMinSelectableDate(format(today, 'yyyy-MM-dd'));
-    setMaxSelectableDate(format(addDays(today, 2), 'yyyy-MM-dd'));
+  const today = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
   }, []);
+
+  useEffect(() => {
+    setMaxBirthDate(format(new Date(), 'yyyy-MM-dd'));
+    setMinSelectableDate(format(today, 'yyyy-MM-dd'));
+    setMaxSelectableDate(format(addDays(today, 5), 'yyyy-MM-dd'));
+  }, [today]);
 
   const selectedDateISO = useMemo(() => formatISO(selectedDate, { representation: 'date' }), [selectedDate]);
   
@@ -58,11 +67,14 @@ export function GestionInvitadosDiarios() {
       nombreSocioTitular: '',
       fecha: selectedDateISO,
       listaInvitadosDiarios: [createDefaultInvitado()],
+      estado: EstadoSolicitudInvitados.BORRADOR,
+      fechaCreacion: formatISO(new Date()),
+      fechaUltimaModificacion: formatISO(new Date()),
       titularIngresadoEvento: false,
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "listaInvitadosDiarios",
   });
@@ -75,6 +87,9 @@ export function GestionInvitadosDiarios() {
             nombreSocioTitular: '',
             fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
+            estado: EstadoSolicitudInvitados.BORRADOR,
+            fechaCreacion: formatISO(new Date()),
+            fechaUltimaModificacion: formatISO(new Date()),
             titularIngresadoEvento: false,
         });
         setSolicitudActual(null);
@@ -94,7 +109,7 @@ export function GestionInvitadosDiarios() {
         if (userSolicitud) {
             form.reset({
               ...userSolicitud,
-              fecha: selectedDateISO, // Ensure form date matches selectedDateISO
+              fecha: selectedDateISO,
               listaInvitadosDiarios: userSolicitud.listaInvitadosDiarios.length > 0 
                 ? userSolicitud.listaInvitadosDiarios.map(inv => ({
                     ...inv,
@@ -112,6 +127,9 @@ export function GestionInvitadosDiarios() {
                 nombreSocioTitular: userName || '',
                 fecha: selectedDateISO,
                 listaInvitadosDiarios: [createDefaultInvitado()],
+                estado: EstadoSolicitudInvitados.BORRADOR,
+                fechaCreacion: formatISO(new Date()),
+                fechaUltimaModificacion: formatISO(new Date()),
                 titularIngresadoEvento: false,
             });
         }
@@ -124,6 +142,9 @@ export function GestionInvitadosDiarios() {
             nombreSocioTitular: userName || '',
             fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
+            estado: EstadoSolicitudInvitados.BORRADOR,
+            fechaCreacion: formatISO(new Date()),
+            fechaUltimaModificacion: formatISO(new Date()),
             titularIngresadoEvento: false,
         });
     } finally {
@@ -135,6 +156,12 @@ export function GestionInvitadosDiarios() {
     if (!authIsLoading) {
       loadSolicitudParaFecha();
     }
+     // Listener para recargar si los datos cambian en otra parte
+    const handleDbUpdate = () => loadSolicitudParaFecha();
+    window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
+    return () => {
+        window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
+    };
   }, [authIsLoading, loadSolicitudParaFecha, selectedDateISO]); 
 
   useEffect(() => {
@@ -157,12 +184,18 @@ export function GestionInvitadosDiarios() {
         return;
     }
 
+    const isNew = !solicitudActual;
+    const fechaActual = formatISO(new Date());
+
     const dataToSave: SolicitudInvitadosDiarios = {
         ...data,
         idSocioTitular: loggedInUserNumeroSocio,
         nombreSocioTitular: userName || 'Socio',
         fecha: selectedDateISO, 
         id: solicitudActual?.id || data.id || generateId(),
+        estado: solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR, // Mantener estado si existe, sino Borrador
+        fechaCreacion: solicitudActual?.fechaCreacion || fechaActual,
+        fechaUltimaModificacion: fechaActual,
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv,
           id: inv.id || generateId(),
@@ -175,20 +208,44 @@ export function GestionInvitadosDiarios() {
     try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
         toast({
-          title: "Lista Guardada",
-          description: (
-            <div>
-              <p>Tu lista de invitados para el {formatDate(selectedDateISO)} ha sido guardada/actualizada.</p>
-              <p className="mt-2 font-semibold text-orange-600">Recuerde: Se solicitará DNI a cada uno de sus invitados para ingresar y para realizar la revisión médica.</p>
-              <p className="mt-1 text-sm text-muted-foreground">Recuerde: Es responsable del comportamiento de sus invitados y puede ser sancionado.</p>
-            </div>
-          ),
-          duration: 8000,
+          title: `Lista ${isNew ? 'Guardada como Borrador' : 'Actualizada'}`,
+          description: `Tu lista de invitados para el ${formatDate(selectedDateISO)} ha sido ${isNew ? 'guardada como borrador' : 'actualizada'}.`,
         });
         loadSolicitudParaFecha();
     } catch (error) {
         console.error("Error guardando solicitud de invitados diarios:", error);
         toast({ title: "Error", description: "No se pudo guardar la lista de invitados.", variant: "destructive"});
+    }
+  };
+
+  const handleConfirmarYEnviar = async () => {
+    if (!solicitudActual || !loggedInUserNumeroSocio) {
+      toast({ title: "Error", description: "No hay una solicitud válida para enviar.", variant: "destructive" });
+      return;
+    }
+    if (solicitudActual.listaInvitadosDiarios.length === 0 || solicitudActual.listaInvitadosDiarios.every(inv => !inv.nombre && !inv.apellido && !inv.dni)) {
+      toast({ title: "Lista Vacía", description: "Debe agregar al menos un invitado para enviar la lista.", variant: "destructive" });
+      return;
+    }
+
+    const dataToSave: SolicitudInvitadosDiarios = {
+      ...solicitudActual,
+      estado: EstadoSolicitudInvitados.ENVIADA,
+      fechaUltimaModificacion: formatISO(new Date()),
+      listaInvitadosDiarios: solicitudActual.listaInvitadosDiarios.map(inv => ({
+          ...inv,
+          fechaNacimiento: inv.fechaNacimiento instanceof Date 
+                            ? formatISO(inv.fechaNacimiento, { representation: 'date' }) 
+                            : (typeof inv.fechaNacimiento === 'string' && isValid(parseISO(inv.fechaNacimiento)) ? inv.fechaNacimiento : undefined)
+        }))
+    };
+     try {
+        await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
+        toast({ title: "Lista Enviada", description: "Tu lista de invitados ha sido enviada y ya no puede ser modificada." });
+        loadSolicitudParaFecha(); 
+    } catch (error) {
+        console.error("Error enviando solicitud de invitados diarios:", error);
+        toast({ title: "Error", description: "No se pudo enviar la lista de invitados.", variant: "destructive"});
     }
   };
 
@@ -199,16 +256,45 @@ export function GestionInvitadosDiarios() {
     }
   };
 
+  const isEditable = useMemo(() => {
+    if (!solicitudActual) return !isBefore(selectedDate, today) || isSameDay(selectedDate, today); // Nueva lista siempre editable si la fecha es futura o hoy
+    return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && (!isBefore(selectedDate, today) || isSameDay(selectedDate, today));
+  }, [solicitudActual, selectedDate, today]);
+  
+  const puedeEnviar = useMemo(() => {
+    if (!solicitudActual || !isEditable) return false;
+    // Se puede enviar si es borrador y la fecha es hoy o futura (hasta 5 dias)
+    // Y si es hoy, o si es mañana (para enviarla el dia anterior)
+    const isTodayOrFutureWithinLimit = !isBefore(selectedDate, today) && isBefore(selectedDate, addDays(today,6));
+    const isOneDayBeforeEvent = isSameDay(addDays(today, 1), selectedDate);
+    
+    return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && 
+           isTodayOrFutureWithinLimit &&
+           (isSameDay(selectedDate, today) || isOneDayBeforeEvent || isBefore(today,selectedDate)); // Permite enviar hoy para hoy, o hoy para mañana, o antes para dias futuros
+  }, [solicitudActual, selectedDate, today, isEditable]);
+
 
   if (authIsLoading || loading) {
     return (
       <div className="flex flex-col items-center justify-center py-10 space-y-4">
         <p className="text-muted-foreground">Cargando información de invitados...</p>
-        <Skeleton className="h-10 w-3/4" />
+        <Skeleton className="h-10 w-full max-w-xs" />
+        <Skeleton className="h-20 w-full max-w-2xl" />
         <Skeleton className="h-64 w-full max-w-2xl" />
         <Skeleton className="h-10 w-1/3" />
       </div>
     );
+  }
+  
+  const getEstadoBadge = (estado?: EstadoSolicitudInvitados) => {
+    if (!estado) return null;
+    switch(estado) {
+        case EstadoSolicitudInvitados.BORRADOR: return <Badge variant="outline" className="border-yellow-500 text-yellow-600"><Edit className="mr-1 h-3 w-3" /> Borrador</Badge>;
+        case EstadoSolicitudInvitados.ENVIADA: return <Badge className="bg-green-500 text-white"><Send className="mr-1 h-3 w-3" /> Enviada</Badge>;
+        case EstadoSolicitudInvitados.PROCESADA: return <Badge className="bg-blue-500 text-white"><ListChecks className="mr-1 h-3 w-3" /> Procesada</Badge>;
+        case EstadoSolicitudInvitados.VENCIDA: return <Badge variant="destructive" className="bg-gray-500"><Clock className="mr-1 h-3 w-3" /> Vencida</Badge>;
+        default: return <Badge variant="secondary">{estado}</Badge>;
+    }
   }
 
   return (
@@ -219,7 +305,8 @@ export function GestionInvitadosDiarios() {
             <CardTitle className="text-2xl flex items-center"><Users className="mr-3 h-7 w-7 text-primary" />Carga de Invitados</CardTitle>
           </div>
           <CardDescription>
-            Registra aquí a tus invitados para el día: {format(selectedDate, "dd 'de' MMMM yyyy", { locale: es })}.
+            Crea y gestiona tu lista de invitados para el día {format(selectedDate, "dd 'de' MMMM yyyy", { locale: es })}.
+            Puedes cargar la lista hasta 5 días antes y debes enviarla para confirmación 1 día antes de la fecha de visita.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -229,7 +316,7 @@ export function GestionInvitadosDiarios() {
                 <div className="space-y-2">
                     <FormLabel htmlFor="selected-event-date" className="text-sm font-medium flex items-center">
                         <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground"/>
-                        Seleccionar Fecha para Cargar Invitados
+                        Seleccionar Fecha para la Lista de Invitados
                     </FormLabel>
                     <Input
                         id="selected-event-date"
@@ -239,37 +326,66 @@ export function GestionInvitadosDiarios() {
                         min={minSelectableDate}
                         max={maxSelectableDate}
                         className="w-full sm:w-[280px]"
-                        disabled={!minSelectableDate || !maxSelectableDate}
+                        disabled={!minSelectableDate || !maxSelectableDate || (solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && !isEditable)}
                     />
                     <FormMessage>{form.formState.errors.fecha?.message}</FormMessage>
                 </div>
+
+                {solicitudActual && (
+                    <Card className="p-4 bg-muted/10 border-dashed">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                            <div>
+                                <h4 className="text-sm font-semibold mb-0.5">Estado de la Lista:</h4>
+                                {getEstadoBadge(solicitudActual.estado)}
+                            </div>
+                            <div className="text-xs text-muted-foreground text-left sm:text-right">
+                                <p>Creada: {formatDate(solicitudActual.fechaCreacion, "dd/MM/yy HH:mm")}</p>
+                                <p>Últ. Modif.: {formatDate(solicitudActual.fechaUltimaModificacion, "dd/MM/yy HH:mm")}</p>
+                            </div>
+                        </div>
+                         {solicitudActual.estado === EstadoSolicitudInvitados.ENVIADA && (
+                            <Alert variant="default" className="mt-3 bg-green-500/10 border-green-500/30 text-green-700">
+                                <Send className="h-4 w-4" />
+                                <AlertTitle>Lista Enviada</AlertTitle>
+                                <AlertDescription>
+                                Esta lista ya fue enviada y no puede ser modificada. El portero la tendrá disponible el día del evento.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </Card>
+                )}
+                
 
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertTitle>Importante</AlertTitle>
                   <AlertDescription>
-                    Recuerda que como socio titular debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada.
+                    Como socio titular, debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada y realizar la revisión médica si corresponde.
                   </AlertDescription>
                 </Alert>
+
+                <Separator/>
 
                 <div>
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                   
-                  <ScrollArea className="max-h-[500px]"> 
+                  <ScrollArea className="max-h-[400px]"> 
                     <div className="space-y-4 pr-3">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
-                            onClick={() => remove(index)}
-                            disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isEditable && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
+                              onClick={() => remove(index)}
+                              disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <p className="text-sm font-semibold mb-2">Invitado {index + 1}</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                             <FormField
@@ -278,7 +394,7 @@ export function GestionInvitadosDiarios() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="text-xs">Nombre</FormLabel>
-                                  <FormControl><Input placeholder="Nombre" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormControl><Input placeholder="Nombre" {...field} className="h-9 text-sm" disabled={!isEditable} /></FormControl>
                                   <FormMessage className="text-xs"/>
                                 </FormItem>
                               )}
@@ -289,7 +405,7 @@ export function GestionInvitadosDiarios() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="text-xs">Apellido</FormLabel>
-                                  <FormControl><Input placeholder="Apellido" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormControl><Input placeholder="Apellido" {...field} className="h-9 text-sm" disabled={!isEditable}/></FormControl>
                                   <FormMessage className="text-xs"/>
                                 </FormItem>
                               )}
@@ -300,7 +416,7 @@ export function GestionInvitadosDiarios() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="text-xs">DNI</FormLabel>
-                                  <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm"/></FormControl>
+                                  <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm" disabled={!isEditable}/></FormControl>
                                   <FormMessage className="text-xs"/>
                                 </FormItem>
                               )}
@@ -319,7 +435,7 @@ export function GestionInvitadosDiarios() {
                                       max={maxBirthDate}
                                       min="1900-01-01"
                                       className="w-full h-9 text-sm"
-                                      disabled={!maxBirthDate}
+                                      disabled={!maxBirthDate || !isEditable}
                                     />
                                   </FormControl>
                                   <FormMessage className="text-xs"/>
@@ -342,22 +458,49 @@ export function GestionInvitadosDiarios() {
                       </FormMessage>
                   )}
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => append(createDefaultInvitado())}
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
-                  </Button>
+                  {isEditable && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => append(createDefaultInvitado())}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="pt-6">
-              <Button type="submit" disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading}>
-                {form.formState.isSubmitting ? 'Guardando...' : (solicitudActual ? `Actualizar Lista para ${formatDate(selectedDateISO)}` : `Guardar Lista para ${formatDate(selectedDateISO)}`)}
+            <CardFooter className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <Button 
+                type="submit" 
+                disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading || !isEditable}
+              >
+                {form.formState.isSubmitting ? 'Guardando...' : (solicitudActual ? 'Actualizar Borrador' : 'Guardar Borrador')}
               </Button>
+              {puedeEnviar && solicitudActual && solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="default" className="bg-green-600 hover:bg-green-700">
+                      <Send className="mr-2 h-4 w-4" /> Confirmar y Enviar Lista
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Confirmar y Enviar Lista de Invitados?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> ya no podrá ser modificada.
+                        Asegúrate de que todos los datos sean correctos.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleConfirmarYEnviar} className="bg-green-600 hover:bg-green-700">Confirmar y Enviar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </CardFooter>
           </form>
         </Form>

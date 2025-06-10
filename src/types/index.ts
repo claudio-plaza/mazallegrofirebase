@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { subYears, parseISO, isValid } from 'date-fns';
+import { subYears, parseISO, isValid, formatISO } from 'date-fns';
 
 export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 
@@ -56,6 +56,15 @@ export enum EstadoSolicitudAdherente {
 }
 
 export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
+
+export enum EstadoSolicitudInvitados {
+  BORRADOR = "Borrador",
+  ENVIADA = "Enviada",
+  PROCESADA = "Procesada", // Podría ser útil para el portero si ya la vio/marcó ingresos
+  CANCELADA_SOCIO = "Cancelada por Socio",
+  CANCELADA_ADMIN = "Cancelada por Admin",
+  VENCIDA = "Vencida", // Si la fecha pasó y era borrador
+}
 
 
 export interface AptoMedicoInfo {
@@ -379,7 +388,7 @@ export const invitadoDiarioSchema = z.object({
     .refine(date => isValid(date), { message: "Fecha de nacimiento inválida." }),
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
-  aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(), // Nuevo campo para apto medico del invitado diario
+  aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
 
@@ -387,9 +396,12 @@ export const solicitudInvitadosDiariosSchema = z.object({
   id: z.string().default(() => `invd-${Date.now().toString(36)}`),
   idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
   nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
-  fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }),
+  fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }).refine(val => isValid(parseISO(val)), { message: "Fecha inválida."}),
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
     .min(1, "Debe agregar al menos un invitado."),
+  estado: z.nativeEnum(EstadoSolicitudInvitados).default(EstadoSolicitudInvitados.BORRADOR),
+  fechaCreacion: z.string().default(() => formatISO(new Date())),
+  fechaUltimaModificacion: z.string().default(() => formatISO(new Date())),
   titularIngresadoEvento: z.boolean().default(false),
 });
 export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
