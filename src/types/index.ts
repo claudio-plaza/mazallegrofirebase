@@ -138,7 +138,6 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 type FileSchemaConfig = { typeError: string, sizeError: string, mimeTypeError: string, mimeTypes: string[] };
 
-// Preprocessing function to normalize undefined to null for file inputs
 const filePreprocess = (val: unknown) => {
   if (val === undefined) return null;
   return val;
@@ -148,27 +147,22 @@ const baseFileSchema = (config: FileSchemaConfig) =>
   z.instanceof(FileListInstance, { message: config.typeError })
     .superRefine((files, ctx) => {
       if (files.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Debe seleccionar un archivo.",
-        });
-        return; 
+        // Si no hay archivos, no añadimos error aquí.
+        // La lógica de "requerido" se manejará fuera.
+        return;
       }
       if (files.length > 1) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Solo se puede seleccionar un archivo.",
         });
-        return; 
+        return;
       }
-
-      // At this point, files.length is guaranteed to be 1
       const file = files[0];
-
       if (file.size > MAX_FILE_SIZE_BYTES) {
         ctx.addIssue({
           code: z.ZodIssueCode.too_big,
-          type: "array", 
+          type: "array",
           maximum: MAX_FILE_SIZE_BYTES,
           inclusive: true,
           message: config.sizeError,
@@ -176,24 +170,24 @@ const baseFileSchema = (config: FileSchemaConfig) =>
       }
       if (!config.mimeTypes.includes(file.type)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom, 
+          code: z.ZodIssueCode.custom,
           message: config.mimeTypeError,
         });
       }
     });
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  z.preprocess(filePreprocess, 
+  z.preprocess(filePreprocess,
     baseFileSchema(config)
-      .nullable() 
-      .refine((val) => val !== null, { message: requiredMessage }) 
+      .nullable()
+      .refine(val => val !== null && val.length > 0, { message: requiredMessage })
   );
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.preprocess(filePreprocess, 
+  z.preprocess(filePreprocess,
     baseFileSchema(config)
-      .nullable() 
-      .optional()   
+      .nullable()
+      .optional()
   );
 
 
@@ -455,3 +449,4 @@ export const getStepSpecificValidationSchema = (step: number) => {
 };
 isValid(new Date());
 
+    
