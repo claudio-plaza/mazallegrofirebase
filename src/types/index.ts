@@ -146,33 +146,54 @@ const filePreprocess = (val: unknown) => {
 
 const baseFileSchema = (config: FileSchemaConfig) =>
   z.instanceof(FileListInstance, { message: config.typeError })
-    .refine(
-      (files) => files.length === 1,
-      (files) => ({ // This message function is called if files.length !== 1
-        message: files.length > 1
-          ? "Solo se puede seleccionar un archivo."
-          : "Debe seleccionar un archivo.", // This covers files.length === 0
-      })
-    )
-    .refine((files) => files[0].size <= MAX_FILE_SIZE_BYTES, {
-      message: config.sizeError,
-    })
-    .refine((files) => config.mimeTypes.includes(files[0].type), {
-      message: config.mimeTypeError,
+    .superRefine((files, ctx) => {
+      if (files.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Debe seleccionar un archivo.",
+        });
+        return; 
+      }
+      if (files.length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Solo se puede seleccionar un archivo.",
+        });
+        return; 
+      }
+
+      // At this point, files.length is guaranteed to be 1
+      const file = files[0];
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_big,
+          type: "array", 
+          maximum: MAX_FILE_SIZE_BYTES,
+          inclusive: true,
+          message: config.sizeError,
+        });
+      }
+      if (!config.mimeTypes.includes(file.type)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom, 
+          message: config.mimeTypeError,
+        });
+      }
     });
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  z.preprocess(filePreprocess, // Preprocess undefined to null
+  z.preprocess(filePreprocess, 
     baseFileSchema(config)
-      .nullable() // Allow null to pass through baseFileSchema's checks
-      .refine((val) => val !== null, { message: requiredMessage }) // Final check: ensure it's not null
+      .nullable() 
+      .refine((val) => val !== null, { message: requiredMessage }) 
   );
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.preprocess(filePreprocess, // Preprocess undefined to null
+  z.preprocess(filePreprocess, 
     baseFileSchema(config)
-      .nullable() // Allow null
-      .optional()   // Allow undefined (which preprocess turns to null, then nullable allows)
+      .nullable() 
+      .optional()   
   );
 
 
@@ -433,3 +454,4 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
