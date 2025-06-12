@@ -60,10 +60,10 @@ export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
 export enum EstadoSolicitudInvitados {
   BORRADOR = "Borrador",
   ENVIADA = "Enviada",
-  PROCESADA = "Procesada", // Podría ser útil para el portero si ya la vio/marcó ingresos
+  PROCESADA = "Procesada",
   CANCELADA_SOCIO = "Cancelada por Socio",
   CANCELADA_ADMIN = "Cancelada por Admin",
-  VENCIDA = "Vencida", // Si la fecha pasó y era borrador
+  VENCIDA = "Vencida",
 }
 
 
@@ -138,52 +138,42 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 type FileSchemaConfig = { typeError: string, sizeError: string, mimeTypeError: string, mimeTypes: string[] };
 
+// Preprocessing function to normalize undefined to null for file inputs
+const filePreprocess = (val: unknown) => {
+  if (val === undefined) return null;
+  return val;
+};
+
 const baseFileSchema = (config: FileSchemaConfig) =>
-  z
-    .instanceof(FileListInstance, { message: config.typeError })
+  z.instanceof(FileListInstance, { message: config.typeError })
     .refine(
-      (files) => files && files.length === 1,
-      (files) => ({
-        message: files && files.length > 1 ? "Solo se puede seleccionar un archivo." : (files && files.length === 0 ? config.typeError : config.typeError),
+      (files) => files.length === 1,
+      (files) => ({ // This message function is called if files.length !== 1
+        message: files.length > 1
+          ? "Solo se puede seleccionar un archivo."
+          : "Debe seleccionar un archivo.", // This covers files.length === 0
       })
     )
-    .refine(
-      (files) => files && files[0] && files[0].size <= MAX_FILE_SIZE_BYTES,
-      {
-        message: config.sizeError,
-      }
-    )
-    .refine(
-      (files) => files && files[0] && config.mimeTypes.includes(files[0].type),
-      {
-        message: config.mimeTypeError,
-      }
-    );
+    .refine((files) => files[0].size <= MAX_FILE_SIZE_BYTES, {
+      message: config.sizeError,
+    })
+    .refine((files) => config.mimeTypes.includes(files[0].type), {
+      message: config.mimeTypeError,
+    });
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  baseFileSchema(config)
-    .nullable()
-    .refine(val => val !== null, { message: requiredMessage });
-
+  z.preprocess(filePreprocess, // Preprocess undefined to null
+    baseFileSchema(config)
+      .nullable() // Allow null to pass through baseFileSchema's checks
+      .refine((val) => val !== null, { message: requiredMessage }) // Final check: ensure it's not null
+  );
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.custom<FileList | null | undefined>((val): val is FileList | null | undefined => {
-    if (val === null || val === undefined) {
-      return true; 
-    }
-    if (!(val instanceof FileListInstance)) {
-      return val instanceof FileListInstance;
-    }
-    const parseResult = baseFileSchema(config).safeParse(val);
-    return parseResult.success;
-  }, {
-    message: config.typeError,
-  }).refine(val => { 
-    if (val instanceof FileListInstance) {
-      return baseFileSchema(config).safeParse(val).success;
-    }
-    return true; 
-  }).optional().nullable();
+  z.preprocess(filePreprocess, // Preprocess undefined to null
+    baseFileSchema(config)
+      .nullable() // Allow null
+      .optional()   // Allow undefined (which preprocess turns to null, then nullable allows)
+  );
 
 
 const dniFileSchemaConfig: FileSchemaConfig = {
