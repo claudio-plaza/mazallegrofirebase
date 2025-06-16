@@ -136,13 +136,9 @@ const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
-type FileSchemaConfig = { typeError: string, sizeError: string, mimeTypeError: string, mimeTypes: string[] };
+type FileSchemaConfig = { typeError: string; sizeError: string; mimeTypeError: string; mimeTypes: string[] };
 
-const filePreprocess = (val: unknown) => {
-  if (val === undefined) return null;
-  return val;
-};
-
+// Definir las configuraciones de esquema de archivo PRIMERO
 const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
@@ -157,11 +153,18 @@ const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
+// Preprocesamiento y esquemas base DESPUÉS de las configs
+const filePreprocess = (val: unknown) => {
+  if (val === undefined) return null;
+  return val;
+};
 
 const baseFileContentSchema = (config: FileSchemaConfig) =>
   z.custom<FileList>().superRefine((files, ctx) => {
-    if (files.length === 0) {
-      return; // Se asume que la verificación de "requerido" o "vació es opcional" se hace antes.
+    if (!files || files.length === 0) {
+      // Esta función solo valida contenido si hay archivos.
+      // La verificación de "requerido" se hace antes.
+      return;
     }
     if (files.length > 1) {
       ctx.addIssue({
@@ -171,10 +174,16 @@ const baseFileContentSchema = (config: FileSchemaConfig) =>
       return;
     }
     const file = files[0];
+    if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+      // Si file no es un objeto File válido, no podemos continuar.
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
+      return;
+    }
+
     if (file.size > MAX_FILE_SIZE_BYTES) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
-        type: "array", // Zod espera 'array' para too_big, aunque sea un FileList
+        type: "array",
         maximum: MAX_FILE_SIZE_BYTES,
         inclusive: true,
         message: config.sizeError,
@@ -188,29 +197,32 @@ const baseFileContentSchema = (config: FileSchemaConfig) =>
     }
   });
 
-
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  z.preprocess(filePreprocess,
+  z.preprocess(
+    filePreprocess,
     z.union([
-      z.string().url({ message: "URL de archivo inválida." }).min(1),
-      z.instanceof(FileListInstance, { message: config.typeError })
-        .refine(files => files.length > 0, { message: requiredMessage })
-        .pipe(baseFileContentSchema(config))
-    ])
-    .nullable() // Permite que el preproceso maneje 'undefined' a 'null'
-    .refine(val => val !== null, { message: requiredMessage })
+        z.string().url({ message: "URL de archivo inválida." }).min(1),
+        z.instanceof(FileListInstance, { message: config.typeError })
+          .refine(files => files.length > 0, { message: requiredMessage })
+          .pipe(baseFileContentSchema(config))
+      ])
+      .nullable()
+      .refine(val => val !== null && (typeof val === 'string' || (val instanceof FileListInstance && val.length > 0)), { message: requiredMessage })
   );
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.preprocess(filePreprocess,
+  z.preprocess(
+    filePreprocess,
     z.union([
-      z.string().url({ message: "URL de archivo inválida." }).min(1).optional().nullable(),
-      z.instanceof(FileListInstance, { message: config.typeError })
-        .refine(files => files.length <= 1, { message: "Solo se puede seleccionar un archivo." })
-        .pipe(baseFileContentSchema(config))
-        .optional()
-        .nullable()
-    ]).optional().nullable()
+        z.string().url({ message: "URL de archivo inválida." }).min(1).optional().nullable(),
+        z.instanceof(FileListInstance, { message: config.typeError })
+          .refine(files => files.length <= 1, { message: "Solo se puede seleccionar un archivo." })
+          .pipe(baseFileContentSchema(config))
+          .optional()
+          .nullable()
+      ])
+      .optional()
+      .nullable()
   );
 
 
@@ -456,7 +468,5 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
-
-    
 
     
