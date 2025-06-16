@@ -138,7 +138,6 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 type FileSchemaConfig = { typeError: string; sizeError: string; mimeTypeError: string; mimeTypes: string[] };
 
-// Definir las configuraciones de esquema de archivo PRIMERO
 const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
@@ -153,77 +152,134 @@ const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
-// Preprocesamiento y esquemas base DESPUÉS de las configs
 const filePreprocess = (val: unknown) => {
   if (val === undefined) return null;
   return val;
 };
 
-const baseFileContentSchema = (config: FileSchemaConfig) =>
-  z.custom<FileList>().superRefine((files, ctx) => {
-    if (!files || files.length === 0) {
-      // Esta función solo valida contenido si hay archivos.
-      // La verificación de "requerido" se hace antes.
-      return;
-    }
-    if (files.length > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Solo se puede seleccionar un archivo.",
-      });
-      return;
-    }
-    const file = files[0];
-    if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
-      // Si file no es un objeto File válido, no podemos continuar.
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_big,
-        type: "array",
-        maximum: MAX_FILE_SIZE_BYTES,
-        inclusive: true,
-        message: config.sizeError,
-      });
-    }
-    if (!config.mimeTypes.includes(file.type)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: config.mimeTypeError,
-      });
-    }
-  });
-
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   z.preprocess(
     filePreprocess,
-    z.union([
-        z.string().url({ message: "URL de archivo inválida." }).min(1),
-        z.instanceof(FileListInstance, { message: config.typeError })
-          .refine(files => files.length > 0, { message: requiredMessage })
-          .pipe(baseFileContentSchema(config))
-      ])
-      .nullable()
-      .refine(val => val !== null && (typeof val === 'string' || (val instanceof FileListInstance && val.length > 0)), { message: requiredMessage })
-  );
+    z.any() 
+  ).superRefine((val, ctx) => {
+    if (val === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: requiredMessage,
+      });
+      return;
+    }
+
+    if (typeof val === 'string') {
+      if (!z.string().url().min(1).safeParse(val).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "URL de archivo inválida.",
+        });
+      }
+      return; 
+    }
+
+    if (val instanceof FileListInstance) {
+      if (val.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: requiredMessage,
+        });
+        return;
+      }
+      if (val.length > 1) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Solo se puede seleccionar un archivo.",
+        });
+        return;
+      }
+      const file = val[0];
+      if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_big,
+          type: "array",
+          maximum: MAX_FILE_SIZE_BYTES,
+          inclusive: true,
+          message: config.sizeError,
+        });
+      }
+      if (!config.mimeTypes.includes(file.type)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: config.mimeTypeError,
+        });
+      }
+      return;
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: config.typeError,
+    });
+  });
 
 const optionalFileField = (config: FileSchemaConfig) =>
   z.preprocess(
     filePreprocess,
-    z.union([
-        z.string().url({ message: "URL de archivo inválida." }).min(1).optional().nullable(),
-        z.instanceof(FileListInstance, { message: config.typeError })
-          .refine(files => files.length <= 1, { message: "Solo se puede seleccionar un archivo." })
-          .pipe(baseFileContentSchema(config))
-          .optional()
-          .nullable()
-      ])
-      .optional()
-      .nullable()
-  );
+    z.any()
+  ).superRefine((val, ctx) => {
+    if (val === null || (val instanceof FileListInstance && val.length === 0)) {
+      return; // Es opcional, así que null o FileList vacío está bien
+    }
+
+    if (typeof val === 'string') {
+      if (!z.string().url().min(1).safeParse(val).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "URL de archivo inválida.",
+        });
+      }
+      return;
+    }
+
+    if (val instanceof FileListInstance) {
+      if (val.length > 1) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Solo se puede seleccionar un archivo.",
+        });
+        return;
+      }
+      // Si hay exactamente un archivo, validamos su contenido
+      const file = val[0];
+      if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_big,
+          type: "array",
+          maximum: MAX_FILE_SIZE_BYTES,
+          inclusive: true,
+          message: config.sizeError,
+        });
+      }
+      if (!config.mimeTypes.includes(file.type)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: config.mimeTypeError,
+        });
+      }
+      return;
+    }
+    
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: config.typeError,
+    });
+  });
 
 
 export const signupTitularSchema = z.object({
