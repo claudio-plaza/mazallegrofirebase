@@ -143,67 +143,75 @@ const filePreprocess = (val: unknown) => {
   return val;
 };
 
-const baseFileSchema = (config: FileSchemaConfig) =>
-  z.instanceof(FileListInstance, { message: config.typeError })
-    .superRefine((files, ctx) => {
-      if (files.length === 0) {
-        // Si no hay archivos, no añadimos error aquí.
-        // La lógica de "requerido" se manejará fuera.
-        return;
-      }
-      if (files.length > 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Solo se puede seleccionar un archivo.",
-        });
-        return;
-      }
-      const file = files[0];
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.too_big,
-          type: "array",
-          maximum: MAX_FILE_SIZE_BYTES,
-          inclusive: true,
-          message: config.sizeError,
-        });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: config.mimeTypeError,
-        });
-      }
-    });
+const dniFileSchemaConfig: FileSchemaConfig = {
+  typeError: "Debe seleccionar un archivo de imagen o PDF.",
+  sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, o PDF para DNI.",
+  mimeTypes: ["image/png", "image/jpeg", "application/pdf"],
+};
+
+const profileFileSchemaConfig: FileSchemaConfig = {
+  typeError: "Debe seleccionar un archivo de imagen.",
+  sizeError: `La foto de perfil no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG o JPG para foto de perfil.",
+  mimeTypes: ["image/png", "image/jpeg"],
+};
+
+
+const baseFileContentSchema = (config: FileSchemaConfig) =>
+  z.custom<FileList>().superRefine((files, ctx) => {
+    if (files.length === 0) {
+      return; // Se asume que la verificación de "requerido" o "vació es opcional" se hace antes.
+    }
+    if (files.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Solo se puede seleccionar un archivo.",
+      });
+      return;
+    }
+    const file = files[0];
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_big,
+        type: "array", // Zod espera 'array' para too_big, aunque sea un FileList
+        maximum: MAX_FILE_SIZE_BYTES,
+        inclusive: true,
+        message: config.sizeError,
+      });
+    }
+    if (!config.mimeTypes.includes(file.type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: config.mimeTypeError,
+      });
+    }
+  });
+
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   z.preprocess(filePreprocess,
-    baseFileSchema(config)
-      .nullable()
-      .refine(val => val !== null && val.length > 0, { message: requiredMessage })
+    z.union([
+      z.string().url({ message: "URL de archivo inválida." }).min(1),
+      z.instanceof(FileListInstance, { message: config.typeError })
+        .refine(files => files.length > 0, { message: requiredMessage })
+        .pipe(baseFileContentSchema(config))
+    ])
+    .nullable() // Permite que el preproceso maneje 'undefined' a 'null'
+    .refine(val => val !== null, { message: requiredMessage })
   );
 
 const optionalFileField = (config: FileSchemaConfig) =>
   z.preprocess(filePreprocess,
-    baseFileSchema(config)
-      .nullable()
-      .optional()
+    z.union([
+      z.string().url({ message: "URL de archivo inválida." }).min(1).optional().nullable(),
+      z.instanceof(FileListInstance, { message: config.typeError })
+        .refine(files => files.length <= 1, { message: "Solo se puede seleccionar un archivo." })
+        .pipe(baseFileContentSchema(config))
+        .optional()
+        .nullable()
+    ]).optional().nullable()
   );
-
-
-const dniFileSchemaConfig: FileSchemaConfig = {
-  typeError: "Archivo de DNI inválido. Se esperaba un archivo.",
-  sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Para DNI, solo se aceptan PNG, JPG o PDF.",
-  mimeTypes: ['image/png', 'image/jpeg', 'application/pdf']
-};
-
-const profileFileSchemaConfig: FileSchemaConfig = {
-  typeError: "Archivo de imagen inválido. Se esperaba un archivo.",
-  sizeError: `La foto no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Para fotos, solo se aceptan PNG o JPG.",
-  mimeTypes: ['image/png', 'image/jpeg']
-};
 
 
 export const signupTitularSchema = z.object({
@@ -448,5 +456,7 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
+    
 
     
