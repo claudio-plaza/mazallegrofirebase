@@ -4,7 +4,7 @@
 import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig, TipoPersona } from '@/types';
 import { EstadoSolicitudInvitados } from '@/types'; // Importar el nuevo enum
 import { mockSocios, mockRevisiones } from '../mockData';
-import { generateId } from '../helpers';
+import { generateId, normalizeText } from '../helpers';
 import { parseISO, isValid, formatISO } from 'date-fns';
 
 
@@ -214,13 +214,13 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
 
 export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<Socio | null> => {
   const socios = await getSocios();
-  const term = searchTerm.toLowerCase().trim();
+  const normalizedSearchTerm = normalizeText(searchTerm);
   return socios.find(s =>
-    s.numeroSocio.toLowerCase() === term ||
-    s.dni.toLowerCase() === term ||
-    s.nombre.toLowerCase().includes(term) ||
-    s.apellido.toLowerCase().includes(term) ||
-    `${s.nombre.toLowerCase()} ${s.apellido.toLowerCase()}`.includes(term)
+    normalizeText(s.numeroSocio).includes(normalizedSearchTerm) ||
+    normalizeText(s.dni).includes(normalizedSearchTerm) ||
+    normalizeText(s.nombre).includes(normalizedSearchTerm) ||
+    normalizeText(s.apellido).includes(normalizedSearchTerm) ||
+    normalizeText(`${s.nombre} ${s.apellido}`).includes(normalizedSearchTerm)
   ) || null;
 };
 
@@ -585,7 +585,7 @@ export const addOrUpdateSolicitudInvitadosDiarios = async (solicitud: SolicitudI
 
     const solicitudToSave: SolicitudInvitadosDiarios = {
         ...solicitud,
-        fechaCreacion: solicitud.fechaCreacion ? (isValid(parseISO(solicitud.fechaCreacion)) ? solicitud.fechaCreacion : formatISO(new Date())) : formatISO(new Date()),
+        fechaCreacion: solicitud.fechaCreacion ? (isValid(parseISO(solicitud.fechaCreacion as string)) ? solicitud.fechaCreacion as string : formatISO(new Date())) : formatISO(new Date()),
         fechaUltimaModificacion: formatISO(new Date()),
         listaInvitadosDiarios: solicitud.listaInvitadosDiarios.map(inv => ({
             ...inv,
@@ -613,8 +613,8 @@ export const addOrUpdateSolicitudInvitadosDiarios = async (solicitud: SolicitudI
     
     return {
       ...solicitudToSave,
-      fechaCreacion: parseISO(solicitudToSave.fechaCreacion),
-      fechaUltimaModificacion: parseISO(solicitudToSave.fechaUltimaModificacion),
+      fechaCreacion: parseISO(solicitudToSave.fechaCreacion as string),
+      fechaUltimaModificacion: parseISO(solicitudToSave.fechaUltimaModificacion as string),
       listaInvitadosDiarios: solicitudToSave.listaInvitadosDiarios.map(inv => ({
         ...inv,
         fechaNacimiento: inv.fechaNacimiento ? parseDateSafe(inv.fechaNacimiento) : undefined,
@@ -717,3 +717,4 @@ if (typeof window !== 'undefined') {
     initializePreciosInvitadosDB();
 }
 isValid(new Date()); 
+

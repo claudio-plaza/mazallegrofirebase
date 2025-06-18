@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus, generateId, esCumpleanosHoy } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, generateId, esCumpleanosHoy, normalizeText } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
 import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,7 +85,7 @@ export function GestionSociosDashboard() {
     if (socio) {
       const hoy = new Date();
       const nuevaInfoApto: AptoMedicoInfo = esValido
-        ? { valido: true, fechaEmision: formatISO(hoy), fechaVencimiento: formatISO(addDays(hoy, 14)), observaciones: 'Apto marcado manualmente por admin.' }
+        ? { valido: true, fechaEmision: formatISO(hoy), fechaVencimiento: formatISO(addDays(hoy, 14)), observaciones: 'Apto marcado manually por admin.' }
         : { valido: false, razonInvalidez: 'Marcado como no apto/vencido por admin.', fechaEmision: formatISO(socio.aptoMedico?.fechaEmision || subDays(hoy, 15)), fechaVencimiento: formatISO(subDays(hoy,1)) };
 
       try {
@@ -129,13 +129,13 @@ export function GestionSociosDashboard() {
 
 
   const filteredSocios = useMemo(() => {
+    const normalizedSearch = normalizeText(searchTerm);
     return socios.filter(socio => {
-      const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
-        socio.nombre.toLowerCase().includes(searchLower) ||
-        socio.apellido.toLowerCase().includes(searchLower) ||
-        socio.numeroSocio.includes(searchLower) ||
-        socio.dni.includes(searchLower);
+        normalizeText(socio.nombre).includes(normalizedSearch) ||
+        normalizeText(socio.apellido).includes(normalizedSearch) ||
+        normalizeText(socio.numeroSocio).includes(normalizedSearch) ||
+        normalizeText(socio.dni).includes(normalizedSearch);
 
       const matchesEstado =
         filtroEstado === 'Todos' || socio.estadoSocio === filtroEstado;

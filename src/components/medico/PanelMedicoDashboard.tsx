@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NuevaRevisionDialog, type SearchedPerson } from './NuevaRevisionDialog';
-import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, normalizeText } from '@/lib/helpers';
 import { parseISO, isToday, isSameMonth, differenceInDays, formatISO, isValid, differenceInYears } from 'date-fns';
 import { Activity, AlertTriangle, CalendarCheck, CalendarClock, Eye, Users, FileSpreadsheet, Search, UserCircle, ShieldCheck, ShieldAlert, Stethoscope, UserRound, FileEdit, CheckCircle2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -186,11 +186,11 @@ export function PanelMedicoDashboard() {
     setSearchLoading(true);
     setSearchedPersonDisplay(null);
     
-    const term = searchTerm.trim().toLowerCase();
+    const normalizedTerm = normalizeText(searchTerm);
     let found: SearchedPersonForPanel | null = null;
 
     for (const socio of socios) {
-      if (socio.numeroSocio.toLowerCase() === term || socio.dni.toLowerCase() === term || `${socio.nombre.toLowerCase()} ${socio.apellido.toLowerCase()}`.includes(term)) {
+      if (normalizeText(socio.numeroSocio).includes(normalizedTerm) || normalizeText(socio.dni).includes(normalizedTerm) || normalizeText(`${socio.nombre} ${socio.apellido}`).includes(normalizedTerm)) {
         found = {
           id: socio.numeroSocio,
           nombreCompleto: `${socio.nombre} ${socio.apellido}`,
@@ -203,7 +203,7 @@ export function PanelMedicoDashboard() {
         };
         break;
       }
-      const familiar = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
+      const familiar = socio.grupoFamiliar?.find(f => normalizeText(f.dni).includes(normalizedTerm) || normalizeText(`${f.nombre} ${f.apellido}`).includes(normalizedTerm));
       if (familiar) {
         found = {
           id: familiar.dni,
@@ -218,7 +218,7 @@ export function PanelMedicoDashboard() {
         };
         break;
       }
-      const adherente = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
+      const adherente = socio.adherentes?.find(a => normalizeText(a.dni).includes(normalizedTerm) || normalizeText(`${a.nombre} ${a.apellido}`).includes(normalizedTerm));
       if (adherente) {
         found = {
           id: adherente.dni,
@@ -236,7 +236,7 @@ export function PanelMedicoDashboard() {
     }
 
     if (!found) {
-        const invitado = invitadosDiariosHoy.find(inv => inv.dni.toLowerCase() === term || `${inv.nombre.toLowerCase()} ${inv.apellido.toLowerCase()}`.includes(term));
+        const invitado = invitadosDiariosHoy.find(inv => normalizeText(inv.dni).includes(normalizedTerm) || normalizeText(`${inv.nombre} ${inv.apellido}`).includes(normalizedTerm));
         if (invitado) {
             const anfitrion = mapaSociosAnfitriones[invitado.idSocioAnfitrion!];
             found = {

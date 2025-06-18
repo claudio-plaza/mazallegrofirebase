@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift } from 'lucide-react';
-import { formatDate, getAptoMedicoStatus, esCumpleanosHoy } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -214,8 +214,8 @@ export function ControlAcceso() {
 
 
   const handleSearch = useCallback(async (isRefresh = false) => {
-    const currentSearchTerm = isRefresh && socioEncontrado ? (socioEncontrado.numeroSocio || socioEncontrado.dni) : searchTerm;
-    if (!currentSearchTerm.trim()) {
+    const termToSearch = isRefresh && socioEncontrado ? (socioEncontrado.numeroSocio || socioEncontrado.dni) : searchTerm;
+    if (!termToSearch.trim()) {
       setMensajeBusqueda('Por favor, ingrese un N° Socio, DNI o Nombre para buscar.');
       setSocioEncontrado(null);
       setSolicitudCumpleanosHoySocioBuscado(null);
@@ -252,7 +252,7 @@ export function ControlAcceso() {
     }
 
     try {
-      const socio = await getSocioByNumeroSocioOrDNI(currentSearchTerm.trim());
+      const socio = await getSocioByNumeroSocioOrDNI(termToSearch);
 
       if (socio) {
         setSocioEncontrado(socio);

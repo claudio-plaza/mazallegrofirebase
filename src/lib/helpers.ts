@@ -122,3 +122,11 @@ export const esCumpleanosHoy = (fechaNacimientoInput?: Date | string): boolean =
   // Comparamos solo mes y día
   return getMonth(hoy) === getMonth(fechaNac) && getDayOfMonth(hoy) === getDayOfMonth(fechaNac);
 };
+
+export const normalizeText = (text: string): string => {
+  if (!text) return '';
+  return text
+    .normalize('NFD') // Descompone caracteres acentuados (e.g., 'á' -> 'a' + '´')
+    .replace(/[\u0300-\u036f]/g, '') // Elimina los diacríticos (acentos)
+    .toLowerCase(); // Convierte a minúsculas
+};
