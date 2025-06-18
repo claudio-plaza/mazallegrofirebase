@@ -526,7 +526,7 @@ export const adminEditableFamiliarSchema = z.object({
   fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(),
   fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),
   fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),
-  aptoMedico: z.custom<AptoMedicoInfo>().optional(), // Solo visualización o gestionado aparte
+  aptoMedico: z.custom<AptoMedicoInfo>().optional(), 
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
 
@@ -544,13 +544,15 @@ export const adminEditSocioTitularSchema = z.object({
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
   estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
+  tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
+    required_error: "Debe seleccionar un tipo de grupo familiar.",
+  }).optional(),
   grupoFamiliar: z.array(adminEditableFamiliarSchema).optional(),
-  // Campos de foto para el titular
-  fotoUrl: z.string().url().optional().nullable(), // Para la foto principal que puede ser distinta de fotoPerfil
+  fotoUrl: z.string().url().optional().nullable(), 
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
-  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(), // Admin solo puede borrar, no subir nuevas DNI
-  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),  // Admin solo puede borrar
-  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),    // Admin solo puede borrar
+  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(), 
+  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),  
+  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),    
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 

@@ -286,17 +286,13 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
 
     const dataToSave = { ...updatedData };
 
-    // Helper para procesar campos de foto
     const processPhotoFieldForStorage = (photoField: any): string | null | undefined => {
-      if (photoField === null) return null; // Indica eliminación
-      if (typeof photoField === 'string' && photoField.startsWith('http')) return photoField; // URL existente o nueva de placeholder
-      // FileList ya debería haber sido convertido a URL de placeholder en el componente antes de llegar aquí.
-      // Si aún es FileList aquí, es un caso no esperado para este flujo de actualización.
-      return undefined; // Mantener existente si no es null ni una URL nueva
+      if (photoField === null) return null; 
+      if (typeof photoField === 'string' && photoField.startsWith('http')) return photoField; 
+      return undefined; 
     };
 
 
-    // Stringify dates
     if (dataToSave.fechaNacimiento instanceof Date) dataToSave.fechaNacimiento = formatISO(dataToSave.fechaNacimiento);
     if (dataToSave.miembroDesde instanceof Date) dataToSave.miembroDesde = formatISO(dataToSave.miembroDesde);
     if (dataToSave.ultimaRevisionMedica instanceof Date) dataToSave.ultimaRevisionMedica = formatISO(dataToSave.ultimaRevisionMedica);
@@ -306,7 +302,6 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         if (dataToSave.aptoMedico.fechaVencimiento instanceof Date) dataToSave.aptoMedico.fechaVencimiento = formatISO(dataToSave.aptoMedico.fechaVencimiento);
     }
 
-    // Procesar fotos del titular
     dataToSave.fotoUrl = processPhotoFieldForStorage(dataToSave.fotoUrl);
     dataToSave.fotoPerfil = processPhotoFieldForStorage(dataToSave.fotoPerfil);
     dataToSave.fotoDniFrente = processPhotoFieldForStorage(dataToSave.fotoDniFrente);
@@ -317,7 +312,7 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
     if (dataToSave.grupoFamiliar) {
         dataToSave.grupoFamiliar = dataToSave.grupoFamiliar.map(f => ({
             ...f,
-            id: f.id || f.dni,
+            id: f.id || generateId(), // Asegurar ID para nuevos familiares
             fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento) : stringifyDateOrEpoch(f.fechaNacimiento),
             aptoMedico: f.aptoMedico ? {
                 ...f.aptoMedico,
@@ -341,7 +336,6 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
                 fechaVencimiento: a.aptoMedico.fechaVencimiento instanceof Date ? formatISO(a.aptoMedico.fechaVencimiento) : stringifyDate(a.aptoMedico.fechaVencimiento),
             } : undefined,
              fotoPerfil: processPhotoFieldForStorage(a.fotoPerfil),
-             // Adherentes no suelen tener DNI/Carnet fotos separadas, pero si se añaden, procesar aquí.
         }));
     }
      if (dataToSave.cambiosPendientesGrupoFamiliar && dataToSave.cambiosPendientesGrupoFamiliar.familiares) {
@@ -366,10 +360,9 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
     const existingSocio = sociosRaw[index];
     sociosRaw[index] = { ...existingSocio, ...dataToSave };
     
-    // Limpiar campos que fueron seteados a null (eliminación de foto)
     Object.keys(sociosRaw[index]).forEach(key => {
         if (sociosRaw[index][key] === null && (key.startsWith('foto') || key === 'fotoUrl')) {
-            delete sociosRaw[index][key]; // o asignar undefined
+            delete sociosRaw[index][key]; 
         }
         if (key === 'grupoFamiliar' && Array.isArray(sociosRaw[index][key])) {
             sociosRaw[index][key] = sociosRaw[index][key].map((familiar: any) => {
