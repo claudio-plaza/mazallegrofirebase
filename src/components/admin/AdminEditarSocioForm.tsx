@@ -18,7 +18,7 @@ import { formatDate, getAptoMedicoStatus, getFileUrl, normalizeText } from '@/li
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin } from 'lucide-react';
-import { format, parseISO, isValid, subYears } from 'date-fns';
+import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Link from 'next/link';
 import Image from 'next/image';
