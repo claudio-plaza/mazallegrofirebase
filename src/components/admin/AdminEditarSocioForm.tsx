@@ -17,11 +17,12 @@ import { getSocioById, updateSocio } from '@/lib/firebase/firestoreService';
 import { formatDate, getAptoMedicoStatus, getFileUrl, normalizeText } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText } from 'lucide-react';
+import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock } from 'lucide-react';
 import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 interface AdminEditarSocioFormProps {
@@ -33,6 +34,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  const [existingGroupType, setExistingGroupType] = useState<'conyugeEHijos' | 'padresMadres' | null>(null);
   
   const [maxBirthDate, setMaxBirthDate] = useState<string>(() => {
     const today = new Date();
@@ -46,7 +48,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
 
   const form = useForm<AdminEditSocioTitularData>({
     resolver: zodResolver(adminEditSocioTitularSchema),
-    mode: 'onBlur', // Puede ser útil para validaciones de archivo
+    mode: 'onBlur', 
     defaultValues: {
       nombre: '',
       apellido: '',
@@ -78,6 +80,15 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
       const data = await getSocioById(socioId);
       if (data) {
         setSocio(data);
+
+        let groupTypeDetermined: 'conyugeEHijos' | 'padresMadres' | null = null;
+        if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.CONYUGE) || data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.HIJO_A)) {
+          groupTypeDetermined = 'conyugeEHijos';
+        } else if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.PADRE_MADRE)) {
+          groupTypeDetermined = 'padresMadres';
+        }
+        setExistingGroupType(groupTypeDetermined);
+
         form.reset({
           nombre: data.nombre,
           apellido: data.apellido,
@@ -88,9 +99,8 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           direccion: data.direccion,
           email: data.email,
           estadoSocio: data.estadoSocio,
-          // Fotos del titular
           fotoUrl: data.fotoUrl,
-          fotoPerfil: data.fotoPerfil as string | null, // Inicialmente como string (URL) o null
+          fotoPerfil: data.fotoPerfil as string | null,
           fotoDniFrente: data.fotoDniFrente as string | null,
           fotoDniDorso: data.fotoDniDorso as string | null,
           fotoCarnet: data.fotoCarnet as string | null,
@@ -102,7 +112,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             fotoDniFrente: f.fotoDniFrente as string | null,
             fotoDniDorso: f.fotoDniDorso as string | null,
             fotoCarnet: f.fotoCarnet as string | null,
-            aptoMedico: f.aptoMedico, // Preservar apto, no editable aquí
+            aptoMedico: f.aptoMedico, 
           })),
         });
       } else {
@@ -119,36 +129,35 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
 
-    const processFotoField = (fieldValue: FileList | string | null | undefined, existingUrl?: string | null): string | null | undefined => {
-        if (fieldValue === null) return null; // Explicitly set to null (delete)
+    const processPhotoField = (fieldValue: FileList | string | null | undefined, existingUrl?: string | null): string | null | undefined => {
+        if (fieldValue === null) return null; 
         if (fieldValue instanceof FileList && fieldValue.length > 0) {
-            // Simular subida y generar URL de placeholder
             return `https://placehold.co/150x150.png?text=NUEVA_FOTO_${Date.now()}`;
         }
-        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; // URL existente o nueva de placeholder
-        return existingUrl || undefined; // Mantener la existente si no hay cambios o el valor es inválido
+        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; 
+        return existingUrl || undefined; 
     };
     
     const updatedData: Partial<Socio> = {
         ...data,
         fechaNacimiento: data.fechaNacimiento instanceof Date ? formatISO(data.fechaNacimiento as Date) : data.fechaNacimiento as string,
-        fotoUrl: processFotoField(data.fotoPerfil, socio.fotoUrl), // Usar fotoPerfil como fuente para fotoUrl (principal)
-        fotoPerfil: processFotoField(data.fotoPerfil, socio.fotoPerfil as string | undefined),
-        fotoDniFrente: data.fotoDniFrente === null ? null : (socio.fotoDniFrente as string | undefined), // Solo puede ser null o la existente
-        fotoDniDorso: data.fotoDniDorso === null ? null : (socio.fotoDniDorso as string | undefined),
-        fotoCarnet: data.fotoCarnet === null ? null : (socio.fotoCarnet as string | undefined),
+        fotoUrl: processPhotoField(data.fotoPerfil, socio.fotoUrl), 
+        fotoPerfil: processPhotoField(data.fotoPerfil, socio.fotoPerfil as string | undefined),
+        fotoDniFrente: processPhotoField(data.fotoDniFrente, socio.fotoDniFrente as string | undefined),
+        fotoDniDorso: processPhotoField(data.fotoDniDorso, socio.fotoDniDorso as string | undefined),
+        fotoCarnet: processPhotoField(data.fotoCarnet, socio.fotoCarnet as string | undefined),
 
-        grupoFamiliar: data.grupoFamiliar?.map((formFamiliar, index) => {
-            const existingFamiliar = socio.grupoFamiliar?.[index];
+        grupoFamiliar: data.grupoFamiliar?.map((formFamiliar) => {
+            const existingFamiliar = socio.grupoFamiliar?.find(ef => ef.id === formFamiliar.id || ef.dni === formFamiliar.dni);
             return {
                 ...formFamiliar,
                 id: existingFamiliar?.id || formFamiliar.dni,
                 fechaNacimiento: formFamiliar.fechaNacimiento instanceof Date ? formatISO(formFamiliar.fechaNacimiento as Date) : formFamiliar.fechaNacimiento as string,
-                fotoPerfil: processFotoField(formFamiliar.fotoPerfil, existingFamiliar?.fotoPerfil as string | undefined),
-                fotoDniFrente: formFamiliar.fotoDniFrente === null ? null : (existingFamiliar?.fotoDniFrente as string | undefined),
-                fotoDniDorso: formFamiliar.fotoDniDorso === null ? null : (existingFamiliar?.fotoDniDorso as string | undefined),
-                fotoCarnet: formFamiliar.fotoCarnet === null ? null : (existingFamiliar?.fotoCarnet as string | undefined),
-                aptoMedico: existingFamiliar?.aptoMedico, // Preservar apto
+                fotoPerfil: processPhotoField(formFamiliar.fotoPerfil, existingFamiliar?.fotoPerfil as string | undefined),
+                fotoDniFrente: processPhotoField(formFamiliar.fotoDniFrente, existingFamiliar?.fotoDniFrente as string | undefined),
+                fotoDniDorso: processPhotoField(formFamiliar.fotoDniDorso, existingFamiliar?.fotoDniDorso as string | undefined),
+                fotoCarnet: processPhotoField(formFamiliar.fotoCarnet, existingFamiliar?.fotoCarnet as string | undefined),
+                aptoMedico: existingFamiliar?.aptoMedico, 
             }
         }) as MiembroFamiliar[],
     };
@@ -175,26 +184,35 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     allowUpload: boolean = false,
     currentPhotoUrl?: string | null | FileList
   ) => {
-    const currentUrlToDisplay = typeof currentPhotoUrl === 'string' ? currentPhotoUrl : (currentPhotoUrl instanceof FileList && currentPhotoUrl.length > 0 ? getFileUrl(currentPhotoUrl) : null);
+    const currentFieldValue = form.watch(fieldName as any);
+    let displayUrl: string | null = null;
+
+    if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
+        displayUrl = getFileUrl(currentFieldValue);
+    } else if (typeof currentFieldValue === 'string' && currentFieldValue.startsWith('http')) {
+        displayUrl = currentFieldValue;
+    } else if (typeof currentPhotoUrl === 'string' && currentPhotoUrl.startsWith('http')) {
+        displayUrl = currentPhotoUrl;
+    }
     
     return (
       <FormItem>
         <FormLabel>{label}</FormLabel>
-        {currentUrlToDisplay && (
+        {displayUrl && (
           <div className="mb-2">
-            <Image src={currentUrlToDisplay} alt={label} width={100} height={100} className="rounded border object-contain" data-ai-hint="user photo"/>
+            <Image src={displayUrl} alt={label} width={100} height={100} className="rounded border object-contain" data-ai-hint="user photo"/>
           </div>
         )}
         {allowUpload && (
           <FormField
             control={form.control}
-            name={fieldName as any} // Zod maneja FileList | string | null
+            name={fieldName as any}
             render={({ field }) => (
               <>
                 <FormControl>
                   <label className="cursor-pointer w-full flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors text-xs">
                     <UploadCloud className="h-5 w-5 text-muted-foreground mb-1" />
-                    <span>{currentUrlToDisplay || (field.value && field.value instanceof FileList && field.value.length > 0) ? 'Cambiar Foto' : 'Subir Foto'}</span>
+                    <span>{displayUrl || (field.value && field.value instanceof FileList && field.value.length > 0) ? 'Cambiar Foto' : 'Subir Foto'}</span>
                     <Input
                       type="file"
                       className="hidden"
@@ -211,7 +229,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             )}
           />
         )}
-        {currentUrlToDisplay && (
+        {displayUrl && (
           <Button
             type="button"
             variant="destructive"
@@ -346,6 +364,16 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             <Separator />
              <section>
                 <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Grupo Familiar</h3>
+                {existingGroupType && (
+                    <Alert variant="default" className="mb-4 bg-blue-500/10 border-blue-500 text-blue-700">
+                        <Lock className="h-5 w-5 text-blue-600" />
+                        <AlertTitle className="text-blue-700">Tipo de Grupo Familiar Establecido</AlertTitle>
+                        <AlertDescription>
+                        Este socio ya tiene un grupo familiar de tipo: <strong>{existingGroupType === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 'Padres/Madres'}</strong>.
+                        <br />La edición de relaciones individuales debe ser coherente con este tipo. Cambios fundamentales al tipo de grupo pueden requerir intervención administrativa directa.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 {grupoFamiliarFields.length === 0 && <p className="text-sm text-muted-foreground">Este socio no tiene familiares registrados o editables aquí.</p>}
                 <div className="space-y-6">
                 {grupoFamiliarFields.map((field, index) => {
