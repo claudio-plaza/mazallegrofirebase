@@ -178,6 +178,15 @@ const filePreprocess = (val: unknown) => {
   return val;
 };
 
+const baseFileContentValidation = (file: File, config: FileSchemaConfig, ctx: z.RefinementCtx) => {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
+  }
+  if (!config.mimeTypes.includes(file.type)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
+  }
+};
+
 export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
   z.any().superRefine((val, ctx) => {
     const processedVal = filePreprocess(val);
@@ -208,24 +217,18 @@ export const requiredFileField = (config: FileSchemaConfig, requiredMessage: str
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
         return;
       }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
-      }
+      baseFileContentValidation(file, config, ctx);
       return;
     }
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
   });
-
 
 export const optionalFileField = (config: FileSchemaConfig) =>
   z.any().superRefine((val, ctx) => {
     const processedVal = filePreprocess(val);
 
     if (processedVal === null || (processedVal instanceof FileListInstance && processedVal.length === 0)) {
-      return; // Optional, so empty is fine
+      return; 
     }
 
     if (typeof processedVal === 'string') {
@@ -245,12 +248,7 @@ export const optionalFileField = (config: FileSchemaConfig) =>
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
         return;
       }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
-      }
+      baseFileContentValidation(file, config, ctx);
       return;
     }
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
@@ -301,11 +299,11 @@ export type TitularData = z.infer<typeof titularSchema>;
 export interface Socio extends TitularData {
   id: string;
   numeroSocio: string;
-  fotoUrl?: string;
+  fotoUrl?: string; 
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string | Date; 
-  ultimaRevisionMedica?: string | Date; 
+  miembroDesde: string | Date;
+  ultimaRevisionMedica?: string | Date;
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
@@ -328,13 +326,13 @@ export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado
 
 export interface RevisionMedica {
   id: string;
-  fechaRevision: string | Date; 
-  socioId: string; 
+  fechaRevision: string | Date;
+  socioId: string;
   socioNombre: string;
   tipoPersona: TipoPersona;
-  idSocioAnfitrion?: string; 
+  idSocioAnfitrion?: string;
   resultado: 'Apto' | 'No Apto';
-  fechaVencimientoApto?: string | Date; 
+  fechaVencimientoApto?: string | Date;
   observaciones?: string;
   medicoResponsable?: string;
 }
@@ -346,7 +344,7 @@ export const familiarBaseSchema = z.object({
   fechaNacimiento: z.union([z.date(), z.string()]).transform(val => typeof val === 'string' ? parseISO(val) : val)
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: optionalFileField(dniFileSchemaConfig), 
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig),
   fotoDniDorso: optionalFileField(dniFileSchemaConfig),
   fotoPerfil: optionalFileField(profileFileSchemaConfig),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
@@ -512,9 +510,8 @@ export const novedadSchema = z.object({
 });
 export type NovedadFormData = z.infer<typeof novedadSchema>;
 
-// Esquema para edición de familiar por admin
 export const adminEditableFamiliarSchema = z.object({
-  id: z.string().optional(), // ID existente si el familiar ya está en la DB
+  id: z.string().optional(),
   nombre: z.string().min(2, "Nombre es requerido."),
   apellido: z.string().min(2, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
@@ -522,17 +519,18 @@ export const adminEditableFamiliarSchema = z.object({
     .transform(val => (typeof val === 'string' ? parseISO(val) : val))
     .refine(date => isValid(date), "Fecha de nacimiento inválida."),
   relacion: z.nativeEnum(RelacionFamiliar, { required_error: "Relación es requerida." }),
-  // Campos opcionales que el admin podría querer editar
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
-  // Campos de solo lectura o gestionados por otros flujos para esta iteración
-  // aptoMedico, fotos, etc.
+  fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
+  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(),
+  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),
+  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),
+  aptoMedico: z.custom<AptoMedicoInfo>().optional(), // Solo visualización o gestionado aparte
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
 
 
-// Esquema para la edición de datos del titular por parte del administrador
 export const adminEditSocioTitularSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
@@ -547,6 +545,12 @@ export const adminEditSocioTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
   grupoFamiliar: z.array(adminEditableFamiliarSchema).optional(),
+  // Campos de foto para el titular
+  fotoUrl: z.string().url().optional().nullable(), // Para la foto principal que puede ser distinta de fotoPerfil
+  fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
+  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(), // Admin solo puede borrar, no subir nuevas DNI
+  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),  // Admin solo puede borrar
+  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),    // Admin solo puede borrar
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 

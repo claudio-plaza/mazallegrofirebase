@@ -77,6 +77,7 @@ export const initializeSociosDB = (): void => {
       } : undefined,
       grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
         ...familiar,
+        id: familiar.id || familiar.dni, // Asegurar ID
         fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
         aptoMedico: familiar.aptoMedico ? {
             ...familiar.aptoMedico,
@@ -86,6 +87,7 @@ export const initializeSociosDB = (): void => {
       })) || [],
       adherentes: socio.adherentes?.map(adherente => ({
         ...adherente,
+        id: adherente.id || adherente.dni, // Asegurar ID
         fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
         aptoMedico: adherente.aptoMedico ? {
             ...adherente.aptoMedico,
@@ -160,6 +162,7 @@ const getParsedSocios = (): Socio[] => {
     } : undefined,
     grupoFamiliar: s.grupoFamiliar?.map((f: any) => ({
       ...f,
+      id: f.id || f.dni,
       fechaNacimiento: parseDateSafe(f.fechaNacimiento),
       aptoMedico: f.aptoMedico ? {
           ...f.aptoMedico,
@@ -169,6 +172,7 @@ const getParsedSocios = (): Socio[] => {
     })) || [],
      adherentes: s.adherentes?.map((a: any) => ({
       ...a,
+      id: a.id || a.dni,
       fechaNacimiento: parseDateSafe(a.fechaNacimiento),
       aptoMedico: a.aptoMedico ? {
           ...a.aptoMedico,
@@ -281,7 +285,18 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
     };
 
     const dataToSave = { ...updatedData };
-    // Stringify dates coming from the form if they are Date objects
+
+    // Helper para procesar campos de foto
+    const processPhotoFieldForStorage = (photoField: any): string | null | undefined => {
+      if (photoField === null) return null; // Indica eliminación
+      if (typeof photoField === 'string' && photoField.startsWith('http')) return photoField; // URL existente o nueva de placeholder
+      // FileList ya debería haber sido convertido a URL de placeholder en el componente antes de llegar aquí.
+      // Si aún es FileList aquí, es un caso no esperado para este flujo de actualización.
+      return undefined; // Mantener existente si no es null ni una URL nueva
+    };
+
+
+    // Stringify dates
     if (dataToSave.fechaNacimiento instanceof Date) dataToSave.fechaNacimiento = formatISO(dataToSave.fechaNacimiento);
     if (dataToSave.miembroDesde instanceof Date) dataToSave.miembroDesde = formatISO(dataToSave.miembroDesde);
     if (dataToSave.ultimaRevisionMedica instanceof Date) dataToSave.ultimaRevisionMedica = formatISO(dataToSave.ultimaRevisionMedica);
@@ -290,26 +305,43 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         if (dataToSave.aptoMedico.fechaEmision instanceof Date) dataToSave.aptoMedico.fechaEmision = formatISO(dataToSave.aptoMedico.fechaEmision);
         if (dataToSave.aptoMedico.fechaVencimiento instanceof Date) dataToSave.aptoMedico.fechaVencimiento = formatISO(dataToSave.aptoMedico.fechaVencimiento);
     }
+
+    // Procesar fotos del titular
+    dataToSave.fotoUrl = processPhotoFieldForStorage(dataToSave.fotoUrl);
+    dataToSave.fotoPerfil = processPhotoFieldForStorage(dataToSave.fotoPerfil);
+    dataToSave.fotoDniFrente = processPhotoFieldForStorage(dataToSave.fotoDniFrente);
+    dataToSave.fotoDniDorso = processPhotoFieldForStorage(dataToSave.fotoDniDorso);
+    dataToSave.fotoCarnet = processPhotoFieldForStorage(dataToSave.fotoCarnet);
+
+
     if (dataToSave.grupoFamiliar) {
         dataToSave.grupoFamiliar = dataToSave.grupoFamiliar.map(f => ({
             ...f,
+            id: f.id || f.dni,
             fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento) : stringifyDateOrEpoch(f.fechaNacimiento),
             aptoMedico: f.aptoMedico ? {
                 ...f.aptoMedico,
                 fechaEmision: f.aptoMedico.fechaEmision instanceof Date ? formatISO(f.aptoMedico.fechaEmision) : stringifyDate(f.aptoMedico.fechaEmision),
                 fechaVencimiento: f.aptoMedico.fechaVencimiento instanceof Date ? formatISO(f.aptoMedico.fechaVencimiento) : stringifyDate(f.aptoMedico.fechaVencimiento),
             } : undefined,
+            fotoPerfil: processPhotoFieldForStorage(f.fotoPerfil),
+            fotoDniFrente: processPhotoFieldForStorage(f.fotoDniFrente),
+            fotoDniDorso: processPhotoFieldForStorage(f.fotoDniDorso),
+            fotoCarnet: processPhotoFieldForStorage(f.fotoCarnet),
         }));
     }
      if (dataToSave.adherentes) {
         dataToSave.adherentes = dataToSave.adherentes.map(a => ({
             ...a,
+            id: a.id || a.dni,
             fechaNacimiento: a.fechaNacimiento instanceof Date ? formatISO(a.fechaNacimiento) : stringifyDateOrEpoch(a.fechaNacimiento),
             aptoMedico: a.aptoMedico ? {
                 ...a.aptoMedico,
                 fechaEmision: a.aptoMedico.fechaEmision instanceof Date ? formatISO(a.aptoMedico.fechaEmision) : stringifyDate(a.aptoMedico.fechaEmision),
                 fechaVencimiento: a.aptoMedico.fechaVencimiento instanceof Date ? formatISO(a.aptoMedico.fechaVencimiento) : stringifyDate(a.aptoMedico.fechaVencimiento),
             } : undefined,
+             fotoPerfil: processPhotoFieldForStorage(a.fotoPerfil),
+             // Adherentes no suelen tener DNI/Carnet fotos separadas, pero si se añaden, procesar aquí.
         }));
     }
      if (dataToSave.cambiosPendientesGrupoFamiliar && dataToSave.cambiosPendientesGrupoFamiliar.familiares) {
@@ -331,19 +363,27 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         }
     }
 
-    // Merge ensuring that only fields present in dataToSave update the existing socio
     const existingSocio = sociosRaw[index];
     sociosRaw[index] = { ...existingSocio, ...dataToSave };
     
-    // Preserve fields that should not be overwritten by partial updates if not present in dataToSave
-    // e.g. fotoUrl, fotoDniFrente, fotoDniDorso, etc.
-    // This simple merge assumes dataToSave contains all fields intended for update.
-    // For selective photo updates, more complex logic would be needed here or in the calling component
-    // to decide whether to keep old photo URLs or use new FileLists.
-    // For now, if a photo field is NOT in dataToSave, it means it's not being changed.
-    // If a photo field IS in dataToSave but is null/undefined, it means clear it.
-    // If it's a FileList, means upload new. (This part is not handled by AdminEditSocioForm yet)
-
+    // Limpiar campos que fueron seteados a null (eliminación de foto)
+    Object.keys(sociosRaw[index]).forEach(key => {
+        if (sociosRaw[index][key] === null && (key.startsWith('foto') || key === 'fotoUrl')) {
+            delete sociosRaw[index][key]; // o asignar undefined
+        }
+        if (key === 'grupoFamiliar' && Array.isArray(sociosRaw[index][key])) {
+            sociosRaw[index][key] = sociosRaw[index][key].map((familiar: any) => {
+                const cleanFamiliar = {...familiar};
+                Object.keys(cleanFamiliar).forEach(famKey => {
+                    if (cleanFamiliar[famKey] === null && famKey.startsWith('foto')) {
+                        delete cleanFamiliar[famKey];
+                    }
+                });
+                return cleanFamiliar;
+            });
+        }
+    });
+    
     saveDbAndNotify(KEYS.SOCIOS, sociosRaw);
     
     const parseDateSafe = (dateString?: string | null): Date => {
@@ -368,6 +408,7 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
       } : undefined,
        grupoFamiliar: resultSocio.grupoFamiliar?.map((f: any) => ({
         ...f,
+        id: f.id || f.dni,
         fechaNacimiento: parseDateSafe(f.fechaNacimiento),
         aptoMedico: f.aptoMedico ? {
           ...f.aptoMedico,
@@ -377,6 +418,7 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
       })) || [],
       adherentes: resultSocio.adherentes?.map((a: any) => ({
         ...a,
+        id: a.id || a.dni,
         fechaNacimiento: parseDateSafe(a.fechaNacimiento),
         aptoMedico: a.aptoMedico ? {
           ...a.aptoMedico,
@@ -391,8 +433,8 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
             ...resultSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge,
             fechaNacimiento: parseDateSafe(resultSocio.cambiosPendientesGrupoFamiliar.familiares.conyuge.fechaNacimiento),
           } : null,
-          hijos: resultSocio.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map((h: any) => ({ ...h, fechaNacimiento: parseDateSafe(h.fechaNacimiento) })) || [],
-          padres: resultSocio.cambiosPendientesGrupoFamiliar.familiares?.padres?.map((p: any) => ({ ...p, fechaNacimiento: parseDateSafe(p.fechaNacimiento) })) || [],
+          hijos: resultSocio.cambiosPendientesGrupoFamiliar.familiares?.hijos?.map((h: any) => ({ ...h, id: h.id || h.dni, fechaNacimiento: parseDateSafe(h.fechaNacimiento) })) || [],
+          padres: resultSocio.cambiosPendientesGrupoFamiliar.familiares?.padres?.map((p: any) => ({ ...p, id: p.id || p.dni, fechaNacimiento: parseDateSafe(p.fechaNacimiento) })) || [],
         }
       } : null,
     };
