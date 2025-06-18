@@ -256,12 +256,12 @@ export function GestionSociosDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Foto</TableHead>
+                  <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
                   <TableHead>Nombre Completo</TableHead>
-                  <TableHead>N° Socio</TableHead>
-                  <TableHead>Adherentes (Pend.)</TableHead>
+                  <TableHead className="hidden md:table-cell">N° Socio</TableHead>
+                  <TableHead className="hidden lg:table-cell">Adherentes (Pend.)</TableHead>
                   <TableHead>Estado Club</TableHead>
-                  <TableHead>Cambio GF</TableHead>
+                  <TableHead className="hidden lg:table-cell">Cambio GF</TableHead>
                   <TableHead>Apto Médico</TableHead>
                   <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
                 </TableRow>
@@ -273,15 +273,15 @@ export function GestionSociosDashboard() {
                   const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
                   return (
                     <TableRow key={socio.id}>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} data-ai-hint="member photo" />
                           <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
-                      <TableCell>{socio.numeroSocio}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-center">
                         {socio.adherentes?.length || 0}
                         {adherentesPendientesCount > 0 && (
                           <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5">
@@ -295,7 +295,7 @@ export function GestionSociosDashboard() {
                           {socio.estadoSocio}
                         </Badge>
                       </TableCell>
-                       <TableCell>
+                       <TableCell className="hidden lg:table-cell">
                         {socio.estadoCambioGrupoFamiliar === 'Pendiente' && (
                           <Badge variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-500/10">
                             <MailQuestion className="mr-1 h-3 w-3" /> Pend.
@@ -356,7 +356,7 @@ export function GestionSociosDashboard() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente al socio {socio.nombre} {socio.apellido} de la base de datos.
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente al socio ${socio.nombre} ${socio.apellido} de la base de datos.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -402,3 +402,4 @@ export function GestionSociosDashboard() {
     </div>
   );
 }
+
