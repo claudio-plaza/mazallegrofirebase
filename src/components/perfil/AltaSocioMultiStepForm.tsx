@@ -466,7 +466,7 @@ export function AltaSocioMultiStepForm() {
                        )}
                     </div>
                     <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta ${MAX_HIJOS})</h4>
+                        <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta {MAX_HIJOS})</h4>
                         {hijosFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
@@ -523,7 +523,7 @@ export function AltaSocioMultiStepForm() {
 
                 {(tipoGrupoFamiliar === 'padresMadres' || existingGroupType === 'padresMadres') && (
                     <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta ${MAX_PADRES})</h4>
+                        <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta {MAX_PADRES})</h4>
                         {padresFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
