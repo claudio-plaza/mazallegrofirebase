@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig, TipoPersona } from '@/types';
+import type { Socio, RevisionMedica, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, AptoMedicoInfo, Adherente, PreciosInvitadosConfig, TipoPersona, Novedad } from '@/types';
 import { EstadoSolicitudInvitados } from '@/types'; // Importar el nuevo enum
 import { mockSocios, mockRevisiones } from '../mockData';
 import { generateId, normalizeText } from '../helpers';
@@ -14,6 +14,7 @@ const KEYS = {
   CUMPLEANOS: 'firestore/solicitudesCumpleanos',
   INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
   PRECIOS_INVITADOS: 'firestore/preciosInvitados',
+  NOVEDADES: 'firestore/novedades',
 };
 
 // Helper function to get data from localStorage
@@ -41,6 +42,7 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
   if (key === KEYS.INVITADOS_DIARIOS) window.dispatchEvent(new CustomEvent('firestore/solicitudesInvitadosDiariosUpdated')); // Asegurarse que el evento sea consistente
   if (key === KEYS.REVISIONES) window.dispatchEvent(new CustomEvent('revisionesDBUpdated'));
   if (key === KEYS.PRECIOS_INVITADOS) window.dispatchEvent(new CustomEvent('preciosInvitadosDBUpdated'));
+  if (key === KEYS.NOVEDADES) window.dispatchEvent(new CustomEvent('firestore/novedadesUpdated'));
 };
 
 
@@ -123,6 +125,12 @@ export const initializePreciosInvitadosDB = (): void => {
       precioInvitadoCumpleanos: 0,
     };
     saveDbAndNotify(KEYS.PRECIOS_INVITADOS, defaultConfig, true);
+  }
+};
+
+export const initializeNovedadesDB = (): void => {
+  if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.NOVEDADES)) {
+    saveDbAndNotify(KEYS.NOVEDADES, []);
   }
 };
 
@@ -708,6 +716,69 @@ export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Pr
   saveDbAndNotify(KEYS.PRECIOS_INVITADOS, config, true);
 };
 
+// --- Novedades Service ---
+const getParsedNovedades = (): Novedad[] => {
+  const novedadesRaw = getDb<any>(KEYS.NOVEDADES);
+  return novedadesRaw.map((n: any) => ({
+    ...n,
+    fechaCreacion: parseISO(n.fechaCreacion as string),
+    fechaVencimiento: n.fechaVencimiento ? parseISO(n.fechaVencimiento as string) : null,
+  }));
+};
+
+export const getNovedades = async (): Promise<Novedad[]> => {
+  return getParsedNovedades().sort((a, b) => {
+    return new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime();
+  });
+};
+
+export const addNovedad = async (novedadData: Omit<Novedad, 'id' | 'fechaCreacion'>): Promise<Novedad> => {
+  const novedadesRaw = getDb<any>(KEYS.NOVEDADES);
+  const nuevaNovedad: Novedad = {
+    ...novedadData,
+    id: generateId(),
+    fechaCreacion: formatISO(new Date()),
+    fechaVencimiento: novedadData.fechaVencimiento ? formatISO(new Date(novedadData.fechaVencimiento)) : null,
+  };
+  saveDbAndNotify(KEYS.NOVEDADES, [...novedadesRaw, nuevaNovedad]);
+  return {
+    ...nuevaNovedad,
+    fechaCreacion: parseISO(nuevaNovedad.fechaCreacion as string),
+    fechaVencimiento: nuevaNovedad.fechaVencimiento ? parseISO(nuevaNovedad.fechaVencimiento as string) : null,
+  };
+};
+
+export const updateNovedad = async (updatedNovedad: Novedad): Promise<Novedad | null> => {
+  let novedadesRaw = getDb<any>(KEYS.NOVEDADES);
+  const index = novedadesRaw.findIndex((n: any) => n.id === updatedNovedad.id);
+  if (index > -1) {
+    const novedadToSave = {
+        ...updatedNovedad,
+        fechaCreacion: formatISO(new Date(updatedNovedad.fechaCreacion)),
+        fechaVencimiento: updatedNovedad.fechaVencimiento ? formatISO(new Date(updatedNovedad.fechaVencimiento)) : null,
+    };
+    novedadesRaw[index] = novedadToSave;
+    saveDbAndNotify(KEYS.NOVEDADES, novedadesRaw);
+    return {
+      ...novedadToSave,
+      fechaCreacion: parseISO(novedadToSave.fechaCreacion),
+      fechaVencimiento: novedadToSave.fechaVencimiento ? parseISO(novedadToSave.fechaVencimiento) : null,
+    };
+  }
+  return null;
+};
+
+export const deleteNovedad = async (novedadId: string): Promise<boolean> => {
+  let novedades = getDb<Novedad>(KEYS.NOVEDADES);
+  const initialLength = novedades.length;
+  novedades = novedades.filter(n => n.id !== novedadId);
+  if (novedades.length < initialLength) {
+    saveDbAndNotify(KEYS.NOVEDADES, novedades);
+    return true;
+  }
+  return false;
+};
+
 
 if (typeof window !== 'undefined') {
     initializeSociosDB();
@@ -715,6 +786,7 @@ if (typeof window !== 'undefined') {
     initializeCumpleanosDB();
     initializeInvitadosDiariosDB();
     initializePreciosInvitadosDB();
+    initializeNovedadesDB();
 }
 isValid(new Date()); 
 

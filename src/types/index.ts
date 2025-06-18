@@ -66,6 +66,11 @@ export enum EstadoSolicitudInvitados {
   VENCIDA = "Vencida",
 }
 
+export enum TipoNovedad {
+  INFO = "info",
+  ALERTA = "alerta",
+  EVENTO = "evento",
+}
 
 export interface AptoMedicoInfo {
   valido: boolean;
@@ -132,11 +137,22 @@ export interface PreciosInvitadosConfig {
   precioInvitadoCumpleanos: number;
 }
 
+export interface Novedad {
+  id: string;
+  titulo: string;
+  contenido: string;
+  fechaCreacion: string | Date;
+  fechaVencimiento?: string | Date | null;
+  activa: boolean;
+  tipo: TipoNovedad;
+}
+
+
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
-type FileSchemaConfig = { typeError: string; sizeError: string; mimeTypeError: string; mimeTypes: string[] };
+
+export type FileSchemaConfig = { typeError: string; sizeError: string; mimeTypeError: string; mimeTypes: string[] };
 
 const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
@@ -158,127 +174,80 @@ const filePreprocess = (val: unknown) => {
 };
 
 const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  z.preprocess(
-    filePreprocess,
-    z.any() 
-  ).superRefine((val, ctx) => {
-    if (val === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: requiredMessage,
-      });
+  z.any().superRefine((val, ctx) => {
+    const processedVal = filePreprocess(val);
+
+    if (processedVal === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: requiredMessage });
       return;
     }
 
-    if (typeof val === 'string') {
-      if (!z.string().url().min(1).safeParse(val).success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "URL de archivo inválida.",
-        });
+    if (typeof processedVal === 'string') {
+      if (!z.string().url().min(1).safeParse(processedVal).success) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL de archivo inválida." });
       }
-      return; 
+      return;
     }
 
-    if (val instanceof FileListInstance) {
-      if (val.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: requiredMessage,
-        });
+    if (processedVal instanceof FileListInstance) {
+      if (processedVal.length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: requiredMessage });
         return;
       }
-      if (val.length > 1) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Solo se puede seleccionar un archivo.",
-        });
+      if (processedVal.length > 1) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Solo se puede seleccionar un archivo." });
         return;
       }
-      const file = val[0];
+      const file = processedVal[0];
       if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
         return;
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.too_big,
-          type: "array",
-          maximum: MAX_FILE_SIZE_BYTES,
-          inclusive: true,
-          message: config.sizeError,
-        });
+        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
       }
       if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: config.mimeTypeError,
-        });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
       }
       return;
     }
-
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: config.typeError,
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
   });
 
 const optionalFileField = (config: FileSchemaConfig) =>
-  z.preprocess(
-    filePreprocess,
-    z.any()
-  ).superRefine((val, ctx) => {
-    if (val === null || (val instanceof FileListInstance && val.length === 0)) {
-      return; // Es opcional, así que null o FileList vacío está bien
+  z.any().superRefine((val, ctx) => {
+    const processedVal = filePreprocess(val);
+
+    if (processedVal === null || (processedVal instanceof FileListInstance && processedVal.length === 0)) {
+      return; // Optional, so null or empty FileList is fine
     }
 
-    if (typeof val === 'string') {
-      if (!z.string().url().min(1).safeParse(val).success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "URL de archivo inválida.",
-        });
-      }
-      return;
-    }
-
-    if (val instanceof FileListInstance) {
-      if (val.length > 1) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Solo se puede seleccionar un archivo.",
-        });
-        return;
-      }
-      // Si hay exactamente un archivo, validamos su contenido
-      const file = val[0];
-      if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.too_big,
-          type: "array",
-          maximum: MAX_FILE_SIZE_BYTES,
-          inclusive: true,
-          message: config.sizeError,
-        });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: config.mimeTypeError,
-        });
+    if (typeof processedVal === 'string') {
+      if (!z.string().url().min(1).safeParse(processedVal).success) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL de archivo inválida." });
       }
       return;
     }
     
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: config.typeError,
-    });
+    if (processedVal instanceof FileListInstance) {
+      if (processedVal.length > 1) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Solo se puede seleccionar un archivo." });
+        return;
+      }
+      const file = processedVal[0];
+       if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
+      }
+      if (!config.mimeTypes.includes(file.type)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
+      }
+      return;
+    }
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
   });
 
 
@@ -518,6 +487,25 @@ export const preciosInvitadosConfigSchema = z.object({
 });
 export type PreciosInvitadosFormData = z.infer<typeof preciosInvitadosConfigSchema>;
 
+export const novedadSchema = z.object({
+  id: z.string().default(() => `nov-${Date.now().toString(36)}`),
+  titulo: z.string().min(5, "El título debe tener al menos 5 caracteres."),
+  contenido: z.string().min(10, "El contenido debe tener al menos 10 caracteres."),
+  fechaCreacion: z.string().default(() => formatISO(new Date())),
+  fechaVencimiento: z.union([z.date(), z.string(), z.null()])
+    .transform(val => {
+      if (val === null) return null;
+      if (typeof val === 'string' && val.trim() === '') return null;
+      if (typeof val === 'string') return parseISO(val);
+      return val;
+    })
+    .refine(date => date === null || (date instanceof Date && isValid(date)), "Fecha de vencimiento inválida.")
+    .optional(),
+  activa: z.boolean().default(true),
+  tipo: z.nativeEnum(TipoNovedad).default(TipoNovedad.INFO),
+});
+export type NovedadFormData = z.infer<typeof novedadSchema>;
+
 
 export const getStepSpecificValidationSchema = (step: number) => {
   setCurrentStepForSchema(step);
@@ -525,4 +513,3 @@ export const getStepSpecificValidationSchema = (step: number) => {
 };
 isValid(new Date());
 
-    

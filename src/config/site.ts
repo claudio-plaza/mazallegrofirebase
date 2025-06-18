@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake, DollarSign } from 'lucide-react'; 
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake, DollarSign, Megaphone } from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',
@@ -118,6 +118,14 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Establece los precios de las entradas para invitados.',
     icon: DollarSign,
     href: '/admin/configuracion-precios',
+    roles: ['administrador'],
+  },
+  { 
+    id: 'gestion-novedades',
+    title: 'Gestión de Novedades',
+    description: 'Crea y administra novedades y alertas.',
+    icon: Megaphone,
+    href: '/admin/gestion-novedades',
     roles: ['administrador'],
   }
 ];
