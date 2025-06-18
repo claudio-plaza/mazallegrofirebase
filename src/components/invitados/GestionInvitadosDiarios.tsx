@@ -22,7 +22,7 @@ import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionAlertDialog, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 const createDefaultInvitado = (): InvitadoDiario => ({
@@ -267,6 +267,9 @@ export function GestionInvitadosDiarios() {
         EstadoSolicitudInvitados.CANCELADA_SOCIO,
     ];
 
+    // Permitir agregar más si está ENVIADA
+    if (solicitudActual.estado === EstadoSolicitudInvitados.ENVIADA) return true;
+
     return !estadosBloqueados.includes(solicitudActual.estado);
   }, [solicitudActual, selectedDate, today]);
   
@@ -274,11 +277,11 @@ export function GestionInvitadosDiarios() {
     if (!solicitudActual || !isEditable) return false;
     
     const isTodayOrFutureWithinLimit = !isBefore(selectedDate, today) && isBefore(selectedDate, addDays(today,6));
-    const isOneDayBeforeEvent = isSameDay(addDays(today, 1), selectedDate);
+    // const isOneDayBeforeEvent = isSameDay(addDays(today, 1), selectedDate);
     
     return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && 
            isTodayOrFutureWithinLimit &&
-           (isSameDay(selectedDate, today) || isOneDayBeforeEvent || isBefore(today,selectedDate));
+           (isSameDay(selectedDate, today) || isBefore(today,selectedDate)); // Ajustado para permitir enviar si es hoy o futuro dentro del límite
   }, [solicitudActual, selectedDate, today, isEditable]);
 
 
@@ -361,18 +364,18 @@ export function GestionInvitadosDiarios() {
                             <Alert variant="default" className="mt-3 bg-blue-500/10 border-blue-500/30 text-blue-700">
                                 <Info className="h-4 w-4" />
                                 <AlertTitle>Lista Enviada - Aún Editable</AlertTitle>
-                                <AlertDescriptionComponent>
+                                <AlertDescription>
                                 Esta lista ya fue enviada, pero aún puedes agregar más invitados para el día {formatDate(selectedDateISO)}. Los nuevos invitados se añadirán a la lista existente.
-                                </AlertDescriptionComponent>
+                                </AlertDescription>
                             </Alert>
                         )}
                         {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && !isEditable && (
                              <Alert variant="default" className="mt-3 bg-green-500/10 border-green-500/30 text-green-700">
                                 <Send className="h-4 w-4" />
                                 <AlertTitle>Lista Enviada y Cerrada</AlertTitle>
-                                <AlertDescriptionComponent>
+                                <AlertDescription>
                                 Esta lista ya fue enviada y no puede ser modificada (probablemente porque la fecha ya pasó o está fuera del límite de edición).
-                                </AlertDescriptionComponent>
+                                </AlertDescription>
                             </Alert>
                         )}
                     </Card>
@@ -512,10 +515,10 @@ export function GestionInvitadosDiarios() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>¿Confirmar y Enviar Lista de Invitados?</AlertDialogTitle>
-                      <AlertDialogDescriptionComponent>
+                      <AlertDialogDescriptionAlertDialog>
                         Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> estará confirmada. Podrás seguir agregando invitados si es necesario.
                         Asegúrate de que todos los datos sean correctos.
-                      </AlertDialogDescriptionComponent>
+                      </AlertDialogDescriptionAlertDialog>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
