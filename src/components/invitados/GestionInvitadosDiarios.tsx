@@ -22,7 +22,7 @@ import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 const createDefaultInvitado = (): InvitadoDiario => ({
@@ -191,10 +191,7 @@ export function GestionInvitadosDiarios() {
         nombreSocioTitular: userName || 'Socio',
         fecha: selectedDateISO, 
         id: solicitudActual?.id || data.id || generateId(),
-        // Mantener estado si es ENVIADA, de lo contrario BORRADOR
-        estado: solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA 
-                ? EstadoSolicitudInvitados.ENVIADA 
-                : (solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR),
+        estado: solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR,
         fechaCreacion: solicitudActual?.fechaCreacion || fechaActual,
         fechaUltimaModificacion: fechaActual,
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
@@ -261,7 +258,7 @@ export function GestionInvitadosDiarios() {
     const esFechaValidaParaEdicion = !isBefore(selectedDate, today) || isSameDay(selectedDate, today);
     if (!esFechaValidaParaEdicion) return false; 
 
-    if (!solicitudActual) return true; // Se puede crear una nueva lista (borrador)
+    if (!solicitudActual) return true; 
 
     const estadosBloqueados: EstadoSolicitudInvitados[] = [
         EstadoSolicitudInvitados.PROCESADA,
@@ -364,18 +361,18 @@ export function GestionInvitadosDiarios() {
                             <Alert variant="default" className="mt-3 bg-blue-500/10 border-blue-500/30 text-blue-700">
                                 <Info className="h-4 w-4" />
                                 <AlertTitle>Lista Enviada - Aún Editable</AlertTitle>
-                                <AlertDescription>
+                                <AlertDescriptionComponent>
                                 Esta lista ya fue enviada, pero aún puedes agregar más invitados para el día {formatDate(selectedDateISO)}. Los nuevos invitados se añadirán a la lista existente.
-                                </AlertDescription>
+                                </AlertDescriptionComponent>
                             </Alert>
                         )}
                         {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && !isEditable && (
                              <Alert variant="default" className="mt-3 bg-green-500/10 border-green-500/30 text-green-700">
                                 <Send className="h-4 w-4" />
                                 <AlertTitle>Lista Enviada y Cerrada</AlertTitle>
-                                <AlertDescription>
+                                <AlertDescriptionComponent>
                                 Esta lista ya fue enviada y no puede ser modificada (probablemente porque la fecha ya pasó o está fuera del límite de edición).
-                                </AlertDescription>
+                                </AlertDescriptionComponent>
                             </Alert>
                         )}
                     </Card>
@@ -386,7 +383,7 @@ export function GestionInvitadosDiarios() {
                   <Info className="h-4 w-4" />
                   <AlertTitle>Importante</AlertTitle>
                   <AlertDescription>
-                    Como socio titular, debes registrar tu ingreso en portería antes de que tus invitados puedan acceder. Los invitados deben abonar una entrada y realizar la revisión médica si corresponde.
+                    Para que se habilite el ingreso de los invitados de esta lista, un socio responsable del grupo familiar (titular o familiar directo) debe registrar su ingreso en portería primero. Adicionalmente, los invitados deben abonar la entrada correspondiente y realizar la revisión médica si fuera necesario.
                   </AlertDescription>
                 </Alert>
 
@@ -515,10 +512,10 @@ export function GestionInvitadosDiarios() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>¿Confirmar y Enviar Lista de Invitados?</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogDescriptionComponent>
                         Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> estará confirmada. Podrás seguir agregando invitados si es necesario.
                         Asegúrate de que todos los datos sean correctos.
-                      </AlertDialogDescription>
+                      </AlertDialogDescriptionComponent>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
