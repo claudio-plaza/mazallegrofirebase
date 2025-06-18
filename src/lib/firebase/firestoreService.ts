@@ -45,6 +45,28 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
   if (key === KEYS.NOVEDADES) window.dispatchEvent(new CustomEvent('firestore/novedadesUpdated'));
 };
 
+// Helper to ensure date strings are full ISO format for consistent storage
+const ensureFullISO = (dateInput: string | Date | undefined | null): string | undefined => {
+    if (!dateInput) return undefined;
+    let dateObj: Date;
+    if (dateInput instanceof Date) {
+        dateObj = dateInput;
+    } else if (typeof dateInput === 'string') {
+        dateObj = parseISO(dateInput); // parseISO handles 'YYYY-MM-DD' and full ISO
+    } else {
+        return undefined; // Should not happen with correct typing
+    }
+    if (isValid(dateObj)) {
+        return formatISO(dateObj); // Always convert to full ISO string (includes T...Z)
+    }
+    return undefined;
+};
+
+const ensureFullISOOrDefaultEpoch = (dateInput: string | Date | undefined | null): string => {
+    const isoString = ensureFullISO(dateInput);
+    return isoString || formatISO(new Date(0)); // Default to epoch if invalid or undefined
+};
+
 
 // Initialize DBs if they don't exist
 export const initializeSociosDB = (): void => {
@@ -52,47 +74,34 @@ export const initializeSociosDB = (): void => {
   if (localStorage.getItem(KEYS.SOCIOS)) return; // Evitar sobrescribir si ya existen datos
 
   const sociosToStore = mockSocios.map(socio => {
-    const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
-      if (dateField instanceof Date) return dateField.toISOString();
-      if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField; 
-      if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString(); 
-      return undefined;
-    };
-    const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
-      if (dateField instanceof Date) return dateField.toISOString();
-      if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
-      if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
-      return new Date(0).toISOString(); 
-    };
-
     const processedSocio = {
       ...socio,
-      fechaNacimiento: stringifyDateOrEpoch(socio.fechaNacimiento),
-      miembroDesde: stringifyDateOrEpoch(socio.miembroDesde),
-      ultimaRevisionMedica: stringifyDate(socio.ultimaRevisionMedica),
+      fechaNacimiento: ensureFullISOOrDefaultEpoch(socio.fechaNacimiento),
+      miembroDesde: ensureFullISOOrDefaultEpoch(socio.miembroDesde),
+      ultimaRevisionMedica: ensureFullISO(socio.ultimaRevisionMedica),
       aptoMedico: socio.aptoMedico ? {
           ...socio.aptoMedico,
-          fechaEmision: stringifyDate(socio.aptoMedico.fechaEmision),
-          fechaVencimiento: stringifyDate(socio.aptoMedico.fechaVencimiento),
+          fechaEmision: ensureFullISO(socio.aptoMedico.fechaEmision),
+          fechaVencimiento: ensureFullISO(socio.aptoMedico.fechaVencimiento),
       } : undefined,
       grupoFamiliar: socio.grupoFamiliar?.map(familiar => ({
         ...familiar,
-        id: familiar.id || familiar.dni, // Asegurar ID
-        fechaNacimiento: stringifyDateOrEpoch(familiar.fechaNacimiento),
+        id: familiar.id || familiar.dni, 
+        fechaNacimiento: ensureFullISOOrDefaultEpoch(familiar.fechaNacimiento),
         aptoMedico: familiar.aptoMedico ? {
             ...familiar.aptoMedico,
-            fechaEmision: stringifyDate(familiar.aptoMedico.fechaEmision),
-            fechaVencimiento: stringifyDate(familiar.aptoMedico.fechaVencimiento),
+            fechaEmision: ensureFullISO(familiar.aptoMedico.fechaEmision),
+            fechaVencimiento: ensureFullISO(familiar.aptoMedico.fechaVencimiento),
         } : undefined,
       })) || [],
       adherentes: socio.adherentes?.map(adherente => ({
         ...adherente,
-        id: adherente.id || adherente.dni, // Asegurar ID
-        fechaNacimiento: stringifyDateOrEpoch(adherente.fechaNacimiento),
+        id: adherente.id || adherente.dni, 
+        fechaNacimiento: ensureFullISOOrDefaultEpoch(adherente.fechaNacimiento),
         aptoMedico: adherente.aptoMedico ? {
             ...adherente.aptoMedico,
-            fechaEmision: stringifyDate(adherente.aptoMedico.fechaEmision),
-            fechaVencimiento: stringifyDate(adherente.aptoMedico.fechaVencimiento),
+            fechaEmision: ensureFullISO(adherente.aptoMedico.fechaEmision),
+            fechaVencimiento: ensureFullISO(adherente.aptoMedico.fechaVencimiento),
         } : undefined,
       })) || [],
     };
@@ -241,27 +250,20 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
   const sociosRaw = getDb<Socio>(KEYS.SOCIOS); 
   const newNumeroSocio = `S${(Math.max(0, ...sociosRaw.map(s => parseInt(s.numeroSocio.substring(1)))) + 1).toString().padStart(3, '0')}`;
 
-  const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
-    if (dateField instanceof Date) return dateField.toISOString();
-    if (typeof dateField === 'string' && isValid(parseISO(dateField))) return dateField;
-    if (typeof dateField === 'string' && isValid(new Date(dateField))) return new Date(dateField).toISOString();
-    return new Date(0).toISOString();
-  };
-
   const nuevoSocioRaw: any = {
     ...socioData,
-    fechaNacimiento: stringifyDateOrEpoch(socioData.fechaNacimiento),
+    fechaNacimiento: ensureFullISOOrDefaultEpoch(socioData.fechaNacimiento),
     id: generateId(),
     numeroSocio: newNumeroSocio,
     estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
     role: 'socio',
-    miembroDesde: new Date().toISOString(),
-    grupoFamiliar: socioData.grupoFamiliar?.map(f => ({...f, fechaNacimiento: stringifyDateOrEpoch(f.fechaNacimiento)})) || [],
+    miembroDesde: formatISO(new Date()),
+    grupoFamiliar: socioData.grupoFamiliar?.map(f => ({...f, fechaNacimiento: ensureFullISOOrDefaultEpoch(f.fechaNacimiento)})) || [],
     adherentes: [], 
     aptoMedico: socioData.aptoMedico ? {
         ...socioData.aptoMedico,
-        fechaEmision: socioData.aptoMedico.fechaEmision instanceof Date ? socioData.aptoMedico.fechaEmision.toISOString() : socioData.aptoMedico.fechaEmision,
-        fechaVencimiento: socioData.aptoMedico.fechaVencimiento instanceof Date ? socioData.aptoMedico.fechaVencimiento.toISOString() : socioData.aptoMedico.fechaVencimiento,
+        fechaEmision: ensureFullISO(socioData.aptoMedico.fechaEmision),
+        fechaVencimiento: ensureFullISO(socioData.aptoMedico.fechaVencimiento),
     } : { valido: false, razonInvalidez: 'Pendiente de presentación' },
   };
   saveDbAndNotify(KEYS.SOCIOS, [...sociosRaw, nuevoSocioRaw]);
@@ -273,17 +275,6 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
   const index = sociosRaw.findIndex(s => s.id === socioId || s.numeroSocio === socioId);
   
   if (index > -1) {
-    const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
-        if (dateField instanceof Date) return dateField.toISOString();
-        if (typeof dateField === 'string' && (isValid(parseISO(dateField)) || isValid(new Date(dateField)))) return dateField;
-        return undefined;
-    };
-     const stringifyDateOrEpoch = (dateField: string | Date | undefined | null): string => {
-        if (dateField instanceof Date) return dateField.toISOString();
-        if (typeof dateField === 'string' && (isValid(parseISO(dateField)) || isValid(new Date(dateField)))) return dateField;
-        return new Date(0).toISOString();
-    };
-
     const dataToSave = { ...updatedData };
 
     const processPhotoFieldForStorage = (photoField: any): string | null | undefined => {
@@ -292,21 +283,14 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
       return undefined; 
     };
 
-
-    if (dataToSave.fechaNacimiento instanceof Date) {
-       dataToSave.fechaNacimiento = formatISO(dataToSave.fechaNacimiento as Date);
-    } else if (typeof dataToSave.fechaNacimiento === 'string' && isValid(parseISO(dataToSave.fechaNacimiento))) {
-       // Ya es un string ISO (o parseable), mantenerlo.
-       dataToSave.fechaNacimiento = dataToSave.fechaNacimiento;
-    }
-
-
-    if (dataToSave.miembroDesde instanceof Date) dataToSave.miembroDesde = formatISO(dataToSave.miembroDesde);
-    if (dataToSave.ultimaRevisionMedica instanceof Date) dataToSave.ultimaRevisionMedica = formatISO(dataToSave.ultimaRevisionMedica);
+    // Ensure all date fields are consistently full ISO strings
+    dataToSave.fechaNacimiento = ensureFullISOOrDefaultEpoch(dataToSave.fechaNacimiento);
+    dataToSave.miembroDesde = ensureFullISOOrDefaultEpoch(dataToSave.miembroDesde);
+    dataToSave.ultimaRevisionMedica = ensureFullISO(dataToSave.ultimaRevisionMedica);
     
     if (dataToSave.aptoMedico) {
-        if (dataToSave.aptoMedico.fechaEmision instanceof Date) dataToSave.aptoMedico.fechaEmision = formatISO(dataToSave.aptoMedico.fechaEmision);
-        if (dataToSave.aptoMedico.fechaVencimiento instanceof Date) dataToSave.aptoMedico.fechaVencimiento = formatISO(dataToSave.aptoMedico.fechaVencimiento);
+        dataToSave.aptoMedico.fechaEmision = ensureFullISO(dataToSave.aptoMedico.fechaEmision);
+        dataToSave.aptoMedico.fechaVencimiento = ensureFullISO(dataToSave.aptoMedico.fechaVencimiento);
     }
 
     dataToSave.fotoUrl = processPhotoFieldForStorage(dataToSave.fotoUrl);
@@ -319,12 +303,12 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
     if (dataToSave.grupoFamiliar) {
         dataToSave.grupoFamiliar = dataToSave.grupoFamiliar.map(f => ({
             ...f,
-            id: f.id || generateId(), // Asegurar ID para nuevos familiares
-            fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento) : stringifyDateOrEpoch(f.fechaNacimiento as string | Date | null),
+            id: f.id || generateId(), 
+            fechaNacimiento: ensureFullISOOrDefaultEpoch(f.fechaNacimiento),
             aptoMedico: f.aptoMedico ? {
                 ...f.aptoMedico,
-                fechaEmision: f.aptoMedico.fechaEmision instanceof Date ? formatISO(f.aptoMedico.fechaEmision) : stringifyDate(f.aptoMedico.fechaEmision),
-                fechaVencimiento: f.aptoMedico.fechaVencimiento instanceof Date ? formatISO(f.aptoMedico.fechaVencimiento) : stringifyDate(f.aptoMedico.fechaVencimiento),
+                fechaEmision: ensureFullISO(f.aptoMedico.fechaEmision),
+                fechaVencimiento: ensureFullISO(f.aptoMedico.fechaVencimiento),
             } : undefined,
             fotoPerfil: processPhotoFieldForStorage(f.fotoPerfil),
             fotoDniFrente: processPhotoFieldForStorage(f.fotoDniFrente),
@@ -336,11 +320,11 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         dataToSave.adherentes = dataToSave.adherentes.map(a => ({
             ...a,
             id: a.id || a.dni,
-            fechaNacimiento: a.fechaNacimiento instanceof Date ? formatISO(a.fechaNacimiento) : stringifyDateOrEpoch(a.fechaNacimiento as string | Date | null),
+            fechaNacimiento: ensureFullISOOrDefaultEpoch(a.fechaNacimiento),
             aptoMedico: a.aptoMedico ? {
                 ...a.aptoMedico,
-                fechaEmision: a.aptoMedico.fechaEmision instanceof Date ? formatISO(a.aptoMedico.fechaEmision) : stringifyDate(a.aptoMedico.fechaEmision),
-                fechaVencimiento: a.aptoMedico.fechaVencimiento instanceof Date ? formatISO(a.aptoMedico.fechaVencimiento) : stringifyDate(a.aptoMedico.fechaVencimiento),
+                fechaEmision: ensureFullISO(a.aptoMedico.fechaEmision),
+                fechaVencimiento: ensureFullISO(a.aptoMedico.fechaVencimiento),
             } : undefined,
              fotoPerfil: processPhotoFieldForStorage(a.fotoPerfil),
         }));
@@ -348,18 +332,18 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
      if (dataToSave.cambiosPendientesGrupoFamiliar && dataToSave.cambiosPendientesGrupoFamiliar.familiares) {
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.conyuge) {
             const conyuge = dataToSave.cambiosPendientesGrupoFamiliar.familiares.conyuge;
-            conyuge.fechaNacimiento = conyuge.fechaNacimiento instanceof Date ? formatISO(conyuge.fechaNacimiento) : stringifyDateOrEpoch(conyuge.fechaNacimiento as string | Date | null);
+            conyuge.fechaNacimiento = ensureFullISOOrDefaultEpoch(conyuge.fechaNacimiento);
         }
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos) {
             dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos = dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos.map(h => ({
                 ...h,
-                fechaNacimiento: h.fechaNacimiento instanceof Date ? formatISO(h.fechaNacimiento) : stringifyDateOrEpoch(h.fechaNacimiento as string | Date | null),
+                fechaNacimiento: ensureFullISOOrDefaultEpoch(h.fechaNacimiento),
             }));
         }
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres) {
             dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres = dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres.map(p => ({
                 ...p,
-                fechaNacimiento: p.fechaNacimiento instanceof Date ? formatISO(p.fechaNacimiento) : stringifyDateOrEpoch(p.fechaNacimiento as string | Date | null),
+                fechaNacimiento: ensureFullISOOrDefaultEpoch(p.fechaNacimiento),
             }));
         }
     }
@@ -812,3 +796,5 @@ if (typeof window !== 'undefined') {
     initializeNovedadesDB();
 }
 isValid(new Date());
+
+    
