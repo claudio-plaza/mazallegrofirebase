@@ -49,7 +49,7 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
 // Initialize DBs if they don't exist
 export const initializeSociosDB = (): void => {
   if (typeof window === 'undefined') return;
-
+  if (localStorage.getItem(KEYS.SOCIOS)) return; // Evitar sobrescribir si ya existen datos
 
   const sociosToStore = mockSocios.map(socio => {
     const stringifyDate = (dateField: string | Date | undefined | null): string | undefined => {
@@ -103,25 +103,25 @@ export const initializeSociosDB = (): void => {
 };
 
 export const initializeRevisionesDB = (): void => {
-  if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.REVISIONES)) {
+  if (typeof window === 'undefined' && !localStorage.getItem(KEYS.REVISIONES)) {
     saveDbAndNotify(KEYS.REVISIONES, mockRevisiones);
   }
 };
 
 export const initializeCumpleanosDB = (): void => {
-    if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.CUMPLEANOS)) {
+    if (typeof window === 'undefined' && !localStorage.getItem(KEYS.CUMPLEANOS)) {
         saveDbAndNotify(KEYS.CUMPLEANOS, []);
     }
 };
 
 export const initializeInvitadosDiariosDB = (): void => {
-    if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.INVITADOS_DIARIOS)) {
+    if (typeof window === 'undefined' && !localStorage.getItem(KEYS.INVITADOS_DIARIOS)) {
         saveDbAndNotify(KEYS.INVITADOS_DIARIOS, []);
     }
 };
 
 export const initializePreciosInvitadosDB = (): void => {
-  if (typeof window !== 'undefined' && !localStorage.getItem(KEYS.PRECIOS_INVITADOS)) {
+  if (typeof window === 'undefined' && !localStorage.getItem(KEYS.PRECIOS_INVITADOS)) {
     const defaultConfig: PreciosInvitadosConfig = {
       precioInvitadoDiario: 0,
       precioInvitadoCumpleanos: 0,
@@ -293,7 +293,14 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
     };
 
 
-    if (dataToSave.fechaNacimiento instanceof Date) dataToSave.fechaNacimiento = formatISO(dataToSave.fechaNacimiento);
+    if (dataToSave.fechaNacimiento instanceof Date) {
+       dataToSave.fechaNacimiento = formatISO(dataToSave.fechaNacimiento as Date);
+    } else if (typeof dataToSave.fechaNacimiento === 'string' && isValid(parseISO(dataToSave.fechaNacimiento))) {
+       // Ya es un string ISO (o parseable), mantenerlo.
+       dataToSave.fechaNacimiento = dataToSave.fechaNacimiento;
+    }
+
+
     if (dataToSave.miembroDesde instanceof Date) dataToSave.miembroDesde = formatISO(dataToSave.miembroDesde);
     if (dataToSave.ultimaRevisionMedica instanceof Date) dataToSave.ultimaRevisionMedica = formatISO(dataToSave.ultimaRevisionMedica);
     
@@ -313,7 +320,7 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         dataToSave.grupoFamiliar = dataToSave.grupoFamiliar.map(f => ({
             ...f,
             id: f.id || generateId(), // Asegurar ID para nuevos familiares
-            fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento) : stringifyDateOrEpoch(f.fechaNacimiento),
+            fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento) : stringifyDateOrEpoch(f.fechaNacimiento as string | Date | null),
             aptoMedico: f.aptoMedico ? {
                 ...f.aptoMedico,
                 fechaEmision: f.aptoMedico.fechaEmision instanceof Date ? formatISO(f.aptoMedico.fechaEmision) : stringifyDate(f.aptoMedico.fechaEmision),
@@ -329,7 +336,7 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
         dataToSave.adherentes = dataToSave.adherentes.map(a => ({
             ...a,
             id: a.id || a.dni,
-            fechaNacimiento: a.fechaNacimiento instanceof Date ? formatISO(a.fechaNacimiento) : stringifyDateOrEpoch(a.fechaNacimiento),
+            fechaNacimiento: a.fechaNacimiento instanceof Date ? formatISO(a.fechaNacimiento) : stringifyDateOrEpoch(a.fechaNacimiento as string | Date | null),
             aptoMedico: a.aptoMedico ? {
                 ...a.aptoMedico,
                 fechaEmision: a.aptoMedico.fechaEmision instanceof Date ? formatISO(a.aptoMedico.fechaEmision) : stringifyDate(a.aptoMedico.fechaEmision),
@@ -341,18 +348,18 @@ const updateSocioInDb = (socioId: string, updatedData: Partial<Socio>): Socio | 
      if (dataToSave.cambiosPendientesGrupoFamiliar && dataToSave.cambiosPendientesGrupoFamiliar.familiares) {
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.conyuge) {
             const conyuge = dataToSave.cambiosPendientesGrupoFamiliar.familiares.conyuge;
-            conyuge.fechaNacimiento = conyuge.fechaNacimiento instanceof Date ? formatISO(conyuge.fechaNacimiento) : stringifyDateOrEpoch(conyuge.fechaNacimiento);
+            conyuge.fechaNacimiento = conyuge.fechaNacimiento instanceof Date ? formatISO(conyuge.fechaNacimiento) : stringifyDateOrEpoch(conyuge.fechaNacimiento as string | Date | null);
         }
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos) {
             dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos = dataToSave.cambiosPendientesGrupoFamiliar.familiares.hijos.map(h => ({
                 ...h,
-                fechaNacimiento: h.fechaNacimiento instanceof Date ? formatISO(h.fechaNacimiento) : stringifyDateOrEpoch(h.fechaNacimiento),
+                fechaNacimiento: h.fechaNacimiento instanceof Date ? formatISO(h.fechaNacimiento) : stringifyDateOrEpoch(h.fechaNacimiento as string | Date | null),
             }));
         }
         if (dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres) {
             dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres = dataToSave.cambiosPendientesGrupoFamiliar.familiares.padres.map(p => ({
                 ...p,
-                fechaNacimiento: p.fechaNacimiento instanceof Date ? formatISO(p.fechaNacimiento) : stringifyDateOrEpoch(p.fechaNacimiento),
+                fechaNacimiento: p.fechaNacimiento instanceof Date ? formatISO(p.fechaNacimiento) : stringifyDateOrEpoch(p.fechaNacimiento as string | Date | null),
             }));
         }
     }
