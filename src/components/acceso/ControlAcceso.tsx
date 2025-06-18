@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift } from 'lucide-react';
-import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText } from '@/lib/helpers';
+import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift, AlertTriangle as AlertTriangleIcon } from 'lucide-react';
+import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText, esFechaRestringidaParaCumpleanos } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -43,11 +43,6 @@ type DisplayablePerson = {
   estadoAdherente?: Adherente['estadoAdherente'];
 };
 
-// Type FestejoHoy was used by the removed section
-// type FestejoHoy = SolicitudCumpleanos & {
-//     socioTitularNombreCompleto?: string;
-// };
-
 export function ControlAcceso() {
   const [searchTerm, setSearchTerm] = useState('');
   const [socioEncontrado, setSocioEncontrado] = useState<Socio | null>(null);
@@ -66,10 +61,6 @@ export function ControlAcceso() {
   const [eventoHabilitadoPorIngresoFamiliarCumple, setEventoHabilitadoPorIngresoFamiliarCumple] = useState(false);
   const [eventoHabilitadoPorIngresoFamiliarDiario, setEventoHabilitadoPorIngresoFamiliarDiario] = useState(false);
 
-  // State for removed "Festejos del Dia" card
-  // const [festejosDelDia, setFestejosDelDia] = useState<FestejoHoy[]>([]);
-  // const [loadingFestejos, setLoadingFestejos] = useState(true);
-
   const [metodosPagoSeleccionados, setMetodosPagoSeleccionados] = useState<Record<string, MetodoPagoInvitado | null>>({});
   const [invitadosCumpleanosCheckboxState, setInvitadosCumpleanosCheckboxState] = useState<Record<string, boolean>>({});
 
@@ -79,34 +70,9 @@ export function ControlAcceso() {
 
   const [ingresosSesion, setIngresosSesion] = useState<Record<string, boolean>>({});
 
-
   const todayISO = formatISO(new Date(), { representation: 'date' });
+  const hoyEsFechaRestringida = useMemo(() => esFechaRestringidaParaCumpleanos(new Date()), []);
 
-
-  // loadFestejosDelDia was used by the removed section
-  // const loadFestejosDelDia = useCallback(async () => {
-  //   setLoadingFestejos(true);
-  //   try {
-  //     const todasSolicitudes = await getAllSolicitudesCumpleanos();
-  //     const festejosHoyPromises = todasSolicitudes
-  //       .filter(sol => sol.fechaEvento && isToday(sol.fechaEvento as Date) && sol.estado === 'Aprobada')
-  //       .map(async (festejo) => {
-  //         const titularDelFestejo = await getSocioByNumeroSocioOrDNI(festejo.idSocioTitular);
-  //         return {
-  //           ...festejo,
-  //           socioTitularNombreCompleto: titularDelFestejo ? `${titularDelFestejo.nombre} ${titularDelFestejo.apellido}` : 'Socio no encontrado',
-  //           listaInvitados: festejo.listaInvitados.map(inv => ({ ...inv, id: inv.dni }))
-  //         };
-  //       });
-  //     const festejosHoy = await Promise.all(festejosHoyPromises);
-  //     setFestejosDelDia(festejosHoy);
-  //   } catch (error) {
-  //     console.error("Error cargando festejos del dia:", error);
-  //     toast({ title: "Error", description: "No se pudieron cargar los festejos del día.", variant: "destructive" });
-  //   } finally {
-  //     setLoadingFestejos(false);
-  //   }
-  // }, [toast]);
 
   const displayablePeople = useMemo(() => {
     if (!socioEncontrado) return [];
@@ -184,12 +150,12 @@ export function ControlAcceso() {
         if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); // Update local state
+          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
         }
         if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudInvitadosDiarios(updatedSolicitud);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); // Update local state
+          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); 
         }
       } catch (error) {
         console.error("Error updating event status in DB:", error);
@@ -214,7 +180,7 @@ export function ControlAcceso() {
 
 
   const handleSearch = useCallback(async (isRefresh = false) => {
-    const termToSearch = isRefresh && socioEncontrado ? (socioEncontrado.numeroSocio || socioEncontrado.dni) : searchTerm;
+    const termToSearch = isRefresh && socioEncontrado ? (normalizeText(socioEncontrado.numeroSocio) || normalizeText(socioEncontrado.dni)) : normalizeText(searchTerm);
     if (!termToSearch.trim()) {
       setMensajeBusqueda('Por favor, ingrese un N° Socio, DNI o Nombre para buscar.');
       setSocioEncontrado(null);
@@ -260,14 +226,16 @@ export function ControlAcceso() {
         setAccordionValue("socio-info");
 
         let cumpleanerosCount = 0;
-        if (esCumpleanosHoy(socio.fechaNacimiento)) {
-            cumpleanerosCount++;
-        }
-        socio.grupoFamiliar?.forEach(fam => {
-            if (esCumpleanosHoy(fam.fechaNacimiento)) {
+        if (!hoyEsFechaRestringida) { // Solo contar si no es fecha restringida
+            if (esCumpleanosHoy(socio.fechaNacimiento)) {
                 cumpleanerosCount++;
             }
-        });
+            socio.grupoFamiliar?.forEach(fam => {
+                if (esCumpleanosHoy(fam.fechaNacimiento)) {
+                    cumpleanerosCount++;
+                }
+            });
+        }
         setCountCumpleanerosEnGrupo(cumpleanerosCount);
         setCupoTotalInvitadosCumple(cumpleanerosCount * 15);
 
@@ -292,7 +260,7 @@ export function ControlAcceso() {
         const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol =>
             sol.idSocioTitular === socio.numeroSocio &&
             sol.fecha === todayISO &&
-            sol.estado === EstadoSolicitudInvitados.ENVIADA // Solo mostrar listas ENVIADAS
+            sol.estado === EstadoSolicitudInvitados.ENVIADA 
         );
 
         let currentInvitadosCumpleRegistrados = 0;
@@ -303,7 +271,7 @@ export function ControlAcceso() {
                 if (inv.esDeCumpleanos && inv.ingresado) {
                     currentInvitadosCumpleRegistrados++;
                 }
-                initialCheckboxState[inv.dni] = !!inv.esDeCumpleanos;
+                initialCheckboxState[inv.dni] = hoyEsFechaRestringida ? false : !!inv.esDeCumpleanos;
                 return {
                     ...inv,
                     id: inv.dni,
@@ -334,13 +302,11 @@ export function ControlAcceso() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, todayISO, socioEncontrado, toast, handleToggleIngresoMiembroGrupo]);
+  }, [searchTerm, todayISO, socioEncontrado, toast, handleToggleIngresoMiembroGrupo, hoyEsFechaRestringida]);
 
   useEffect(() => {
-    // Removed loadFestejosDelDia() call as the section is removed.
     const refreshData = async () => {
         if (socioEncontrado) await handleSearch(true);
-        // Removed await loadFestejosDelDia();
     };
 
     window.addEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
@@ -352,7 +318,7 @@ export function ControlAcceso() {
         window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
         window.removeEventListener('firestore/sociosUpdated', refreshData);
     };
-  }, [socioEncontrado, handleSearch]); // Removed loadFestejosDelDia from dependencies
+  }, [socioEncontrado, handleSearch]); 
 
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -435,6 +401,11 @@ export function ControlAcceso() {
   };
 
   const handleInvitadoCumpleanosCheckboxChange = (invitadoDni: string, checked: boolean) => {
+    if (hoyEsFechaRestringida && checked) {
+      toast({ title: "Acción no permitida", description: `No se pueden registrar invitados de cumpleaños el ${format(new Date(), "dd/MM")}.`, variant: "default"});
+      setInvitadosCumpleanosCheckboxState(prev => ({...prev, [invitadoDni]: false })); // Forzar a false
+      return;
+    }
     setInvitadosCumpleanosCheckboxState(prev => ({...prev, [invitadoDni]: checked}));
      if (!checked) {
       setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
@@ -442,16 +413,16 @@ export function ControlAcceso() {
   };
 
   const handleRegistrarIngresoInvitado = async (invitadoDni: string, tipoInvitado: 'cumpleanos' | 'diario', festejoId?: string) => {
-    let targetFestejo: SolicitudCumpleanos | null = null; // Removed FestejoHoy type as it's related to removed section
+    let targetFestejo: SolicitudCumpleanos | null = null; 
     let targetInvitados: (InvitadoCumpleanos | InvitadoDiario)[] = [];
     let targetEventoHabilitado: boolean = false;
     let isFestejoDelSocioBuscado = false;
     let metodoPagoSeleccionado: MetodoPagoInvitado | null = null;
     let esMenorDeTresSinCosto = false;
-    const esDeCumpleanosSeleccionado = !!invitadosCumpleanosCheckboxState[invitadoDni];
+    const esDeCumpleanosSeleccionado = hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitadoDni];
 
     const invitadoOriginal = (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni)) ||
-                             (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) /* || festejosDelDia.find(f => f.id === festejoId)?.listaInvitados.find(inv => inv.dni === invitadoDni) Removed festejosDelDia reference */ ));
+                             (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) ));
 
     if (!invitadoOriginal?.ingresado) {
         if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
@@ -486,8 +457,7 @@ export function ControlAcceso() {
             targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple;
             isFestejoDelSocioBuscado = true;
         } 
-        // Removed else block that referred to festejosDelDia
-        if (!targetFestejo) { // If not found in socio's specific list, it's an error now
+        if (!targetFestejo) { 
             toast({ title: "Error", description: "Festejo de cumpleaños no encontrado.", variant: "destructive" });
             return;
         }
@@ -495,7 +465,7 @@ export function ControlAcceso() {
           toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
           return;
         }
-    } else { // tipoInvitado === 'diario'
+    } else { 
         if (!solicitudInvitadosDiariosHoySocioBuscado) return;
         targetInvitados = invitadosDiariosSocioBuscado;
         targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
@@ -555,7 +525,6 @@ export function ControlAcceso() {
                 setInvitadosCumpleanosSocioBuscado(updatedInvitados as InvitadoCumpleanos[]);
                 setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
             } 
-            // Removed else block updating festejosDelDia
         } catch (error) {
             console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
             toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
@@ -866,11 +835,19 @@ export function ControlAcceso() {
                           <Users2 className="mr-2 h-5 w-5 text-primary" />
                           Invitados Diarios (Hoy: {format(parseISO(todayISO), "dd/MM/yyyy")})
                       </h4>
-                      {countCumpleanerosEnGrupo > 0 && (
+                      {hoyEsFechaRestringida ? (
+                        <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md mb-3">
+                            <AlertTriangleIcon className="inline mr-1 h-4 w-4" /> No se permiten invitados de cumpleaños en esta fecha ({format(new Date(), "dd/MM")}).
+                        </p>
+                      ) : countCumpleanerosEnGrupo > 0 ? (
                         <p className="text-sm text-pink-600 bg-pink-100 p-2 rounded-md mb-3">
                             <Gift className="inline mr-1 h-4 w-4" /> Este grupo familiar tiene {countCumpleanerosEnGrupo} cumpleañero(s) hoy.
                             Cupo total de invitados de cumpleaños: {cupoTotalInvitadosCumple}.
                             Registrados hoy: {invitadosCumpleRegistradosHoy}. Disponibles: {Math.max(0, cupoTotalInvitadosCumple - invitadosCumpleRegistradosHoy)}.
+                        </p>
+                      ) : (
+                         <p className="text-sm text-blue-600 bg-blue-100 p-2 rounded-md mb-3">
+                            <Info className="inline mr-1 h-4 w-4" /> Este grupo familiar no tiene cumpleañeros hoy, por lo que no aplica el cupo especial de invitados de cumpleaños.
                         </p>
                       )}
                       {!eventoHabilitadoPorIngresoFamiliarDiario && (
@@ -893,7 +870,7 @@ export function ControlAcceso() {
                             }
                           }
                           const esDeCumpleOriginal = !!invitado.esDeCumpleanos;
-                          const checkboxCumpleDisabled = (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple && !esDeCumpleOriginal) || countCumpleanerosEnGrupo === 0;
+                          const checkboxCumpleDisabled = hoyEsFechaRestringida || countCumpleanerosEnGrupo === 0 || (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple && !esDeCumpleOriginal);
 
                           return (
                             <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
@@ -905,7 +882,7 @@ export function ControlAcceso() {
                                         {esMenorDeTres && <Baby className="ml-2 h-4 w-4 text-purple-500" title="Menor de 3 años (Ingreso Gratuito)" />}
                                         {esCumpleanosHoy(invitado.fechaNacimiento) && <Badge variant="secondary" className="ml-2 text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}
                                       </p>
-                                      {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, esMenorDeTres, invitado.esDeCumpleanos)}
+                                      {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, esMenorDeTres, hoyEsFechaRestringida ? false : invitado.esDeCumpleanos)}
                                     </div>
                                     <p className="text-xs text-muted-foreground">
                                         DNI: {invitado.dni}
@@ -917,12 +894,12 @@ export function ControlAcceso() {
                                       <div className="flex items-center space-x-2 py-1 sm:border-2 sm:border-pink-500 sm:p-1">
                                         <Checkbox
                                           id={`cumple-diario-${invitado.dni}`}
-                                          checked={!!invitadosCumpleanosCheckboxState[invitado.dni]}
+                                          checked={hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitado.dni]}
                                           onCheckedChange={(checked) => handleInvitadoCumpleanosCheckboxChange(invitado.dni, !!checked)}
                                           disabled={checkboxCumpleDisabled}
                                         />
                                         <Label htmlFor={`cumple-diario-${invitado.dni}`} className={`text-xs font-normal cursor-pointer ${checkboxCumpleDisabled ? 'text-muted-foreground' : ''}`}>
-                                          Es Inv. Cumpleaños
+                                          Es Inv. Cumpleaños {hoyEsFechaRestringida ? '(No disponible hoy)' : ''}
                                         </Label>
                                       </div>
                                     )}
@@ -948,7 +925,7 @@ export function ControlAcceso() {
                                      onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'diario')}
                                      disabled={
                                        !eventoHabilitadoPorIngresoFamiliarDiario ||
-                                       (!invitado.ingresado && !esMenorDeTres && !invitadosCumpleanosCheckboxState[invitado.dni] && !metodosPagoSeleccionados[invitado.dni])
+                                       (!invitado.ingresado && !esMenorDeTres && !(hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitado.dni]) && !metodosPagoSeleccionados[invitado.dni])
                                      }
                                      className="min-w-[120px]"
                                    >
@@ -971,7 +948,6 @@ export function ControlAcceso() {
         </CardContent>
       </Card>
 
-      {/* Card for Festejos del Dia removed */}
     </div>
   );
 }

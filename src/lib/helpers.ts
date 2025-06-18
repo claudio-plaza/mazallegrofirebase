@@ -123,10 +123,23 @@ export const esCumpleanosHoy = (fechaNacimientoInput?: Date | string): boolean =
   return getMonth(hoy) === getMonth(fechaNac) && getDayOfMonth(hoy) === getDayOfMonth(fechaNac);
 };
 
-export const normalizeText = (text: string): string => {
-  if (!text) return '';
-  return text
+export const normalizeText = (text: string | number | undefined | null): string => {
+  if (text === undefined || text === null) return '';
+  return String(text)
     .normalize('NFD') // Descompone caracteres acentuados (e.g., 'á' -> 'a' + '´')
     .replace(/[\u0300-\u036f]/g, '') // Elimina los diacríticos (acentos)
     .toLowerCase(); // Convierte a minúsculas
+};
+
+export const esFechaRestringidaParaCumpleanos = (fecha: Date): boolean => {
+  if (!isValid(fecha)) return false;
+  const mes = getMonth(fecha); // 0 (Enero) a 11 (Diciembre)
+  const dia = getDayOfMonth(fecha);
+
+  // 25 de Diciembre
+  if (mes === 11 && dia === 25) return true;
+  // 1 de Enero
+  if (mes === 0 && dia === 1) return true;
+
+  return false;
 };
