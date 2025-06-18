@@ -22,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { getSocios as fetchSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb } from '@/lib/firebase/firestoreService';
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
 import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliarDialog';
+import { useRouter } from 'next/navigation';
 
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
@@ -36,6 +37,7 @@ export function GestionSociosDashboard() {
   const [isAdherentesDialogOpen, setIsAdherentesDialogOpen] = useState(false);
   const [selectedSocioForRevision, setSelectedSocioForRevision] = useState<Socio | null>(null);
   const [isRevisionDialogOpen, setIsRevisionDialogOpen] = useState(false);
+  const router = useRouter();
 
 
   const loadSocios = useCallback(async () => {
@@ -113,8 +115,8 @@ export function GestionSociosDashboard() {
      toast({ title: 'Función no implementada', description: 'La creación de nuevos miembros desde admin será implementada.' });
   };
 
-  const handleVerPerfil = (socioId: string) => {
-     toast({ title: 'Función no implementada', description: `Ver perfil del socio ${socioId} (simulado).` });
+  const handleVerEditarPerfil = (socioId: string) => {
+     router.push(`/admin/socios/${socioId}/editar`);
   };
 
   const openAdherentesDialog = (socio: Socio) => {
@@ -326,7 +328,7 @@ export function GestionSociosDashboard() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleVerPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver Perfil</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleToggleEstadoSocio(socio.id)}>
                               {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                               {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}

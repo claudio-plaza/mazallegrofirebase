@@ -152,16 +152,21 @@ const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const FileListInstance = typeof window !== 'undefined' ? FileList : Object;
 
-export type FileSchemaConfig = { typeError: string; sizeError: string; mimeTypeError: string; mimeTypes: string[] };
+export interface FileSchemaConfig {
+  typeError: string;
+  sizeError: string;
+  mimeTypeError: string;
+  mimeTypes: string[];
+}
 
-const dniFileSchemaConfig: FileSchemaConfig = {
+export const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
   mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, o PDF para DNI.",
   mimeTypes: ["image/png", "image/jpeg", "application/pdf"],
 };
 
-const profileFileSchemaConfig: FileSchemaConfig = {
+export const profileFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen.",
   sizeError: `La foto de perfil no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
   mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG o JPG para foto de perfil.",
@@ -173,82 +178,48 @@ const filePreprocess = (val: unknown) => {
   return val;
 };
 
-const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  z.any().superRefine((val, ctx) => {
-    const processedVal = filePreprocess(val);
-
-    if (processedVal === null) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: requiredMessage });
+const baseFileContentSchema = (config: FileSchemaConfig) =>
+  z.custom<FileList>((val) => val instanceof FileListInstance, {
+    message: config.typeError,
+  })
+  .superRefine((files, ctx) => {
+    if (files.length === 0) {
+      return; // Valid if empty, requirement handled by requiredFileField/optionalFileField
+    }
+    if (files.length > 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Solo se puede seleccionar un archivo." });
       return;
     }
-
-    if (typeof processedVal === 'string') {
-      if (!z.string().url().min(1).safeParse(processedVal).success) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL de archivo inválida." });
-      }
+    const file = files[0];
+    if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
       return;
     }
-
-    if (processedVal instanceof FileListInstance) {
-      if (processedVal.length === 0) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: requiredMessage });
-        return;
-      }
-      if (processedVal.length > 1) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Solo se puede seleccionar un archivo." });
-        return;
-      }
-      const file = processedVal[0];
-      if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
-      }
-      return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
     }
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
+    if (!config.mimeTypes.includes(file.type)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
+    }
   });
 
-const optionalFileField = (config: FileSchemaConfig) =>
-  z.any().superRefine((val, ctx) => {
-    const processedVal = filePreprocess(val);
 
-    if (processedVal === null || (processedVal instanceof FileListInstance && processedVal.length === 0)) {
-      return; // Optional, so null or empty FileList is fine
-    }
+export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
+  z.preprocess(filePreprocess,
+    z.union([
+      z.string().url("URL de archivo inválida.").min(1),
+      baseFileContentSchema(config).refine(val => val.length > 0, { message: requiredMessage })
+    ]).nullable()
+  ).refine(val => val !== null, { message: requiredMessage });
 
-    if (typeof processedVal === 'string') {
-      if (!z.string().url().min(1).safeParse(processedVal).success) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL de archivo inválida." });
-      }
-      return;
-    }
-    
-    if (processedVal instanceof FileListInstance) {
-      if (processedVal.length > 1) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Solo se puede seleccionar un archivo." });
-        return;
-      }
-      const file = processedVal[0];
-       if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        ctx.addIssue({ code: z.ZodIssueCode.too_big, type: "array", maximum: MAX_FILE_SIZE_BYTES, inclusive: true, message: config.sizeError });
-      }
-      if (!config.mimeTypes.includes(file.type)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.mimeTypeError });
-      }
-      return;
-    }
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: config.typeError });
-  });
+
+export const optionalFileField = (config: FileSchemaConfig) =>
+  z.preprocess(filePreprocess,
+    z.union([
+      z.string().url("URL de archivo inválida.").min(1),
+      baseFileContentSchema(config)
+    ]).nullable().optional()
+  );
 
 
 export const signupTitularSchema = z.object({
@@ -506,10 +477,27 @@ export const novedadSchema = z.object({
 });
 export type NovedadFormData = z.infer<typeof novedadSchema>;
 
+// Esquema para la edición de datos del titular por parte del administrador
+export const adminEditSocioTitularSchema = z.object({
+  apellido: z.string().min(2, "Apellido es requerido."),
+  nombre: z.string().min(2, "Nombre es requerido."),
+  fechaNacimiento: z.union([z.date(), z.string()])
+    .transform(val => (typeof val === 'string' ? parseISO(val) : val))
+    .refine(date => isValid(date), "Fecha de nacimiento inválida.")
+    .refine(date => date <= subYears(new Date(), 18), "Debe ser mayor de 18 años para ser titular."),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
+  empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números."),
+  direccion: z.string().min(5, "Dirección es requerida."),
+  email: z.string().email("Email inválido."),
+  estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
+  // Las fotos no se incluyen en este esquema para edición directa; se gestionarán por separado si es necesario
+});
+export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+
 
 export const getStepSpecificValidationSchema = (step: number) => {
   setCurrentStepForSchema(step);
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
-
