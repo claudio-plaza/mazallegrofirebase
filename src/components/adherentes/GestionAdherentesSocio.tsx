@@ -118,15 +118,32 @@ export function GestionAdherentesSocio() {
       return;
     }
 
+    const processPhotoFieldForSubmit = (fieldValue: FileList | string | null | undefined, fieldNameHint: string): string | null => {
+        if (fieldValue === null) return null;
+        if (fieldValue instanceof FileList && fieldValue.length > 0) {
+            const timestamp = Date.now();
+            const filename = fieldValue[0].name.substring(0,10).replace(/[^a-zA-Z0-9]/g, '');
+            return `https://placehold.co/150x150.png?text=${fieldNameHint}_${filename}_${timestamp}`;
+        }
+        // Si ya es una URL (aunque no debería serlo para un nuevo adherente), se mantiene.
+        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; 
+        return null; // Si no hay archivo o es inválido
+    };
+
     const nuevoAdherente: Adherente = {
       id: generateId(),
-      ...data,
+      nombre: data.nombre,
+      apellido: data.apellido,
+      dni: data.dni,
       empresa: data.empresa,
+      telefono: data.telefono,
+      direccion: data.direccion,
+      email: data.email,
       fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date,
-      fotoDniFrente: data.fotoDniFrente,
-      fotoDniDorso: data.fotoDniDorso,
-      fotoPerfil: data.fotoPerfil,
-      fotoCarnet: data.fotoCarnet,
+      fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente, "DNI_FRENTE"),
+      fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso, "DNI_DORSO"),
+      fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil, "PERFIL"),
+      fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet, "CARNET"),
       estadoAdherente: EstadoAdherente.INACTIVO,
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },
