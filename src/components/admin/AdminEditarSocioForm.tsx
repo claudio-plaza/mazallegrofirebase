@@ -2,11 +2,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import type { Socio, AdminEditSocioTitularData } from '@/types';
-import { adminEditSocioTitularSchema } from '@/types';
+import type { Socio, AdminEditSocioTitularData, MiembroFamiliar, AdminEditableFamiliarData } from '@/types';
+import { adminEditSocioTitularSchema, RelacionFamiliar } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,7 +17,7 @@ import { getSocioById, updateSocio } from '@/lib/firebase/firestoreService';
 import { formatDate, getAptoMedicoStatus, getFileUrl, normalizeText } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin } from 'lucide-react';
+import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle } from 'lucide-react';
 import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Link from 'next/link';
@@ -34,8 +34,11 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   
-  // Estado para la fecha máxima de nacimiento (mayor de 18 años)
   const [maxBirthDate, setMaxBirthDate] = useState<string>(() => {
+    const today = new Date();
+    return format(today, 'yyyy-MM-dd'); // Para familiares, puede ser cualquier fecha hasta hoy
+  });
+  const [maxBirthDateTitular, setMaxBirthDateTitular] = useState<string>(() => {
     const eighteenYearsAgo = subYears(new Date(), 18);
     return format(eighteenYearsAgo, 'yyyy-MM-dd');
   });
@@ -53,8 +56,15 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
       direccion: '',
       email: '',
       estadoSocio: 'Activo',
+      grupoFamiliar: [],
     },
   });
+  
+  const { fields: grupoFamiliarFields, append: appendFamiliar, remove: removeFamiliar } = useFieldArray({
+    control: form.control,
+    name: "grupoFamiliar",
+  });
+
 
   useEffect(() => {
     const fetchSocio = async () => {
@@ -67,11 +77,15 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           apellido: data.apellido,
           fechaNacimiento: typeof data.fechaNacimiento === 'string' ? parseISO(data.fechaNacimiento) : data.fechaNacimiento,
           dni: data.dni,
-          empresa: data.empresa.toString(), // Asegurarse que sea string
+          empresa: data.empresa.toString(),
           telefono: data.telefono,
           direccion: data.direccion,
           email: data.email,
           estadoSocio: data.estadoSocio,
+          grupoFamiliar: data.grupoFamiliar.map(f => ({
+            ...f,
+            fechaNacimiento: typeof f.fechaNacimiento === 'string' ? parseISO(f.fechaNacimiento) : f.fechaNacimiento,
+          })),
         });
       } else {
         toast({ title: "Error", description: "Socio no encontrado.", variant: "destructive" });
@@ -87,13 +101,36 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
 
-    const updatedTitularData: Partial<Socio> = {
+    const updatedSocioData: Partial<Socio> = {
         ...data,
-        fechaNacimiento: data.fechaNacimiento instanceof Date ? formatISO(data.fechaNacimiento) : data.fechaNacimiento as string,
+        fechaNacimiento: data.fechaNacimiento instanceof Date ? formatISO(data.fechaNacimiento as Date) : data.fechaNacimiento as string,
+        grupoFamiliar: data.grupoFamiliar?.map(f => ({
+            ...f,
+            id: f.id || `temp-${Math.random().toString(36).substr(2, 9)}`, // Ensure ID for new ones if any
+            fechaNacimiento: f.fechaNacimiento instanceof Date ? formatISO(f.fechaNacimiento as Date) : f.fechaNacimiento as string,
+            aptoMedico: socio.grupoFamiliar.find(gf => gf.id === f.id)?.aptoMedico, // Preserve existing apto
+            fotoPerfil: socio.grupoFamiliar.find(gf => gf.id === f.id)?.fotoPerfil, // Preserve existing photos
+            fotoDniFrente: socio.grupoFamiliar.find(gf => gf.id === f.id)?.fotoDniFrente,
+            fotoDniDorso: socio.grupoFamiliar.find(gf => gf.id === f.id)?.fotoDniDorso,
+            fotoCarnet: socio.grupoFamiliar.find(gf => gf.id === f.id)?.fotoCarnet,
+        })) as MiembroFamiliar[],
+    };
+    
+    // Preserve existing photos for the titular if not changed in this form
+    const finalDataForUpdate: Socio = {
+        ...socio, // Start with existing socio data
+        ...updatedSocioData, // Overlay with form data
+        // Ensure photo URLs are preserved if not part of updatedTitularData (which they are not for now)
+        fotoUrl: socio.fotoUrl,
+        fotoPerfil: socio.fotoPerfil,
+        fotoDniFrente: socio.fotoDniFrente,
+        fotoDniDorso: socio.fotoDniDorso,
+        fotoCarnet: socio.fotoCarnet,
     };
 
+
     try {
-      await updateSocio({ ...socio, ...updatedTitularData });
+      await updateSocio(finalDataForUpdate);
       toast({ title: 'Socio Actualizado', description: `Los datos de ${data.nombre} ${data.apellido} han sido actualizados.` });
       router.push('/admin/gestion-socios');
     } catch (error) {
@@ -131,13 +168,13 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                 </Avatar>
                 <div>
                     <CardTitle className="text-2xl flex items-center"><UserCog className="mr-3 h-7 w-7 text-primary" />Editar Socio: {socio.nombre} {socio.apellido}</CardTitle>
-                    <CardDescription>Modifique los datos del socio titular. N° Socio: {socio.numeroSocio}</CardDescription>
+                    <CardDescription>Modifique los datos del socio titular y su grupo familiar. N° Socio: {socio.numeroSocio}</CardDescription>
                 </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Datos Personales y Contacto</h3>
+                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Datos Personales y Contacto (Titular)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem> <FormLabel className="flex items-center"><UserCircle className="mr-1.5 h-4 w-4 text-muted-foreground"/>Nombre(s)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="apellido" render={({ field }) => ( <FormItem> <FormLabel className="flex items-center"><UserCircle className="mr-1.5 h-4 w-4 text-muted-foreground"/>Apellido(s)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -150,7 +187,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                                     type="date" 
                                     value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                                     onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                                    max={maxBirthDate}
+                                    max={maxBirthDateTitular}
                                     className="w-full"
                                 />
                             </FormControl> 
@@ -164,7 +201,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             </section>
             <Separator />
             <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Información de Membresía</h3>
+                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Información de Membresía (Titular)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <FormField control={form.control} name="empresa" render={({ field }) => ( <FormItem> <FormLabel className="flex items-center"><Briefcase className="mr-1.5 h-4 w-4 text-muted-foreground"/>Empresa / Sindicato</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="estadoSocio" render={({ field }) => (
@@ -189,7 +226,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             </section>
             <Separator />
             <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Salud y Documentación (Solo Visualización)</h3>
+                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Salud y Documentación (Titular - Solo Visualización)</h3>
                  <p className="text-xs text-muted-foreground mb-3">La edición de aptos médicos y la carga/modificación de archivos de DNI/Perfil se realizan desde otras secciones o se implementarán próximamente.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <div>
@@ -220,18 +257,70 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                 </div>
             </section>
             <Separator />
-            <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Grupo Familiar (Solo Visualización)</h3>
-                {socio.grupoFamiliar && socio.grupoFamiliar.length > 0 ? (
-                    <div className="space-y-2">
-                        {socio.grupoFamiliar.map(f => (
-                            <div key={f.id || f.dni} className="text-sm p-2 border rounded bg-muted/20">
-                                <p><strong>{f.nombre} {f.apellido}</strong> ({f.relacion}) - DNI: {f.dni}</p>
+             <section>
+                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Grupo Familiar</h3>
+                {grupoFamiliarFields.length === 0 && <p className="text-sm text-muted-foreground">Este socio no tiene familiares registrados o editables aquí.</p>}
+                <div className="space-y-4">
+                {grupoFamiliarFields.map((field, index) => {
+                    const familiarData = socio.grupoFamiliar.find(f => f.id === field.id || f.dni === field.dni); // Match by ID or DNI
+                    const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
+                    const fotoFamiliar = (familiarData?.fotoPerfil && typeof familiarData.fotoPerfil === 'string')
+                                        ? familiarData.fotoPerfil
+                                        : (familiarData?.fotoPerfil && getFileUrl(familiarData.fotoPerfil as FileList))
+                                        || `https://placehold.co/64x64.png?text=${field.nombre?.[0] || ''}${field.apellido?.[0] || ''}`;
+
+                    return (
+                        <Card key={field.id} className="p-4 bg-muted/20">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-medium">Familiar {index + 1}</h4>
+                                {/* Add remove button later if needed */}
                             </div>
-                        ))}
-                    </div>
-                ) : <p className="text-sm text-muted-foreground">Sin familiares registrados.</p>}
-                <p className="text-xs text-muted-foreground mt-2">La gestión detallada del grupo familiar (agregar, quitar, editar aptos) se realiza a través de las opciones específicas en el dashboard de socios.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name={`grupoFamiliar.${index}.nombre`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Nombre</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={form.control} name={`grupoFamiliar.${index}.apellido`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Apellido</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={form.control} name={`grupoFamiliar.${index}.dni`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">DNI</FormLabel> <FormControl><Input type="number" {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={form.control} name={`grupoFamiliar.${index}.fechaNacimiento`} render={({ field: formField }) => ( 
+                                    <FormItem> 
+                                        <FormLabel className="text-xs">Fecha Nac.</FormLabel> 
+                                        <FormControl>
+                                            <Input 
+                                                type="date" 
+                                                value={formField.value ? format(new Date(formField.value), 'yyyy-MM-dd') : ''}
+                                                onChange={(e) => formField.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                                max={maxBirthDate}
+                                                className="w-full h-9 text-sm"
+                                            />
+                                        </FormControl> 
+                                        <FormMessage /> 
+                                    </FormItem> 
+                                )}/>
+                                <FormField control={form.control} name={`grupoFamiliar.${index}.relacion`} render={({ field: formField }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Relación</FormLabel>
+                                        <Select onValueChange={formField.onChange} value={formField.value}>
+                                            <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Seleccione relación" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {Object.values(RelacionFamiliar).map(rel => (
+                                                    <SelectItem key={rel} value={rel}>{rel}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                 <div className="md:col-span-1 flex flex-col items-center">
+                                      <Avatar className="h-16 w-16 border">
+                                          <AvatarImage src={fotoFamiliar} alt={field.nombre} data-ai-hint="family member photo"/>
+                                          <AvatarFallback>{field.nombre?.[0]}{field.apellido?.[0]}</AvatarFallback>
+                                      </Avatar>
+                                      <p className={`text-xs mt-1 text-center p-1 rounded ${aptoStatusFamiliar.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>Apto: {aptoStatusFamiliar.status}</p>
+                                  </div>
+                            </div>
+                        </Card>
+                    );
+                })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">La edición de aptos médicos y fotos de familiares se realiza desde otras secciones o se implementará próximamente.</p>
             </section>
 
           </CardContent>
@@ -248,3 +337,4 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     </FormProvider>
   );
 }
+
