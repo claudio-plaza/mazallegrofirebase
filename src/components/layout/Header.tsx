@@ -19,7 +19,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-[#0E4291] shadow-md sticky top-0 z-50">
+    <header className="bg-secondary shadow-md sticky top-0 z-50"> {/* Changed to bg-secondary */}
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
           <Image 
@@ -27,20 +27,21 @@ const Header = () => {
             alt={`${siteConfig.name} Logo`}
             width={76} 
             height={38} 
-            className="h-auto" // Adjust height as needed, width will scale
-            priority // Preload logo as it's LCP
+            className="h-auto" 
+            priority 
           />
-          <span className="text-2xl font-bold text-primary sr-only">{siteConfig.name}</span>
+          {/* Site name text is now part of the image, or can be added if needed with text-secondary-foreground */}
+          <span className="text-2xl font-bold text-secondary-foreground sr-only">{siteConfig.name}</span>
         </Link>
         <nav className="flex items-center space-x-2 sm:space-x-4">
           {isLoggedIn ? (
             <>
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+              <span className="text-sm text-secondary-foreground/80 hidden sm:inline"> {/* Adjusted for contrast */}
                 Hola, {userName || 'Usuario'} ({userRole})
               </span>
               {userRole && (
                 <Link href="/dashboard">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
                     <LayoutDashboard className="mr-0 sm:mr-2 h-4 w-4" /> 
                     <span className="hidden sm:inline">Panel</span>
                   </Button>
@@ -48,7 +49,7 @@ const Header = () => {
               )}
               {userRole === 'socio' && (
                 <Link href="/mi-perfil">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
                     <UserCircle className="mr-0 sm:mr-2 h-4 w-4" /> 
                      <span className="hidden sm:inline">Mi Perfil</span>
                   </Button>
@@ -56,13 +57,13 @@ const Header = () => {
               )}
               {userRole === 'administrador' && (
                  <Link href="/admin/gestion-socios">
-                   <Button variant="ghost" size="sm">
+                   <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
                      <Settings className="mr-0 sm:mr-2 h-4 w-4" /> 
                      <span className="hidden sm:inline">Admin</span>
                    </Button>
                  </Link>
               )}
-              <Button variant="outline" size="sm" onClick={handleLogout}>
+              <Button variant="outline" size="sm" className="border-secondary-foreground/50 text-secondary-foreground hover:bg-secondary-foreground/10"> {/* Adjusted for contrast */}
                 <LogOut className="mr-0 sm:mr-2 h-4 w-4" /> 
                 <span className="hidden sm:inline">Salir</span>
               </Button>
@@ -70,9 +71,10 @@ const Header = () => {
           ) : (
             <>
               <Link href="/login">
-                <Button variant="ghost" size="sm">Iniciar Sesión</Button>
+                <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80">Iniciar Sesión</Button> {/* Adjusted for contrast */}
               </Link>
               <Link href="/signup">
+                {/* Default button will be primary (orange) */}
                 <Button size="sm">Crear Cuenta</Button>
               </Link>
             </>

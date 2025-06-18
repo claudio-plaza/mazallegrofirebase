@@ -261,18 +261,18 @@ export function AltaSocioMultiStepForm() {
 
   useEffect(() => {
     const subscription = watch((value, { name }) => {
-      if (name === 'tipoGrupoFamiliar' && value.tipoGrupoFamiliar !== previousTipoGrupoFamiliar.current) {
-        // Solo limpiar si no hay solicitud pendiente Y el tipo realmente cambió
-        if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
-          if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
-            setValue('familiares.padres', []);
-          } else if (value.tipoGrupoFamiliar === 'padresMadres') {
-            setValue('familiares.conyuge', null);
-            setValue('familiares.hijos', []);
-          }
+        if (name === 'tipoGrupoFamiliar' && value.tipoGrupoFamiliar !== previousTipoGrupoFamiliar.current) {
+            // Only clear if not restoring from a pending request or if a change is made *after* initial load
+            if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
+                if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
+                    setValue('familiares.padres', []);
+                } else if (value.tipoGrupoFamiliar === 'padresMadres') {
+                    setValue('familiares.conyuge', null);
+                    setValue('familiares.hijos', []);
+                }
+            }
+            previousTipoGrupoFamiliar.current = value.tipoGrupoFamiliar;
         }
-      }
-      previousTipoGrupoFamiliar.current = value.tipoGrupoFamiliar;
     });
     return () => subscription.unsubscribe();
   }, [watch, setValue, socioData?.estadoCambioGrupoFamiliar]);
@@ -310,7 +310,7 @@ export function AltaSocioMultiStepForm() {
                     <MailQuestion className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud Pendiente</AlertTitle>
                     <AlertDescription>
-                        Tiene una solicitud de cambio para su grupo familiar pendiente de aprobación. No podrá realizar nuevas solicitudes ni modificar el tipo de grupo hasta que la actual sea procesada por administración.
+                        Tiene una solicitud de cambio para su grupo familiar pendiente de aprobación. No podrá realizar nuevas solicitudes hasta que la actual sea procesada.
                         Si desea cancelar la solicitud actual, contacte a administración.
                     </AlertDescription>
                 </Alert>
@@ -326,12 +326,12 @@ export function AltaSocioMultiStepForm() {
                 </Alert>
             )}
             {existingGroupType && socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE && currentStep === 1 && (
-                 <Alert variant="default" className="mt-4 bg-blue-500/10 border-blue-500 text-blue-700">
-                    <Lock className="h-5 w-5 text-blue-600" />
-                    <AlertTitle className="text-blue-700">Tipo de Grupo Establecido</AlertTitle>
+                 <Alert variant="default" className="mt-4 bg-secondary/10 border-secondary/30 text-secondary">
+                    <Lock className="h-5 w-5 text-secondary" />
+                    <AlertTitle className="font-semibold text-secondary">Tipo de Grupo Establecido</AlertTitle>
                     <AlertDescription>
                         Actualmente tiene un grupo familiar de tipo: <strong>{existingGroupType === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 'Padres/Madres'}</strong>.
-                        <br />Para cambiar el tipo de grupo fundamental, por favor, contacte a la administración del club. Puede continuar para editar los miembros dentro de este tipo de grupo.
+                        <br />Para cambiar el tipo de grupo fundamental (ej. de 'Padres/Madres' a 'Cónyuge e Hijos/as'), por favor, contacte a la administración del club. Puede continuar para editar los miembros dentro de este tipo de grupo.
                     </AlertDescription>
                 </Alert>
             )}
@@ -352,7 +352,7 @@ export function AltaSocioMultiStepForm() {
                       <FormItem className="space-y-3">
                         <FormLabel className={isSelectionTypeDisabled ? 'text-muted-foreground' : ''}>
                             {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'Tipo de grupo solicitado (bloqueado hasta resolución):' : 
-                             existingGroupType ? 'Tipo de grupo actual (bloqueado para cambios fundamentales):' :
+                             existingGroupType ? 'Tipo de grupo actual (para cambios fundamentales, contacte admin.):' :
                             '¿Qué tipo de grupo familiar desea registrar?'}
                         </FormLabel>
                         <FormControl>
@@ -384,7 +384,7 @@ export function AltaSocioMultiStepForm() {
                                     disabled={isSelectionTypeDisabled}
                                 >
                                     <div className="flex items-center">
-                                        <Users className="mr-3 h-6 w-6 text-blue-500" />
+                                        <Users className="mr-3 h-6 w-6 text-secondary" />
                                         <div>
                                             <p className="font-semibold">Padres/Madres</p>
                                             <p className="text-xs text-muted-foreground">Agregue los datos de sus padres o madres.</p>
@@ -640,4 +640,3 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
-

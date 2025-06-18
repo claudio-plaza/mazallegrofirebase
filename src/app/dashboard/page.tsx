@@ -13,11 +13,11 @@ import { TipoNovedad } from '@/types';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
-import { getNovedades } from '@/lib/firebase/firestoreService'; // Importar servicio de novedades
-import { formatDate } from '@/lib/helpers'; // Para formatear fechas
+import { getNovedades } from '@/lib/firebase/firestoreService'; 
+import { formatDate } from '@/lib/helpers'; 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Info, AlertTriangleIcon, CalendarDays as CalendarIcon, Megaphone } from 'lucide-react'; // Renombrar CalendarDays para evitar conflicto
+import { Info, AlertTriangleIcon, CalendarDays as CalendarIconLucide, Megaphone } from 'lucide-react'; // Renamed CalendarIcon to avoid conflict
 
 export default function DashboardPage() {
   const { isLoggedIn, userRole, userName, isLoading, loggedInUserNumeroSocio } = useAuth();
@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchNovedades = async () => {
-      if (isLoggedIn) { // Solo cargar novedades si el usuario está logueado
+      if (isLoggedIn) { 
         setLoadingNovedades(true);
         try {
           const todasLasNovedades = await getNovedades();
@@ -111,7 +111,7 @@ export default function DashboardPage() {
       }
     };
 
-    if (!isLoading) { // Asegurarse de que el estado de autenticación se haya cargado
+    if (!isLoading) { 
         fetchNovedades();
     }
   }, [isLoggedIn, isLoading]);
@@ -119,9 +119,9 @@ export default function DashboardPage() {
   const getNovedadIcon = (tipo: TipoNovedad) => {
     switch (tipo) {
       case TipoNovedad.ALERTA: return <AlertTriangleIcon className="h-5 w-5 text-destructive" />;
-      case TipoNovedad.EVENTO: return <CalendarIcon className="h-5 w-5 text-purple-600" />;
+      case TipoNovedad.EVENTO: return <CalendarIconLucide className="h-5 w-5 text-accent" />; // Changed to text-accent
       case TipoNovedad.INFO:
-      default: return <Info className="h-5 w-5 text-blue-600" />;
+      default: return <Info className="h-5 w-5 text-secondary" />; // Changed to text-secondary
     }
   };
 
@@ -132,9 +132,9 @@ export default function DashboardPage() {
    const getNovedadBadgeVariant = (tipo: TipoNovedad): "default" | "destructive" | "secondary" | "outline" => {
     switch (tipo) {
       case TipoNovedad.ALERTA: return "destructive";
-      case TipoNovedad.EVENTO: return "secondary"; 
+      case TipoNovedad.EVENTO: return "default"; // Use default for primary (orange) or secondary (blue)
       case TipoNovedad.INFO:
-      default: return "default";
+      default: return "secondary"; // Use secondary for this (dark blue)
     }
   };
 
