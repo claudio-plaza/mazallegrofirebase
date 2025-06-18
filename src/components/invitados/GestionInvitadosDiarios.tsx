@@ -156,7 +156,6 @@ export function GestionInvitadosDiarios() {
     if (!authIsLoading) {
       loadSolicitudParaFecha();
     }
-     // Listener para recargar si los datos cambian en otra parte
     const handleDbUpdate = () => loadSolicitudParaFecha();
     window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
     return () => {
@@ -184,7 +183,6 @@ export function GestionInvitadosDiarios() {
         return;
     }
 
-    const isNew = !solicitudActual;
     const fechaActual = formatISO(new Date());
 
     const dataToSave: SolicitudInvitadosDiarios = {
@@ -193,7 +191,10 @@ export function GestionInvitadosDiarios() {
         nombreSocioTitular: userName || 'Socio',
         fecha: selectedDateISO, 
         id: solicitudActual?.id || data.id || generateId(),
-        estado: solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR, // Mantener estado si existe, sino Borrador
+        // Mantener estado si es ENVIADA, de lo contrario BORRADOR
+        estado: solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA 
+                ? EstadoSolicitudInvitados.ENVIADA 
+                : (solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR),
         fechaCreacion: solicitudActual?.fechaCreacion || fechaActual,
         fechaUltimaModificacion: fechaActual,
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
@@ -208,8 +209,8 @@ export function GestionInvitadosDiarios() {
     try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
         toast({
-          title: `Lista ${isNew ? 'Guardada como Borrador' : 'Actualizada'}`,
-          description: `Tu lista de invitados para el ${formatDate(selectedDateISO)} ha sido ${isNew ? 'guardada como borrador' : 'actualizada'}.`,
+          title: solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? 'Lista Actualizada' : 'Borrador Guardado',
+          description: `Tu lista de invitados para el ${formatDate(selectedDateISO)} ha sido ${solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? 'actualizada con los nuevos invitados' : 'guardada como borrador'}.`,
         });
         loadSolicitudParaFecha();
     } catch (error) {
@@ -219,8 +220,8 @@ export function GestionInvitadosDiarios() {
   };
 
   const handleConfirmarYEnviar = async () => {
-    if (!solicitudActual || !loggedInUserNumeroSocio) {
-      toast({ title: "Error", description: "No hay una solicitud válida para enviar.", variant: "destructive" });
+    if (!solicitudActual || !loggedInUserNumeroSocio || solicitudActual.estado !== EstadoSolicitudInvitados.BORRADOR) {
+      toast({ title: "Error", description: "No hay un borrador válido para enviar.", variant: "destructive" });
       return;
     }
     if (solicitudActual.listaInvitadosDiarios.length === 0 || solicitudActual.listaInvitadosDiarios.every(inv => !inv.nombre && !inv.apellido && !inv.dni)) {
@@ -241,7 +242,7 @@ export function GestionInvitadosDiarios() {
     };
      try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
-        toast({ title: "Lista Enviada", description: "Tu lista de invitados ha sido enviada y ya no puede ser modificada." });
+        toast({ title: "Lista Enviada", description: "Tu lista de invitados ha sido enviada. Aún puedes agregar más invitados si es necesario." });
         loadSolicitudParaFecha(); 
     } catch (error) {
         console.error("Error enviando solicitud de invitados diarios:", error);
@@ -257,20 +258,30 @@ export function GestionInvitadosDiarios() {
   };
 
   const isEditable = useMemo(() => {
-    if (!solicitudActual) return !isBefore(selectedDate, today) || isSameDay(selectedDate, today); // Nueva lista siempre editable si la fecha es futura o hoy
-    return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && (!isBefore(selectedDate, today) || isSameDay(selectedDate, today));
+    const esFechaValidaParaEdicion = !isBefore(selectedDate, today) || isSameDay(selectedDate, today);
+    if (!esFechaValidaParaEdicion) return false; 
+
+    if (!solicitudActual) return true; // Se puede crear una nueva lista (borrador)
+
+    const estadosBloqueados: EstadoSolicitudInvitados[] = [
+        EstadoSolicitudInvitados.PROCESADA,
+        EstadoSolicitudInvitados.VENCIDA,
+        EstadoSolicitudInvitados.CANCELADA_ADMIN,
+        EstadoSolicitudInvitados.CANCELADA_SOCIO,
+    ];
+
+    return !estadosBloqueados.includes(solicitudActual.estado);
   }, [solicitudActual, selectedDate, today]);
   
   const puedeEnviar = useMemo(() => {
     if (!solicitudActual || !isEditable) return false;
-    // Se puede enviar si es borrador y la fecha es hoy o futura (hasta 5 dias)
-    // Y si es hoy, o si es mañana (para enviarla el dia anterior)
+    
     const isTodayOrFutureWithinLimit = !isBefore(selectedDate, today) && isBefore(selectedDate, addDays(today,6));
     const isOneDayBeforeEvent = isSameDay(addDays(today, 1), selectedDate);
     
     return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && 
            isTodayOrFutureWithinLimit &&
-           (isSameDay(selectedDate, today) || isOneDayBeforeEvent || isBefore(today,selectedDate)); // Permite enviar hoy para hoy, o hoy para mañana, o antes para dias futuros
+           (isSameDay(selectedDate, today) || isOneDayBeforeEvent || isBefore(today,selectedDate));
   }, [solicitudActual, selectedDate, today, isEditable]);
 
 
@@ -297,6 +308,12 @@ export function GestionInvitadosDiarios() {
     }
   }
 
+  const submitButtonText = () => {
+    if (form.formState.isSubmitting) return 'Guardando...';
+    if (solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && isEditable) return 'Agregar Más Invitados a Lista';
+    return solicitudActual ? 'Actualizar Borrador' : 'Guardar Borrador';
+  };
+
   return (
     <FormProvider {...form}>
       <Card className="w-full max-w-2xl mx-auto shadow-xl">
@@ -306,7 +323,7 @@ export function GestionInvitadosDiarios() {
           </div>
           <CardDescription>
             Crea y gestiona tu lista de invitados para el día {format(selectedDate, "dd 'de' MMMM yyyy", { locale: es })}.
-            Puedes cargar la lista hasta 5 días antes y debes enviarla para confirmación 1 día antes de la fecha de visita.
+            Puedes cargar la lista hasta 5 días antes. Las listas enviadas pueden ser actualizadas con más invitados si la fecha lo permite.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -343,12 +360,21 @@ export function GestionInvitadosDiarios() {
                                 <p>Últ. Modif.: {formatDate(solicitudActual.fechaUltimaModificacion, "dd/MM/yy HH:mm")}</p>
                             </div>
                         </div>
-                         {solicitudActual.estado === EstadoSolicitudInvitados.ENVIADA && (
-                            <Alert variant="default" className="mt-3 bg-green-500/10 border-green-500/30 text-green-700">
-                                <Send className="h-4 w-4" />
-                                <AlertTitle>Lista Enviada</AlertTitle>
+                         {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && isEditable && (
+                            <Alert variant="default" className="mt-3 bg-blue-500/10 border-blue-500/30 text-blue-700">
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>Lista Enviada - Aún Editable</AlertTitle>
                                 <AlertDescription>
-                                Esta lista ya fue enviada y no puede ser modificada. El portero la tendrá disponible el día del evento.
+                                Esta lista ya fue enviada, pero aún puedes agregar más invitados para el día {formatDate(selectedDateISO)}. Los nuevos invitados se añadirán a la lista existente.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && !isEditable && (
+                             <Alert variant="default" className="mt-3 bg-green-500/10 border-green-500/30 text-green-700">
+                                <Send className="h-4 w-4" />
+                                <AlertTitle>Lista Enviada y Cerrada</AlertTitle>
+                                <AlertDescription>
+                                Esta lista ya fue enviada y no puede ser modificada (probablemente porque la fecha ya pasó o está fuera del límite de edición).
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -477,9 +503,9 @@ export function GestionInvitadosDiarios() {
                 type="submit" 
                 disabled={form.formState.isSubmitting || !loggedInUserNumeroSocio || authIsLoading || !isEditable}
               >
-                {form.formState.isSubmitting ? 'Guardando...' : (solicitudActual ? 'Actualizar Borrador' : 'Guardar Borrador')}
+                {submitButtonText()}
               </Button>
-              {puedeEnviar && solicitudActual && solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && (
+              {puedeEnviar && solicitudActual?.estado === EstadoSolicitudInvitados.BORRADOR && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="default" className="bg-green-600 hover:bg-green-700">
@@ -490,7 +516,7 @@ export function GestionInvitadosDiarios() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>¿Confirmar y Enviar Lista de Invitados?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> ya no podrá ser modificada.
+                        Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> estará confirmada. Podrás seguir agregando invitados si es necesario.
                         Asegúrate de que todos los datos sean correctos.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -508,3 +534,4 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
+
