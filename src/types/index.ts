@@ -443,6 +443,7 @@ export const invitadoDiarioSchema = z.object({
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
+  esDeCumpleanos: z.boolean().optional(), // Nuevo campo
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
 
@@ -469,9 +470,9 @@ export const adherenteFormSchema = z.object({
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
-    fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
-    fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
-    fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
+    fotoDniFrente: optionalFileField(dniFileSchemaConfig),
+    fotoDniDorso: optionalFileField(dniFileSchemaConfig),
+    fotoPerfil: optionalFileField(profileFileSchemaConfig),
     fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
@@ -523,9 +524,9 @@ export const adminEditableFamiliarSchema = z.object({
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
-  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(),
-  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),
-  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),
+  fotoDniFrente: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
+  fotoDniDorso: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
+  fotoCarnet: z.union([z.string().url().nullable(), z.null(), optionalFileField(profileFileSchemaConfig)]).optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional(), 
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
@@ -545,14 +546,14 @@ export const adminEditSocioTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
   tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
-    required_error: "Debe seleccionar un tipo de grupo familiar.",
+    errorMap: (issue, ctx) => ({ message: "Debe seleccionar un tipo de grupo si va a agregar familiares." })
   }).optional(),
   grupoFamiliar: z.array(adminEditableFamiliarSchema).optional(),
   fotoUrl: z.string().url().optional().nullable(), 
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
-  fotoDniFrente: z.union([z.string().url().nullable(), z.null()]).optional(), 
-  fotoDniDorso: z.union([z.string().url().nullable(), z.null()]).optional(),  
-  fotoCarnet: z.union([z.string().url().nullable(), z.null()]).optional(),    
+  fotoDniFrente: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
+  fotoDniDorso: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
+  fotoCarnet: z.union([z.string().url().nullable(), z.null(), optionalFileField(profileFileSchemaConfig)]).optional(),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 
@@ -562,3 +563,5 @@ export const getStepSpecificValidationSchema = (step: number) => {
   return agregarFamiliaresSchema;
 };
 isValid(new Date());
+
+    

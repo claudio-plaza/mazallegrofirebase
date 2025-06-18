@@ -81,7 +81,7 @@ export function GestionAdherentesSocio() {
       nombre: '',
       apellido: '',
       dni: '',
-      fechaNacimiento: undefined,
+      fechaNacimiento: new Date(),
       empresa: '',
       telefono: '',
       direccion: '',
@@ -392,3 +392,5 @@ export function GestionAdherentesSocio() {
     </div>
   );
 }
+
+    
