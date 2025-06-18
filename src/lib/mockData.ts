@@ -6,6 +6,8 @@ import { addDays, subDays, formatISO, subMonths, subYears, getDate, getMonth, se
 const today = new Date();
 
 // Helper para que la fecha de nacimiento coincida con el día y mes actual, pero X años atrás
+// ESTA FUNCIÓN YA NO SE USARÁ PARA FECHAS DE CUMPLEAÑOS DE PRUEBA QUE DEBAN SER FIJAS.
+// Se mantiene por si se necesita para otra lógica de "edad relativa al día actual".
 const setBirthdayToTodayButYearsAgo = (yearsAgo: number): Date => {
   const date = new Date();
   date.setFullYear(date.getFullYear() - yearsAgo);
@@ -94,7 +96,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Juan',
     apellido: 'Pérez',
     dni: '12345678',
-    fechaNacimiento: setBirthdayToTodayButYearsAgo(30), // Cumpleaños hoy
+    fechaNacimiento: '1994-05-15', // Fecha fija
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -120,7 +122,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Ana',
     apellido: 'García',
     dni: '87654321',
-    fechaNacimiento: '1999-04-15', // Explicit different date
+    fechaNacimiento: '1999-04-15',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -162,7 +164,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Carlos',
     apellido: 'Rodríguez',
     dni: '11223344',
-    fechaNacimiento: '1984-07-20', // Explicit different date
+    fechaNacimiento: '1984-07-20',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Inactivo',
     aptoMedico: {
@@ -185,7 +187,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Martínez',
     dni: '44332211',
-    fechaNacimiento: '1989-01-10', // Explicit different date
+    fechaNacimiento: '1989-01-10',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -224,7 +226,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Gomez',
     dni: '22334455',
-    fechaNacimiento: '1992-09-05', // Explicit different date
+    fechaNacimiento: '1992-09-05',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {
@@ -250,7 +252,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Carlos',
     apellido: 'Solari',
     dni: '30000001',
-    fechaNacimiento: '1979-11-25', // Explicit different date
+    fechaNacimiento: '1979-11-25',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 8)), fechaVencimiento: formatISO(addDays(subDays(today, 8), 14)), observaciones: 'Apto.' },
@@ -270,7 +272,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Laura',
     apellido: 'Fernández',
     dni: '30000002',
-    fechaNacimiento: '1986-06-30', // Explicit different date
+    fechaNacimiento: '1986-06-30',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 6)), fechaVencimiento: formatISO(addDays(subDays(today, 6), 14)), observaciones: 'Apta.' },
@@ -292,7 +294,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Miguel Ángel',
     apellido: 'Russo',
     dni: '30000003',
-    fechaNacimiento: '1974-03-12', // Explicit different date
+    fechaNacimiento: '1974-03-12',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: false, razonInvalidez: 'Vencido', fechaEmision: formatISO(subDays(today, 20)), fechaVencimiento: formatISO(addDays(subDays(today, 20), 14)) },
@@ -315,7 +317,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Valeria',
     apellido: 'Lynch',
     dni: '30000004',
-    fechaNacimiento: '1982-10-08', // Explicit different date
+    fechaNacimiento: '1982-10-08',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 4)), fechaVencimiento: formatISO(addDays(subDays(today, 4), 14)), observaciones: 'Apta.' },
@@ -338,7 +340,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Ricardo',
     apellido: 'Darín',
     dni: '30000005',
-    fechaNacimiento: '1969-02-18', // Explicit different date
+    fechaNacimiento: '1969-02-18',
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: { valido: true, fechaEmision: formatISO(subDays(today, 9)), fechaVencimiento: formatISO(addDays(subDays(today, 9), 14)), observaciones: 'Apto.' },
@@ -360,7 +362,7 @@ export const mockSocios: Socio[] = [
     nombre: 'Olivia',
     apellido: 'Cumple',
     dni: '30000006', 
-    fechaNacimiento: setBirthdayToTodayButYearsAgo(28), // Cumpleaños hoy!
+    fechaNacimiento: '1996-07-20', // Fecha fija
     fotoUrl: 'https://placehold.co/150x150.png',
     estadoSocio: 'Activo',
     aptoMedico: {

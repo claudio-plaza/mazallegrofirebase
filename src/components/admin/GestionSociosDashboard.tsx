@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, generateId, esCumpleanosHoy } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
 import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -277,7 +277,7 @@ export function GestionSociosDashboard() {
                           <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
                         </Avatar>
                       </TableCell>
-                      <TableCell className="font-medium">{socio.nombre} {socio.apellido}</TableCell>
+                      <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
                       <TableCell>{socio.numeroSocio}</TableCell>
                       <TableCell className="text-center">
                         {socio.adherentes?.length || 0}

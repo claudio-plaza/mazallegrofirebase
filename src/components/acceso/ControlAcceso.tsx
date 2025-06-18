@@ -3,13 +3,14 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente, MetodoPagoInvitado } from '@/types';
+import { EstadoSolicitudInvitados } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift } from 'lucide-react';
-import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, esCumpleanosHoy } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -81,30 +82,6 @@ export function ControlAcceso() {
 
   const todayISO = formatISO(new Date(), { representation: 'date' });
 
-  const esCumpleanosHoy = (fechaNacimientoInput?: Date | string): boolean => {
-      if (!fechaNacimientoInput) return false;
-      const hoy = new Date();
-      let fechaNac: Date;
-
-      if (typeof fechaNacimientoInput === 'string') {
-        fechaNac = parseISO(fechaNacimientoInput);
-      } else if (fechaNacimientoInput instanceof Date) {
-        fechaNac = fechaNacimientoInput;
-      } else {
-        return false;
-      }
-
-      if (!isValid(fechaNac)) {
-        return false;
-      }
-
-      const hoyMes = getMonth(hoy);
-      const hoyDia = getDayOfMonth(hoy);
-      const nacMes = getMonth(fechaNac);
-      const nacDia = getDayOfMonth(fechaNac);
-      
-      return hoyMes === nacMes && hoyDia === nacDia;
-  };
 
   // loadFestejosDelDia was used by the removed section
   // const loadFestejosDelDia = useCallback(async () => {
@@ -314,7 +291,8 @@ export function ControlAcceso() {
         const todasSolicitudesDiarias = await getAllSolicitudesInvitadosDiarios();
         const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol =>
             sol.idSocioTitular === socio.numeroSocio &&
-            sol.fecha === todayISO
+            sol.fecha === todayISO &&
+            sol.estado === EstadoSolicitudInvitados.ENVIADA // Solo mostrar listas ENVIADAS
         );
 
         let currentInvitadosCumpleRegistrados = 0;

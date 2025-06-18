@@ -1,5 +1,5 @@
 
-import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differenceInYears } from 'date-fns';
+import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differenceInYears, getMonth, getDate as getDayOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AptoMedicoInfo } from '@/types';
 
@@ -100,4 +100,25 @@ export const getFileUrl = (fileList: FileList | null | undefined): string | null
 
 export const generateId = (): string => {
   return Math.random().toString(36).substr(2, 9);
+};
+
+export const esCumpleanosHoy = (fechaNacimientoInput?: Date | string): boolean => {
+  if (!fechaNacimientoInput) return false;
+  
+  let fechaNac: Date;
+  if (typeof fechaNacimientoInput === 'string') {
+    fechaNac = parseISO(fechaNacimientoInput);
+  } else if (fechaNacimientoInput instanceof Date) {
+    fechaNac = fechaNacimientoInput;
+  } else {
+    return false; 
+  }
+
+  if (!isValid(fechaNac)) {
+    return false;
+  }
+
+  const hoy = new Date();
+  // Comparamos solo mes y día
+  return getMonth(hoy) === getMonth(fechaNac) && getDayOfMonth(hoy) === getDayOfMonth(fechaNac);
 };

@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate, generateId } from '@/lib/helpers';
+import { formatDate, generateId, esCumpleanosHoy } from '@/lib/helpers';
 import { PlusCircle, Trash2, Users, Info, CalendarDays, Send, Edit, ListChecks, Clock } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid, addDays, isBefore, isSameDay } from 'date-fns';
@@ -370,7 +370,7 @@ export function GestionInvitadosDiarios() {
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                   
-                  <ScrollArea className="max-h-[400px]"> 
+                  <ScrollArea className="max-h-[500px]"> 
                     <div className="space-y-4 pr-3">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">
