@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google'; // Changed from Inter to Roboto
 import './globals.css';
 import { Providers } from '@/components/Providers';
 import Header from '@/components/layout/Header';
 import { siteConfig } from '@/config/site';
+import { WhatsAppBubble } from '@/components/layout/WhatsAppBubble'; // Import the new component
 
 const roboto = Roboto({ // Changed from inter to roboto
   subsets: ['latin'],
@@ -33,6 +35,7 @@ export default function RootLayout({
             <footer className="bg-muted text-muted-foreground py-4 text-center text-sm">
               © {new Date().getFullYear()} {siteConfig.name}. Todos los derechos reservados.
             </footer>
+            <WhatsAppBubble /> {/* Add the WhatsApp bubble here */}
           </div>
         </Providers>
       </body>
