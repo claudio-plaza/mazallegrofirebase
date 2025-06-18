@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,10 +17,10 @@ import type { Novedad, NovedadFormData } from '@/types';
 import { novedadSchema, TipoNovedad } from '@/types';
 import { getNovedades, addNovedad, updateNovedad, deleteNovedad } from '@/lib/firebase/firestoreService';
 import { formatDate } from '@/lib/helpers';
-import { PlusCircle, Edit, Trash2, ListChecks, Megaphone, CalendarDays, Info, AlertTriangleIcon, Sparkles } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ListChecks, Megaphone, CalendarDays, Info, AlertTriangleIcon as AlertTriangleLucide } from 'lucide-react'; // Renamed AlertTriangleIcon to avoid conflict
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 
 export function GestionNovedadesDashboard() {
@@ -130,7 +130,7 @@ export function GestionNovedadesDashboard() {
       case TipoNovedad.INFO:
         return <Badge variant="outline" className="border-blue-500 text-blue-600"><Info className="mr-1 h-3 w-3" /> Info</Badge>;
       case TipoNovedad.ALERTA:
-        return <Badge variant="destructive" className="bg-yellow-500 hover:bg-yellow-600"><AlertTriangleIcon className="mr-1 h-3 w-3" /> Alerta</Badge>;
+        return <Badge variant="destructive" className="bg-yellow-500 hover:bg-yellow-600"><AlertTriangleLucide className="mr-1 h-3 w-3" /> Alerta</Badge>;
       case TipoNovedad.EVENTO:
         return <Badge variant="secondary" className="bg-purple-500 hover:bg-purple-600 text-white"><CalendarDays className="mr-1 h-3 w-3" /> Evento</Badge>;
       default:
@@ -194,9 +194,9 @@ export function GestionNovedadesDashboard() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialogDescriptionComponent>
                             Esta acción no se puede deshacer. Se eliminará permanentemente la novedad "{novedad.titulo}".
-                          </AlertDialogDescription>
+                          </AlertDialogDescriptionComponent>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -222,6 +222,9 @@ export function GestionNovedadesDashboard() {
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl">{editingNovedad ? 'Editar Novedad' : 'Crear Nueva Novedad'}</DialogTitle>
+            <DialogDescriptionComponent>
+              {editingNovedad ? 'Modifica los detalles de la novedad.' : 'Completa los datos para crear una nueva novedad.'}
+            </DialogDescriptionComponent>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-1 pt-3">
