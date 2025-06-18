@@ -309,14 +309,14 @@ export function ControlAcceso() {
         if (socioEncontrado) await handleSearch(true);
     };
 
-    window.addEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
+    window.addEventListener('cumpleanosDBUpdated', refreshData);
     window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
-    window.addEventListener('firestore/sociosUpdated', refreshData);
+    window.addEventListener('sociosDBUpdated', refreshData);
 
     return () => {
-        window.removeEventListener('firestore/solicitudesCumpleanosUpdated', refreshData);
+        window.removeEventListener('cumpleanosDBUpdated', refreshData);
         window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
-        window.removeEventListener('firestore/sociosUpdated', refreshData);
+        window.removeEventListener('sociosDBUpdated', refreshData);
     };
   }, [socioEncontrado, handleSearch]); 
 
@@ -951,3 +951,4 @@ export function ControlAcceso() {
     </div>
   );
 }
+

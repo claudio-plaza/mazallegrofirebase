@@ -114,7 +114,7 @@ export const esCumpleanosHoy = (fechaNacimientoInput?: Date | string): boolean =
     return false; 
   }
 
-  if (!isValid(fechaNac)) {
+  if (!isValid(fechaNac) || fechaNac.getTime() === new Date(0).getTime()) {
     return false;
   }
 
@@ -143,3 +143,4 @@ export const esFechaRestringidaParaCumpleanos = (fecha: Date): boolean => {
 
   return false;
 };
+
