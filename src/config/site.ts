@@ -65,6 +65,14 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['socio'],
   },
   {
+    id: 'gestion-socios', // Movido aquí
+    title: 'Gestión de Socios',
+    description: 'Administra la base de datos de socios.',
+    icon: Users,
+    href: '/admin/gestion-socios',
+    roles: ['administrador'],
+  },
+  {
     id: 'panel-medico',
     title: 'Panel Médico',
     description: 'Gestiona revisiones médicas y aptos físicos.',
@@ -79,14 +87,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: ShieldCheck,
     href: '/control-acceso',
     roles: ['portero', 'administrador'],
-  },
-  {
-    id: 'gestion-socios',
-    title: 'Gestión de Socios',
-    description: 'Administra la base de datos de socios.',
-    icon: Users,
-    href: '/admin/gestion-socios',
-    roles: ['administrador'],
   },
   {
     id: 'ai-suggestions',
