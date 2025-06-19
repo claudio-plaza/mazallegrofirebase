@@ -634,9 +634,9 @@ export const adminEditableFamiliarSchema = z.object({
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
-  fotoDniFrente: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
-  fotoDniDorso: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
-  fotoCarnet: z.union([z.string().url().nullable(), z.null(), optionalFileField(profileFileSchemaConfig)]).optional(),
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig).nullable(),
+  fotoDniDorso: optionalFileField(dniFileSchemaConfig).nullable(),
+  fotoCarnet: optionalFileField(profileFileSchemaConfig).nullable(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional(), 
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
@@ -659,11 +659,11 @@ export const adminEditSocioTitularSchema = z.object({
     errorMap: (issue, ctx) => ({ message: "Debe seleccionar un tipo de grupo si va a agregar familiares." })
   }).optional(),
   grupoFamiliar: z.array(adminEditableFamiliarSchema).optional(),
-  fotoUrl: z.string().url().optional().nullable(), 
+  fotoUrl: z.string().url("URL de foto inválida.").optional().nullable(),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
-  fotoDniFrente: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
-  fotoDniDorso: z.union([z.string().url().nullable(), z.null(), optionalFileField(dniFileSchemaConfig)]).optional(),
-  fotoCarnet: z.union([z.string().url().nullable(), z.null(), optionalFileField(profileFileSchemaConfig)]).optional(),
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig),
+  fotoDniDorso: optionalFileField(dniFileSchemaConfig),
+  fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 
@@ -672,6 +672,6 @@ export const getStepSpecificValidationSchema = (step: number) => {
   setCurrentStepForSchema(step);
   return agregarFamiliaresSchema;
 };
-isValid(new Date());
+// isValid(new Date()); // This line was removed in a previous step
 
     
