@@ -199,17 +199,17 @@ export function AltaSocioMultiStepForm() {
         conyuge: data.familiares.conyuge ? {
           ...data.familiares.conyuge,
           id: data.familiares.conyuge.id || generateId(),
-          fechaNacimiento: format(new Date(data.familiares.conyuge.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
+          fechaNacimiento: data.familiares.conyuge.fechaNacimiento, // Already a Date object from Zod transform
         } : null,
         hijos: data.familiares.hijos?.map(h => ({
           ...h,
           id: h.id || generateId(),
-          fechaNacimiento: format(new Date(h.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
+          fechaNacimiento: h.fechaNacimiento, // Already a Date object
         })) || [],
         padres: data.familiares.padres?.map(p => ({
           ...p,
           id: p.id || generateId(),
-          fechaNacimiento: format(new Date(p.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
+          fechaNacimiento: p.fechaNacimiento, // Already a Date object
         })) || [],
       }
     };
