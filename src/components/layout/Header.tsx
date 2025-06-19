@@ -63,7 +63,11 @@ const Header = () => {
                    </Button>
                  </Link>
               )}
-              <Button variant="outline" size="sm" className="border-secondary-foreground/50 text-secondary-foreground hover:bg-secondary-foreground/10"> {/* Adjusted for contrast */}
+              <Button 
+                size="sm" 
+                onClick={handleLogout} 
+                className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+              >
                 <LogOut className="mr-0 sm:mr-2 h-4 w-4" /> 
                 <span className="hidden sm:inline">Salir</span>
               </Button>
