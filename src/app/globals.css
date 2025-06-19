@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 216 25% 95%; /* Light Gray (#f0f2f5) - Kept from previous */
+    --background: 216 25% 95%; /* Light Gray (#f0f2f5) - Matches PRD */
     --foreground: 222 47% 11%; /* Dark Blue/Black for text - Kept from previous */
 
     --card: 0 0% 100%; /* White */
@@ -13,16 +13,16 @@
     --popover: 0 0% 100%; /* White */
     --popover-foreground: 222 47% 11%; /* Dark Blue/Black */
 
-    --primary: 27 87% 52%; /* Orange #ed771b */
+    --primary: 204 70% 53%; /* Saturated Blue (#3498db) - Updated to match PRD */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 219 81% 31%; /* Dark Blue #0e4291 */
+    --secondary: 219 81% 31%; /* Dark Blue #0e4291 - Kept as is, not specified in PRD for change */
     --secondary-foreground: 0 0% 100%; /* White */
 
-    --muted: 220 15% 92%; /* Slightly darker light gray for muted backgrounds (e.g., footer) */
+    --muted: 220 15% 92%; /* Slightly darker light gray for muted backgrounds */
     --muted-foreground: 220 10% 45%; /* Medium gray for muted text */
 
-    --accent: 283 39% 56%; /* Purple (#9b59b6) - Kept from previous, good contrast with orange/blue */
+    --accent: 283 39% 56%; /* Purple (#9b59b6) - Matches PRD */
     --accent-foreground: 0 0% 100%; /* White */
 
     --destructive: 0 84.2% 60.2%; /* Standard Red */
@@ -30,24 +30,24 @@
 
     --border: 220 13% 90%; /* Light gray border */
     --input: 0 0% 100%; /* White for input background */
-    --ring: 27 87% 52%; /* Orange #ed771b - for focus */
+    --ring: 204 70% 53%; /* Saturated Blue (#3498db) - Updated for focus, matches new primary */
 
     --radius: 0.5rem;
 
     /* Sidebar specific theme variables - Light Theme */
     --sidebar-background: 0 0% 100%; /* White sidebar */
     --sidebar-foreground: 222 47% 11%; /* Dark text */
-    --sidebar-primary: 27 87% 52%; /* Orange */
+    --sidebar-primary: 204 70% 53%; /* Saturated Blue (#3498db) - Updated */
     --sidebar-primary-foreground: 0 0% 100%; /* White */
     --sidebar-accent: 283 39% 56%; /* Purple */
     --sidebar-accent-foreground: 0 0% 100%; /* White */
     --sidebar-border: 220 13% 90%; /* Light gray border */
-    --sidebar-ring: 27 87% 52%; /* Orange */
+    --sidebar-ring: 204 70% 53%; /* Saturated Blue (#3498db) - Updated */
 
     /* Chart colors */
-    --chart-1: 27 87% 52%; /* Primary Orange */
+    --chart-1: 204 70% 53%; /* Primary Blue - Updated */
     --chart-2: 283 39% 56%; /* Accent Purple */
-    --chart-3: 27 86% 51%;  /* Orange (from previous dark theme, similar to new primary) */
+    --chart-3: 27 86% 51%;  /* Orange (from previous dark theme, similar to old primary) */
     --chart-4: 140 60% 50%; /* A Green */
     --chart-5: 45 70% 55%;  /* A Yellow/Gold */
   }
@@ -55,13 +55,14 @@
   .dark {
     /* For now, the dark theme uses the same as :root (light theme) */
     /* For a true dark theme, these would be distinct and darker values. */
+    /* Updated to match new primary color scheme for consistency */
     --background: 216 25% 95%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 27 87% 52%;
+    --primary: 204 70% 53%; /* Saturated Blue (#3498db) */
     --primary-foreground: 0 0% 100%;
     --secondary: 219 81% 31%;
     --secondary-foreground: 0 0% 100%;
@@ -73,18 +74,18 @@
     --destructive-foreground: 0 0% 100%;
     --border: 220 13% 90%;
     --input: 0 0% 100%;
-    --ring: 27 87% 52%;
+    --ring: 204 70% 53%; /* Saturated Blue (#3498db) */
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 27 87% 52%;
+    --sidebar-primary: 204 70% 53%; /* Saturated Blue (#3498db) */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 283 39% 56%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 27 87% 52%;
+    --sidebar-ring: 204 70% 53%; /* Saturated Blue (#3498db) */
     
-    --chart-1: 27 87% 52%;
+    --chart-1: 204 70% 53%; /* Primary Blue */
     --chart-2: 283 39% 56%;
     --chart-3: 27 86% 51%;
     --chart-4: 140 60% 50%;
