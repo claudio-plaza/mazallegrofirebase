@@ -180,13 +180,12 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">
             Tu rol actual es: <span className="font-semibold text-primary">{userRole}</span>.
             {userRole === 'socio' && currentSocioEstado && ` (Estado Club: ${currentSocioEstado})`}
-            Aquí tienes tus accesos rápidos.
           </p>
         </header>
 
         {accessibleFeatures.length > 0 && (
           <section>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-6">Accesos Rápidos</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-6">Funcionalidades Disponibles</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accessibleFeatures.map((feature) => (
                 <Card key={feature.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -252,3 +251,4 @@ export default function DashboardPage() {
 
   return null;
 }
+
