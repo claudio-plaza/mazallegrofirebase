@@ -21,6 +21,11 @@ import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Image from 'next/image';
 
+type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
+type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
+type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
+
+
 export function AdminNuevoSocioForm() {
   const { toast } = useToast();
   const router = useRouter();
@@ -42,7 +47,7 @@ export function AdminNuevoSocioForm() {
       estadoSocio: 'Activo',
       tipoGrupoFamiliar: undefined,
       grupoFamiliar: [],
-      fotoUrl: null, // This is for display, not directly set by user at creation this way
+      fotoUrl: null, 
       fotoPerfil: null,
       fotoDniFrente: null,
       fotoDniDorso: null,
@@ -62,7 +67,7 @@ export function AdminNuevoSocioForm() {
       if (name === 'tipoGrupoFamiliar') {
         replaceFamiliares([]);
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
-           appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null });
+           appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined });
         }
       }
     });
@@ -78,8 +83,6 @@ export function AdminNuevoSocioForm() {
             const filename = fieldValue[0].name.substring(0,10).replace(/[^a-zA-Z0-9]/g, '');
             return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
         }
-        // For new socio, existing URLs aren't expected unless pre-filled by some logic not present here.
-        // If this is a string, it implies it's already a URL (e.g., from a placeholder or pre-population)
         if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue;
         return null;
     };
@@ -94,7 +97,7 @@ export function AdminNuevoSocioForm() {
       direccion: data.direccion,
       email: data.email,
       estadoSocio: data.estadoSocio,
-      fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil), // fotoUrl derived from fotoPerfil for simplicity here
+      fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil), 
       fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil),
       fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente),
       fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso),
@@ -121,7 +124,7 @@ export function AdminNuevoSocioForm() {
     };
 
     try {
-      await addSocio(socioParaCrear, false); // false as it's not a titular signup from public form
+      await addSocio(socioParaCrear, false); 
       toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
       router.push('/admin/gestion-socios');
     } catch (error) {
@@ -131,16 +134,15 @@ export function AdminNuevoSocioForm() {
   };
 
   const renderFotoInput = (
-    fieldName: `fotoPerfil` | `fotoDniFrente` | `fotoDniDorso` | `fotoCarnet` | `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`,
+    fieldName: FotoFieldName,
     label: string
   ) => {
-    const currentFieldValue = form.watch(fieldName as any);
+    const currentFieldValue = form.watch(fieldName);
     let displayUrl: string | null = null;
 
     if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
         displayUrl = getFileUrl(currentFieldValue);
     } else if (typeof currentFieldValue === 'string' && currentFieldValue.startsWith('http')) {
-        // This case is less likely for a new socio unless pre-filled, but handled
         displayUrl = currentFieldValue;
     }
 
@@ -154,7 +156,7 @@ export function AdminNuevoSocioForm() {
         )}
         <FormField
             control={form.control}
-            name={fieldName as any}
+            name={fieldName}
             render={({ field }) => (
               <>
                 <FormControl>
@@ -182,7 +184,7 @@ export function AdminNuevoSocioForm() {
             variant="destructive"
             size="sm"
             className="mt-1 text-xs"
-            onClick={() => form.setValue(fieldName as any, null)}
+            onClick={() => form.setValue(fieldName, null)}
           >
             <Trash2 className="mr-1 h-3 w-3" /> Eliminar Foto
           </Button>
@@ -352,16 +354,16 @@ export function AdminNuevoSocioForm() {
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as any, 'Foto de Perfil')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as any, 'Foto DNI Frente')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as any, 'Foto DNI Dorso')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as any, 'Foto Carnet')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'Foto DNI Frente')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'Foto DNI Dorso')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet')}
                              </div>
                         </Card>
                     );
                 })}
                 {tipoGrupoFamiliarSeleccionado && (
-                    <Button type="button" variant="outline" onClick={handleAddFamiliar}>
+                    <Button type="button" variant="outline" onClick={() => appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: tipoGrupoFamiliarSeleccionado === 'conyugeEHijos' ? RelacionFamiliar.HIJO_A : RelacionFamiliar.PADRE_MADRE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined })}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         {tipoGrupoFamiliarSeleccionado === 'conyugeEHijos' ? 'Agregar Hijo/a' : 'Agregar Padre/Madre'}
                     </Button>

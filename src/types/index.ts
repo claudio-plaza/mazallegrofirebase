@@ -80,6 +80,12 @@ export interface AptoMedicoInfo {
   observaciones?: string;
 }
 
+// Raw type for localStorage storage where dates are strings
+export interface AptoMedicoInfoRaw extends Omit<AptoMedicoInfo, 'fechaEmision' | 'fechaVencimiento'> {
+  fechaEmision?: string;
+  fechaVencimiento?: string;
+}
+
 export interface DocumentoSocioGeneral {
   id: string;
   nombreArchivo: string;
@@ -99,7 +105,7 @@ export interface MiembroFamiliar {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento: Date | string;
+  fechaNacimiento: Date | string; // Runtime: Date preferred, supports string for initial
   relacion: RelacionFamiliar;
   direccion?: string;
   telefono?: string;
@@ -110,6 +116,11 @@ export interface MiembroFamiliar {
   fotoCarnet?: FileList | null | string;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
+}
+
+export interface MiembroFamiliarRaw extends Omit<MiembroFamiliar, 'fechaNacimiento' | 'aptoMedico'> {
+  fechaNacimiento: string; // Stored as ISO string
+  aptoMedico?: AptoMedicoInfoRaw;
 }
 
 export interface Adherente {
@@ -132,6 +143,28 @@ export interface Adherente {
   aptoMedico: AptoMedicoInfo;
 }
 
+export interface AdherenteRaw extends Omit<Adherente, 'fechaNacimiento' | 'aptoMedico'> {
+  fechaNacimiento: string; // Stored as ISO string
+  aptoMedico: AptoMedicoInfoRaw;
+}
+
+export interface CambiosPendientesGrupoFamiliar {
+  tipoGrupoFamiliar?: "conyugeEHijos" | "padresMadres";
+  familiares?: {
+    conyuge?: MiembroFamiliar | null;
+    hijos?: MiembroFamiliar[];
+    padres?: MiembroFamiliar[];
+  }
+}
+export interface CambiosPendientesGrupoFamiliarRaw extends Omit<CambiosPendientesGrupoFamiliar, 'familiares'> {
+   familiares?: {
+    conyuge?: MiembroFamiliarRaw | null;
+    hijos?: MiembroFamiliarRaw[];
+    padres?: MiembroFamiliarRaw[];
+  }
+}
+
+
 export interface PreciosInvitadosConfig {
   precioInvitadoDiario: number;
   precioInvitadoCumpleanos: number;
@@ -145,6 +178,11 @@ export interface Novedad {
   fechaVencimiento?: string | Date | null;
   activa: boolean;
   tipo: TipoNovedad;
+}
+
+export interface NovedadRaw extends Omit<Novedad, 'fechaCreacion' | 'fechaVencimiento'> {
+  fechaCreacion: string;
+  fechaVencimiento?: string | null;
 }
 
 
@@ -305,40 +343,51 @@ export interface Socio extends TitularData {
   fotoUrl?: string; 
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string | Date;
-  ultimaRevisionMedica?: string | Date;
+  miembroDesde: string | Date; // Runtime: Date
+  ultimaRevisionMedica?: string | Date; // Runtime: Date
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
   documentos?: DocumentoSocioGeneral[];
   estadoSolicitud?: EstadoSolicitudSocio;
   role: Extract<UserRole, 'socio'>;
-  cambiosPendientesGrupoFamiliar?: {
-    tipoGrupoFamiliar?: "conyugeEHijos" | "padresMadres";
-    familiares?: {
-      conyuge?: MiembroFamiliar | null;
-      hijos?: MiembroFamiliar[];
-      padres?: MiembroFamiliar[];
-    }
-  } | null;
+  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliar | null;
   estadoCambioGrupoFamiliar?: EstadoCambioGrupoFamiliar;
   motivoRechazoCambioGrupoFamiliar?: string;
 }
+
+// Raw type for Socio as stored in localStorage
+export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'grupoFamiliar' | 'adherentes' | 'cambiosPendientesGrupoFamiliar'> {
+  fechaNacimiento: string; // ISO string
+  miembroDesde: string; // ISO string
+  ultimaRevisionMedica?: string; // ISO string
+  aptoMedico: AptoMedicoInfoRaw;
+  grupoFamiliar: MiembroFamiliarRaw[];
+  adherentes?: AdherenteRaw[];
+  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliarRaw | null;
+}
+
 
 export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado Diario';
 
 export interface RevisionMedica {
   id: string;
   fechaRevision: string | Date;
-  socioId: string;
+  socioId: string; // DNI or NumeroSocio depending on TipoPersona
   socioNombre: string;
   tipoPersona: TipoPersona;
-  idSocioAnfitrion?: string;
+  idSocioAnfitrion?: string; // NumeroSocio of titular if familiar, adherente, invitado
   resultado: 'Apto' | 'No Apto';
   fechaVencimientoApto?: string | Date;
   observaciones?: string;
   medicoResponsable?: string;
 }
+
+export interface RevisionMedicaRaw extends Omit<RevisionMedica, 'fechaRevision' | 'fechaVencimientoApto'> {
+  fechaRevision: string;
+  fechaVencimientoApto?: string;
+}
+
 
 export const familiarBaseSchema = z.object({
   id: z.string().optional(),
@@ -418,6 +467,24 @@ export const invitadoCumpleanosSchema = z.object({
 });
 export type InvitadoCumpleanos = z.infer<typeof invitadoCumpleanosSchema>;
 
+export interface SolicitudCumpleanos {
+  id: string;
+  idSocioTitular: string;
+  nombreSocioTitular: string;
+  idCumpleanero: string;
+  nombreCumpleanero: string;
+  fechaEvento: Date | string; // Runtime: Date
+  listaInvitados: InvitadoCumpleanos[];
+  estado: EstadoSolicitudCumpleanos;
+  fechaSolicitud: string | Date; // Runtime: Date
+  titularIngresadoEvento: boolean;
+}
+
+export interface SolicitudCumpleanosRaw extends Omit<SolicitudCumpleanos, 'fechaEvento' | 'fechaSolicitud'> {
+  fechaEvento: string; // ISO string
+  fechaSolicitud: string; // ISO string
+}
+
 export const solicitudCumpleanosSchema = z.object({
   id: z.string().default(() => `evt-${Date.now().toString(36)}`),
   idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
@@ -433,7 +500,26 @@ export const solicitudCumpleanosSchema = z.object({
   fechaSolicitud: z.string().default(() => new Date().toISOString()),
   titularIngresadoEvento: z.boolean().default(false),
 });
-export type SolicitudCumpleanos = z.infer<typeof solicitudCumpleanosSchema>;
+// Type for form data is derived from schema
+// export type SolicitudCumpleanosFormData = z.infer<typeof solicitudCumpleanosSchema>;
+
+
+export interface InvitadoDiario {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  fechaNacimiento?: Date | string; // Runtime: Date
+  ingresado: boolean;
+  metodoPago: MetodoPagoInvitado | null;
+  aptoMedico?: AptoMedicoInfo | null;
+  esDeCumpleanos?: boolean;
+}
+
+export interface InvitadoDiarioRaw extends Omit<InvitadoDiario, 'fechaNacimiento' | 'aptoMedico'> {
+  fechaNacimiento?: string; // ISO string
+  aptoMedico?: AptoMedicoInfoRaw | null;
+}
 
 export const invitadoDiarioSchema = z.object({
   id: z.string().optional(),
@@ -448,7 +534,27 @@ export const invitadoDiarioSchema = z.object({
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
   esDeCumpleanos: z.boolean().optional(), 
 });
-export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
+// export type InvitadoDiarioFormData = z.infer<typeof invitadoDiarioSchema>;
+
+
+export interface SolicitudInvitadosDiarios {
+  id: string;
+  idSocioTitular: string;
+  nombreSocioTitular: string;
+  fecha: string; // ISO Date string YYYY-MM-DD
+  listaInvitadosDiarios: InvitadoDiario[];
+  estado: EstadoSolicitudInvitados;
+  fechaCreacion: string | Date; // Runtime: Date
+  fechaUltimaModificacion: string | Date; // Runtime: Date
+  titularIngresadoEvento: boolean;
+}
+
+export interface SolicitudInvitadosDiariosRaw extends Omit<SolicitudInvitadosDiarios, 'listaInvitadosDiarios' | 'fechaCreacion' | 'fechaUltimaModificacion'> {
+  listaInvitadosDiarios: InvitadoDiarioRaw[];
+  fechaCreacion: string; // ISO string
+  fechaUltimaModificacion: string; // ISO string
+}
+
 
 export const solicitudInvitadosDiariosSchema = z.object({
   id: z.string().default(() => `invd-${Date.now().toString(36)}`),
@@ -462,7 +568,8 @@ export const solicitudInvitadosDiariosSchema = z.object({
   fechaUltimaModificacion: z.string().default(() => formatISO(new Date())),
   titularIngresadoEvento: z.boolean().default(false),
 });
-export type SolicitudInvitadosDiarios = z.infer<typeof solicitudInvitadosDiariosSchema>;
+// export type SolicitudInvitadosDiariosFormData = z.infer<typeof solicitudInvitadosDiariosSchema>;
+
 
 export const adherenteFormSchema = z.object({
     nombre: z.string().min(2, "Nombre es requerido."),

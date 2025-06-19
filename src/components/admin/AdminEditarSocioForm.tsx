@@ -24,6 +24,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
+type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
+type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
+
 
 interface AdminEditarSocioFormProps {
   socioId: string;
@@ -122,9 +126,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'tipoGrupoFamiliar') {
-        replaceFamiliares([]); // Limpia el array de familiares cuando cambia el tipo
+        replaceFamiliares([]); 
         if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
-           appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null });
+           appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined });
         }
       }
     });
@@ -157,9 +161,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             const existingFamiliar = socio.grupoFamiliar?.find(ef => ef.id === formFamiliar.id || ef.dni === formFamiliar.dni);
             let relacionCorrecta = formFamiliar.relacion;
             if (data.tipoGrupoFamiliar === 'conyugeEHijos' && formFamiliar.relacion === RelacionFamiliar.PADRE_MADRE) {
-                relacionCorrecta = RelacionFamiliar.HIJO_A; // default a hijo si se cambio de padres a conyuge/hijos
+                relacionCorrecta = RelacionFamiliar.HIJO_A; 
             } else if (data.tipoGrupoFamiliar === 'padresMadres' && (formFamiliar.relacion === RelacionFamiliar.CONYUGE || formFamiliar.relacion === RelacionFamiliar.HIJO_A)) {
-                relacionCorrecta = RelacionFamiliar.PADRE_MADRE; // default a padre/madre si se cambio de conyuge/hijos a padres
+                relacionCorrecta = RelacionFamiliar.PADRE_MADRE; 
             }
 
             return {
@@ -192,12 +196,12 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   };
 
   const renderFotoInput = (
-    fieldName: `fotoPerfil` | `fotoDniFrente` | `fotoDniDorso` | `fotoCarnet` | `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`,
+    fieldName: FotoFieldName,
     label: string,
     allowUpload: boolean = false,
-    currentPhotoUrlProp?: string | null | FileList // Renombrado para evitar conflicto con el estado
+    currentPhotoUrlProp?: string | null | FileList 
   ) => {
-    const currentFieldValue = form.watch(fieldName as any);
+    const currentFieldValue = form.watch(fieldName);
     let displayUrl: string | null = null;
 
     if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
@@ -219,7 +223,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         {allowUpload && (
           <FormField
             control={form.control}
-            name={fieldName as any}
+            name={fieldName}
             render={({ field }) => (
               <>
                 <FormControl>
@@ -248,7 +252,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             variant="destructive"
             size="sm"
             className="mt-1 text-xs"
-            onClick={() => form.setValue(fieldName as any, null)}
+            onClick={() => form.setValue(fieldName, null)}
           >
             <Trash2 className="mr-1 h-3 w-3" /> Eliminar Foto
           </Button>
@@ -280,9 +284,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
 
   const handleAddFamiliar = () => {
     if (tipoGrupoFamiliarSeleccionado === 'conyugeEHijos') {
-        appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.HIJO_A, fotoPerfil: null });
+        appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.HIJO_A, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined });
     } else if (tipoGrupoFamiliarSeleccionado === 'padresMadres') {
-        appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.PADRE_MADRE, fotoPerfil: null });
+        appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.PADRE_MADRE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined });
     }
   };
 
@@ -468,10 +472,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as any, 'Foto de Perfil', true, form.getValues(`grupoFamiliar.${index}.fotoPerfil`) || familiarData?.fotoPerfil)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as any, 'Foto DNI Frente', false, form.getValues(`grupoFamiliar.${index}.fotoDniFrente`) || familiarData?.fotoDniFrente)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as any, 'Foto DNI Dorso', false, form.getValues(`grupoFamiliar.${index}.fotoDniDorso`) || familiarData?.fotoDniDorso)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as any, 'Foto Carnet', false, form.getValues(`grupoFamiliar.${index}.fotoCarnet`) || familiarData?.fotoCarnet)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil', true, form.getValues(`grupoFamiliar.${index}.fotoPerfil`) || familiarData?.fotoPerfil)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'Foto DNI Frente', false, form.getValues(`grupoFamiliar.${index}.fotoDniFrente`) || familiarData?.fotoDniFrente)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'Foto DNI Dorso', false, form.getValues(`grupoFamiliar.${index}.fotoDniDorso`) || familiarData?.fotoDniDorso)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet', false, form.getValues(`grupoFamiliar.${index}.fotoCarnet`) || familiarData?.fotoCarnet)}
                              </div>
                         </Card>
                     );
