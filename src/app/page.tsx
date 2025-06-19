@@ -57,14 +57,7 @@ export default function HomePage() {
           {siteConfig.name} es más que un club; es una comunidad. Nuestro sistema te permite gestionar tu membresía,
           acceder a información importante, y mantenerte conectado con todas las actividades del club.
         </p>
-        <Image 
-          src="https://placehold.co/800x400.png" 
-          alt="Imagen del club" 
-          width={800} 
-          height={400} 
-          className="rounded-lg shadow-lg mx-auto"
-          data-ai-hint="sports club activity" 
-        />
+        {/* The large placeholder image that was here has been removed */}
       </div>
     </div>
   );
