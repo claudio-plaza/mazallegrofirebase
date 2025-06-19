@@ -13,11 +13,23 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck } from 'lucide-react';
+import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck, FileWarning } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { signupTitularSchema, type SignupTitularData } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
@@ -63,6 +75,40 @@ const renderFilePreview = (
   return null;
 };
 
+const reglamentoInternoTexto = `
+REGLAMENTO INTERNO PARA SOCIOS E INVITADOS – ALLEGRO
+DÍAS DE DIVERSIÓN / NOCHES DE FIESTA
+Todo socio es responsable de sus actos y los de sus familiares e invitados dentro de las instalaciones, y se compromete a seguir las siguientes reglas.
+Aceptación del Reglamento y Política de Privacidad:
+Al registrarse y utilizar la aplicación de Allegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
+Regla N°1 - Ingreso al Complejo:
+* Registro y Aprobación: Para poder ingresar al complejo, es indispensable que cada socio se registre previamente en la aplicación móvil de Allegro y que su solicitud sea aprobada por la administración. Este proceso garantiza un control de acceso y seguridad para todos.
+* Documentación y Mascotas: Al ingresar, se requerirá la presentación del DNI de cada miembro del grupo familiar registrado. Por razones de seguridad e higiene, no se permite el ingreso de ningún tipo de mascotas, sin excepción.
+* Uso de Vehículos: En caso de entrar con un vehículo, el mismo deberá permanecer exclusivamente en el lugar destinado a estacionamiento. Solo podrá circular por las calles internas de manera prudente, a una velocidad máxima de 10 km/h, y únicamente para bajar y subir pertenencias. Está estrictamente prohibido el ingreso de autos o motos a los sectores verdes.
+* Definición de Grupo Familiar: A los efectos de este reglamento, se considera "grupo familiar" al cónyuge/pareja y a los hijos menores de 18 años del socio titular.
+Horarios del Camping:
+* Temporada Alta: Del 08 de diciembre al día anterior al comienzo de clases. (La temporada de pileta puede extenderse dependiendo las condiciones climáticas).
+  * Abrimos de 10:00 a 22:00 hs de martes a domingos, con excepción de los días sábado que cerramos a las 20:00 hs.
+  * Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
+* Temporada Baja: Del comienzo de clases al 07 de diciembre.
+  * Abrimos de 10:00 a 19:00 hs de martes a domingos.
+  * Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
+  * La administración del lugar atiende de 12:00 a 19:00 hs.
+Regla N°2 - Carnet Digital:
+* Su Acceso Digital: Una vez registrado y aprobado en la aplicación, se generará automáticamente su carnet digital. Este carnet es personal e intransferible.
+* Presentación Obligatoria: Deberá ser presentado cada vez que sea requerido por el personal a cargo del complejo o por las autoridades del mismo.
+Regla N°3 - Invitados:
+* Registro Previo de Invitados: El socio debe registrar previamente a cada uno de los invitados por medio de la aplicación, ingresando nombre, apellido, DNI y fecha de nacimiento. Este registro es indispensable para el acceso.
+* Acompañamiento y Canon: Solo podrán ingresar acompañados de un socio responsable y abonando el canon de entrada dispuesto por las autoridades. Cada invitado deberá presentar su documento para corroborar identidad.
+Regla N°4 - Pileta:
+* Temporada y Revisación Médica: Solo podrán hacer uso de la pileta en temporada habilitada y teniendo la revisión médica actualizada, realizada por el médico del complejo. Se autorizará el ingreso a la misma siempre y cuando esté el guardavidas presente.
+* Normas de Uso: No se permitirá el ingreso de alimentos ni de bebidas, ni objetos contundentes que puedan representar un riesgo para los presentes en la pileta.
+  * Cabello recogido o gorro de natación.
+  * Revisión médica obligatoria.
+  * Traje de baño.
+* Higiene Obligatoria: El ingreso a la pileta es exclusivamente por la ducha. Todo aquel que ingrese sin pasar por la misma será suspendido por un tiempo determinado por el guardavida o expulsado de la pileta.
+`;
+
 
 export function SignupForm() {
   const { toast } = useToast();
@@ -92,6 +138,7 @@ export function SignupForm() {
       fotoDniDorso: null,
       fotoPerfil: null,
       fotoCarnet: null,
+      aceptaTerminos: false,
     },
   });
 
@@ -103,11 +150,6 @@ export function SignupForm() {
     });
     router.push('/login');
   }
-
-
-  // DEBUGGING CONSOLE LOGS:
-  console.log('Current form values:', form.getValues());
-  console.log('Current form errors:', form.formState.errors);
 
 
   return (
@@ -342,9 +384,65 @@ export function SignupForm() {
               </div>
             </section>
 
+            <Separator />
+
+            <section>
+              <h3 className="text-xl font-semibold mb-4 flex items-center"><FileWarning className="mr-2 h-6 w-6 text-primary"/>Reglamento y Políticas</h3>
+               <FormField
+                control={form.control}
+                name="aceptaTerminos"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        He leído y acepto el{' '}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <span className="text-primary hover:underline cursor-pointer font-medium">
+                              Reglamento Interno y la Política de Privacidad
+                            </span>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+                            <DialogHeader>
+                              <DialogTitle className="text-2xl">Reglamento Interno y Política de Privacidad</DialogTitle>
+                              <DialogDescription>
+                                Por favor, lea atentamente el siguiente reglamento.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <ScrollArea className="max-h-[calc(80vh-200px)] my-4">
+                              <div className="prose prose-sm max-w-none whitespace-pre-wrap p-1">
+                                {reglamentoInternoTexto}
+                              </div>
+                            </ScrollArea>
+                            <DialogFooter>
+                              <DialogClose asChild>
+                                <Button type="button">Cerrar</Button>
+                              </DialogClose>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                         {' '}de {siteConfig.name}.
+                      </FormLabel>
+                      <FormMessage />
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </section>
+
           </CardContent>
           <CardFooter className="flex flex-col items-center pt-6">
-            <Button type="submit" className="w-full max-w-xs text-lg py-6" disabled={form.formState.isSubmitting}>
+            <Button 
+              type="submit" 
+              className="w-full max-w-xs text-lg py-6" 
+              disabled={form.formState.isSubmitting || !form.watch('aceptaTerminos')}
+            >
               {form.formState.isSubmitting ? 'Creando cuenta...' : 'Crear Mi Cuenta'}
             </Button>
             <p className="mt-8 text-center text-sm text-muted-foreground">

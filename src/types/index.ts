@@ -272,6 +272,9 @@ export const signupTitularSchema = z.object({
   fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
   fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
+  aceptaTerminos: z.boolean().refine(value => value === true, {
+    message: "Debe aceptar el reglamento interno para registrarse.",
+  }),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden.',
   path: ['confirmPassword'],
@@ -443,7 +446,7 @@ export const invitadoDiarioSchema = z.object({
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
-  esDeCumpleanos: z.boolean().optional(), // Nuevo campo
+  esDeCumpleanos: z.boolean().optional(), 
 });
 export type InvitadoDiario = z.infer<typeof invitadoDiarioSchema>;
 
