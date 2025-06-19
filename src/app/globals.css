@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-roboto), sans-serif, Arial, Helvetica; /* Using Roboto as the default font */
-}
-
 @layer base {
   :root {
     --background: 216 25% 95%; /* Light Gray (#f0f2f5) - Kept from previous */
