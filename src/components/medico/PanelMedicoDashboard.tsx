@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
 import { getAllSolicitudesInvitadosDiarios, getSocios as fetchSociosFromService, getRevisionesMedicas as fetchRevisionesFromService } from '@/lib/firebase/firestoreService';
+import { useAuth } from '@/hooks/useAuth';
 
 
 interface Stats {
@@ -42,6 +43,7 @@ export interface SearchedPersonForPanel {
 
 
 export function PanelMedicoDashboard() {
+  const { userRole } = useAuth();
   const [socios, setSocios] = useState<Socio[]>([]);
   const [revisiones, setRevisiones] = useState<RevisionMedica[]>([]);
   const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<(InvitadoDiario & { idSocioAnfitrion?: string })[]>([]);
@@ -299,12 +301,15 @@ export function PanelMedicoDashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
-        </div>
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-12 w-1/2" /> {/* Title */}
+        {userRole === 'administrador' && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+          </div>
+        )}
+        <Skeleton className="h-12 w-full" /> {/* Search bar area */}
+        <Skeleton className="h-48 w-full" /> {/* Searched person card area */}
+        <Skeleton className="h-96 w-full" /> {/* Table area */}
       </div>
     );
   }
@@ -334,19 +339,21 @@ export function PanelMedicoDashboard() {
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map(stat => (
-          <Card key={stat.title} className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {userRole === 'administrador' && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {statCards.map(stat => (
+            <Card key={stat.title} className="shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Card className="shadow-lg">
         <CardHeader>
