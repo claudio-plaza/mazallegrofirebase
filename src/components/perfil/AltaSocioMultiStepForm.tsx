@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info, MailQuestion, XSquare, CalendarDays } from 'lucide-react';
 import { format, parseISO, isValid, subYears } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
-import { 
+import {
   type AgregarFamiliaresData, agregarFamiliaresSchema,
   RelacionFamiliar, MAX_HIJOS, MAX_PADRES, type Socio, EstadoCambioGrupoFamiliar, MiembroFamiliar
 } from '@/types';
@@ -46,12 +46,12 @@ export function AltaSocioMultiStepForm() {
           }),
         });
         result = await zodResolver(step1Schema)(data, context, options);
-      } else { 
+      } else {
         result = await zodResolver(agregarFamiliaresSchema)(data, context, options);
       }
       return result;
     },
-    mode: 'onChange', 
+    mode: 'onChange',
     defaultValues: {
       tipoGrupoFamiliar: undefined,
       familiares: {
@@ -73,7 +73,7 @@ export function AltaSocioMultiStepForm() {
     control,
     name: "familiares.padres",
   });
-  
+
   const tipoGrupoFamiliar = watch("tipoGrupoFamiliar");
   const previousTipoGrupoFamiliar = useRef<string | undefined>(tipoGrupoFamiliar);
 
@@ -85,18 +85,18 @@ export function AltaSocioMultiStepForm() {
     setSocioData(data);
     if (data) {
       let groupTypeDetermined: 'conyugeEHijos' | 'padresMadres' | null = null;
-      
+
       if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.CONYUGE) || data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.HIJO_A)) {
         groupTypeDetermined = 'conyugeEHijos';
       } else if (data.grupoFamiliar?.some(f => f.relacion === RelacionFamiliar.PADRE_MADRE)) {
         groupTypeDetermined = 'padresMadres';
       }
       setExistingGroupType(groupTypeDetermined);
-      
+
       const dataToDisplayOrEdit = data.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && data.cambiosPendientesGrupoFamiliar
         ? data.cambiosPendientesGrupoFamiliar
-        : { 
-            tipoGrupoFamiliar: groupTypeDetermined, 
+        : {
+            tipoGrupoFamiliar: groupTypeDetermined,
             familiares: {
               conyuge: data.grupoFamiliar?.find(f => f.relacion === RelacionFamiliar.CONYUGE) || null,
               hijos: data.grupoFamiliar?.filter(f => f.relacion === RelacionFamiliar.HIJO_A) || [],
@@ -106,28 +106,28 @@ export function AltaSocioMultiStepForm() {
 
       setValue('tipoGrupoFamiliar', dataToDisplayOrEdit.tipoGrupoFamiliar || undefined);
       previousTipoGrupoFamiliar.current = dataToDisplayOrEdit.tipoGrupoFamiliar || undefined;
-      
+
       const conyugeData = dataToDisplayOrEdit.familiares?.conyuge;
       const hijosData = dataToDisplayOrEdit.familiares?.hijos;
       const padresData = dataToDisplayOrEdit.familiares?.padres;
 
       setValue('familiares.conyuge', conyugeData ? {
-        ...conyugeData, 
-        fechaNacimiento: conyugeData.fechaNacimiento, 
+        ...conyugeData,
+        fechaNacimiento: conyugeData.fechaNacimiento,
         fotoDniFrente: typeof conyugeData.fotoDniFrente === 'string' ? conyugeData.fotoDniFrente : null,
         fotoDniDorso: typeof conyugeData.fotoDniDorso === 'string' ? conyugeData.fotoDniDorso : null,
         fotoPerfil: typeof conyugeData.fotoPerfil === 'string' ? conyugeData.fotoPerfil : null,
       } : null);
       setValue('familiares.hijos', hijosData?.map(h => ({
-        ...h, 
+        ...h,
         fechaNacimiento: h.fechaNacimiento,
         fotoDniFrente: typeof h.fotoDniFrente === 'string' ? h.fotoDniFrente : null,
         fotoDniDorso: typeof h.fotoDniDorso === 'string' ? h.fotoDniDorso : null,
         fotoPerfil: typeof h.fotoPerfil === 'string' ? h.fotoPerfil : null,
       })) || []);
       setValue('familiares.padres', padresData?.map(p => ({
-        ...p, 
-        fechaNacimiento: p.fechaNacimiento, 
+        ...p,
+        fechaNacimiento: p.fechaNacimiento,
         fotoDniFrente: typeof p.fotoDniFrente === 'string' ? p.fotoDniFrente : null,
         fotoDniDorso: typeof p.fotoDniDorso === 'string' ? p.fotoDniDorso : null,
         fotoPerfil: typeof p.fotoPerfil === 'string' ? p.fotoPerfil : null,
@@ -150,9 +150,9 @@ export function AltaSocioMultiStepForm() {
     if (currentStep === 1) {
       isValidStep = await trigger(["tipoGrupoFamiliar"]);
     } else if (currentStep === 2) {
-      isValidStep = await trigger(["familiares"]); 
-    } else { 
-      isValidStep = true; 
+      isValidStep = await trigger(["familiares"]);
+    } else {
+      isValidStep = true;
     }
 
     if (isValidStep) {
@@ -168,7 +168,7 @@ export function AltaSocioMultiStepForm() {
       } else if (currentStep === 2 && errors.familiares) {
         description = "Verifique los datos de los familiares.";
       }
-      
+
       toast({
         title: "Error de Validación",
         description: description,
@@ -182,7 +182,7 @@ export function AltaSocioMultiStepForm() {
       setCurrentStep(prev => prev - 1);
     }
   };
-  
+
   const onSubmit = async (data: AgregarFamiliaresData) => {
     if (!socioData) {
       toast({ title: "Error", description: "No se pudieron cargar los datos del socio titular.", variant: "destructive" });
@@ -204,7 +204,7 @@ export function AltaSocioMultiStepForm() {
         hijos: data.familiares.hijos?.map(h => ({
           ...h,
           id: h.id || generateId(),
-          fechaNacimiento: format(new Date(h.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date, 
+          fechaNacimiento: format(new Date(h.fechaNacimiento), 'yyyy-MM-dd') as unknown as Date,
         })) || [],
         padres: data.familiares.padres?.map(p => ({
           ...p,
@@ -213,12 +213,12 @@ export function AltaSocioMultiStepForm() {
         })) || [],
       }
     };
-    
+
     const socioActualizado: Socio = {
       ...socioData,
       cambiosPendientesGrupoFamiliar: cambiosPropuestos,
       estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.PENDIENTE,
-      motivoRechazoCambioGrupoFamiliar: undefined, 
+      motivoRechazoCambioGrupoFamiliar: undefined,
     };
 
     try {
@@ -227,8 +227,8 @@ export function AltaSocioMultiStepForm() {
         title: 'Solicitud de Cambio Enviada',
         description: 'Tus cambios en el grupo familiar han sido enviados para aprobación.',
       });
-      fetchSocioData(); 
-      setCurrentStep(1); 
+      fetchSocioData();
+      setCurrentStep(1);
     } catch (error) {
       console.error("Error actualizando socio con cambios pendientes:", error);
       toast({ title: "Error", description: "No se pudo enviar la solicitud de cambio.", variant: "destructive" });
@@ -236,7 +236,7 @@ export function AltaSocioMultiStepForm() {
   };
 
  const renderFilePreview = (fileList: FileList | null | undefined | string, fieldName: `familiares.conyuge.${string}` | `familiares.hijos.${number}.${string}` | `familiares.padres.${number}.${string}`) => {
-    if (typeof fileList === 'string') { 
+    if (typeof fileList === 'string') {
       return (
         <div className="mt-2 flex items-center space-x-2">
           <FileIcon className="h-5 w-5 text-muted-foreground" />
@@ -244,7 +244,7 @@ export function AltaSocioMultiStepForm() {
         </div>
       );
     }
-    const url = getFileUrl(fileList); 
+    const url = getFileUrl(fileList);
     if (url) {
       return (
         <div className="mt-2 flex items-center space-x-2">
@@ -262,7 +262,6 @@ export function AltaSocioMultiStepForm() {
   useEffect(() => {
     const subscription = watch((value, { name }) => {
         if (name === 'tipoGrupoFamiliar' && value.tipoGrupoFamiliar !== previousTipoGrupoFamiliar.current) {
-            // Only clear if not restoring from a pending request or if a change is made *after* initial load
             if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
                 if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
                     setValue('familiares.padres', []);
@@ -297,7 +296,7 @@ export function AltaSocioMultiStepForm() {
             currentStep === 2 ? "Detalles de familiares" :
             "Revisión final"
           }</CardDescription>
-          
+
             <Alert variant="default" className="mt-4 bg-primary/10 border-primary/30 text-primary">
               <Info className="h-5 w-5" />
               <AlertTitle className="font-semibold">Información sobre Modificaciones</AlertTitle>
@@ -331,7 +330,7 @@ export function AltaSocioMultiStepForm() {
                     <AlertTitle className="font-semibold text-secondary">Tipo de Grupo Establecido</AlertTitle>
                     <AlertDescription>
                         Actualmente tiene un grupo familiar de tipo: <strong>{existingGroupType === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 'Padres/Madres'}</strong>.
-                        <br />Para cambiar el tipo de grupo fundamental (ej. de 'Padres/Madres' a 'Cónyuge e Hijos/as'), por favor, contacte a la administración del club. Puede continuar para editar los miembros dentro de este tipo de grupo.
+                        Si necesita cambiar el tipo de grupo fundamental (ej. de 'Padres/Madres' a 'Cónyuge e Hijos/as'), deberá contactar a la administración. Puede editar los miembros dentro del tipo actual o, si cambia el tipo aquí, los familiares del tipo anterior se eliminarán de esta solicitud.
                     </AlertDescription>
                 </Alert>
             )}
@@ -342,7 +341,7 @@ export function AltaSocioMultiStepForm() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
-            {currentStep === 1 && ( 
+            {currentStep === 1 && (
               <section>
                 <h3 className="text-lg font-semibold mb-4">Tipo de Grupo Familiar</h3>
                  <FormField
@@ -350,38 +349,37 @@ export function AltaSocioMultiStepForm() {
                     name="tipoGrupoFamiliar"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <FormLabel className={isSelectionTypeDisabled ? 'text-muted-foreground' : ''}>
-                            {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'Tipo de grupo solicitado (bloqueado hasta resolución):' : 
-                             existingGroupType ? 'Tipo de grupo actual (para cambios fundamentales, contacte admin.):' :
-                            '¿Qué tipo de grupo familiar desea registrar?'}
+                        <FormLabel className={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'text-muted-foreground' : ''}>
+                            {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'Tipo de grupo solicitado (bloqueado hasta resolución):' :
+                            '¿Qué tipo de grupo familiar desea registrar o modificar?'}
                         </FormLabel>
                         <FormControl>
                             <div className="flex flex-col sm:flex-row gap-4">
-                                <Button 
-                                    type="button" 
-                                    variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'} 
+                                <Button
+                                    type="button"
+                                    variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'}
                                     onClick={() => {
-                                      if (!isSelectionTypeDisabled) field.onChange('conyugeEHijos');
+                                      if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) field.onChange('conyugeEHijos');
                                     }}
                                     className="flex-1 justify-start p-6 text-left h-auto"
-                                    disabled={isSelectionTypeDisabled}
+                                    disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
                                 >
                                     <div className="flex items-center">
-                                        <Heart className="mr-3 h-6 w-6 text-red-500" /> 
+                                        <Heart className="mr-3 h-6 w-6 text-red-500" />
                                         <div>
                                             <p className="font-semibold">Cónyuge e Hijos/as</p>
                                             <p className="text-xs text-muted-foreground">Agregue los datos de su cónyuge y/o hijos.</p>
                                         </div>
                                     </div>
                                 </Button>
-                                <Button 
-                                    type="button" 
-                                    variant={field.value === 'padresMadres' ? 'default' : 'outline'} 
+                                <Button
+                                    type="button"
+                                    variant={field.value === 'padresMadres' ? 'default' : 'outline'}
                                     onClick={() => {
-                                      if (!isSelectionTypeDisabled) field.onChange('padresMadres');
-                                    }} 
+                                      if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) field.onChange('padresMadres');
+                                    }}
                                     className="flex-1 justify-start p-6 text-left h-auto"
-                                    disabled={isSelectionTypeDisabled}
+                                    disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
                                 >
                                     <div className="flex items-center">
                                         <Users className="mr-3 h-6 w-6 text-secondary" />
@@ -399,8 +397,8 @@ export function AltaSocioMultiStepForm() {
                   />
               </section>
             )}
-            
-            {currentStep === 2 && ( 
+
+            {currentStep === 2 && (
               <section>
                 <h3 className="text-lg font-semibold mb-2">Datos del Grupo Familiar</h3>
                  {(!tipoGrupoFamiliar) && <p className="text-destructive">Por favor, regrese al paso anterior y seleccione un tipo de grupo familiar.</p>}
@@ -424,17 +422,17 @@ export function AltaSocioMultiStepForm() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => ( 
-                                <FormItem> 
-                                  <FormLabel>Fecha Nac. Cónyuge</FormLabel> 
+                              <FormField control={control} name="familiares.conyuge.fechaNacimiento" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Fecha Nac. Cónyuge</FormLabel>
                                   <FormControl>
                                     <div className="relative">
                                       <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                                       <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                     </div>
-                                  </FormControl> 
-                                  <FormMessage /> 
-                                </FormItem> 
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
                               )}/>
                               <FormField control={control} name="familiares.conyuge.dni" render={({ field }) => ( <FormItem> <FormLabel>DNI Cónyuge</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -468,7 +466,7 @@ export function AltaSocioMultiStepForm() {
                        )}
                     </div>
                     <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta ${MAX_HIJOS})</h4>
+                        <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta {MAX_HIJOS})</h4>
                         {hijosFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
@@ -476,16 +474,16 @@ export function AltaSocioMultiStepForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => ( 
-                              <FormItem> <FormLabel>Fecha Nac.</FormLabel> 
+                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => (
+                              <FormItem> <FormLabel>Fecha Nac.</FormLabel>
                                 <FormControl>
                                   <div className="relative">
                                     <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                                     <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                   </div>
-                                </FormControl> 
-                                <FormMessage /> 
-                              </FormItem> 
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
                             )}/>
                             <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -525,7 +523,7 @@ export function AltaSocioMultiStepForm() {
 
                 {(tipoGrupoFamiliar === 'padresMadres') && (
                     <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta ${MAX_PADRES})</h4>
+                        <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta {MAX_PADRES})</h4>
                         {padresFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
@@ -533,16 +531,16 @@ export function AltaSocioMultiStepForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => ( 
-                                <FormItem> <FormLabel>Fecha Nac.</FormLabel> 
+                              <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => (
+                                <FormItem> <FormLabel>Fecha Nac.</FormLabel>
                                   <FormControl>
                                     <div className="relative">
                                       <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                                       <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE || !maxBirthDate} />
                                     </div>
-                                  </FormControl> 
-                                  <FormMessage /> 
-                                </FormItem> 
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
                               )}/>
                               <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -593,16 +591,16 @@ export function AltaSocioMultiStepForm() {
               </section>
             )}
 
-            {currentStep === 3 && ( 
+            {currentStep === 3 && (
               <section>
                 <h3 className="text-lg font-semibold mb-4">Revisar y Enviar Solicitud de Cambio</h3>
                 <p className="text-muted-foreground mb-4">Por favor, revisa que toda la información sea correcta antes de enviar la solicitud de cambio. Esta será revisada por administración.</p>
                 <div className="space-y-2 p-4 border rounded-md bg-muted/30">
                   <p><strong>Tipo de Grupo Familiar Propuesto:</strong> {
-                    (watch("tipoGrupoFamiliar") || existingGroupType) === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 
+                    (watch("tipoGrupoFamiliar") || existingGroupType) === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' :
                     (watch("tipoGrupoFamiliar") || existingGroupType) === 'padresMadres' ? 'Padres/Madres' : 'No seleccionado'
                   }</p>
-                  
+
                   {(watch("tipoGrupoFamiliar") === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') && (
                     <>
                       {watch("familiares.conyuge") && <p className="pl-4"><strong>Cónyuge:</strong> {watch("familiares.conyuge.nombre")} {watch("familiares.conyuge.apellido")}</p>}
