@@ -295,10 +295,6 @@ export function PanelMedicoDashboard() {
     setIsDialogOpen(true);
   };
 
-  const handleOpenGeneralRevisionDialog = () => {
-    setSelectedInvitadoParaRevision(null);
-    setIsDialogOpen(true);
-  }
 
   if (loading) {
     return (
@@ -336,9 +332,6 @@ export function PanelMedicoDashboard() {
             personaPreseleccionada={selectedInvitadoParaRevision}
             bloquearBusqueda={!!selectedInvitadoParaRevision}
         />
-        {!selectedInvitadoParaRevision && (
-             <Button onClick={handleOpenGeneralRevisionDialog}><CheckCircle2 className="mr-2 h-4 w-4" /> Revisión Invitado Diario</Button>
-        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -554,3 +547,4 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
+
