@@ -41,7 +41,10 @@ const Header = () => {
               </span>
               {userRole && (
                 <Link href="/dashboard">
-                  <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
+                  <Button 
+                    size="sm" 
+                    className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                  >
                     <LayoutDashboard className="mr-0 sm:mr-2 h-4 w-4" /> 
                     <span className="hidden sm:inline">Panel</span>
                   </Button>
@@ -49,7 +52,10 @@ const Header = () => {
               )}
               {userRole === 'socio' && (
                 <Link href="/mi-perfil">
-                  <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
+                  <Button 
+                    size="sm" 
+                    className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                  >
                     <UserCircle className="mr-0 sm:mr-2 h-4 w-4" /> 
                      <span className="hidden sm:inline">Mi Perfil</span>
                   </Button>
@@ -57,7 +63,10 @@ const Header = () => {
               )}
               {userRole === 'administrador' && (
                  <Link href="/admin/gestion-socios">
-                   <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
+                   <Button 
+                     size="sm" 
+                     className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                   >
                      <Settings className="mr-0 sm:mr-2 h-4 w-4" /> 
                      <span className="hidden sm:inline">Gestión de Socios</span>
                    </Button>
@@ -90,3 +99,4 @@ const Header = () => {
 };
 
 export default Header;
+
