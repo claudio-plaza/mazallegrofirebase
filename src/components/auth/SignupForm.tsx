@@ -75,38 +75,70 @@ const renderFilePreview = (
   return null;
 };
 
-const reglamentoInternoTexto = `
-REGLAMENTO INTERNO PARA SOCIOS E INVITADOS – ALLEGRO
-DÍAS DE DIVERSIÓN / NOCHES DE FIESTA
-Todo socio es responsable de sus actos y los de sus familiares e invitados dentro de las instalaciones, y se compromete a seguir las siguientes reglas.
-Aceptación del Reglamento y Política de Privacidad:
+const reglamentoInternoTexto = `Aceptación del Reglamento y Política de Privacidad:
 Al registrarse y utilizar la aplicación de Allegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
+
 Regla N°1 - Ingreso al Complejo:
-* Registro y Aprobación: Para poder ingresar al complejo, es indispensable que cada socio se registre previamente en la aplicación móvil de Allegro y que su solicitud sea aprobada por la administración. Este proceso garantiza un control de acceso y seguridad para todos.
-* Documentación y Mascotas: Al ingresar, se requerirá la presentación del DNI de cada miembro del grupo familiar registrado. Por razones de seguridad e higiene, no se permite el ingreso de ningún tipo de mascotas, sin excepción.
-* Uso de Vehículos: En caso de entrar con un vehículo, el mismo deberá permanecer exclusivamente en el lugar destinado a estacionamiento. Solo podrá circular por las calles internas de manera prudente, a una velocidad máxima de 10 km/h, y únicamente para bajar y subir pertenencias. Está estrictamente prohibido el ingreso de autos o motos a los sectores verdes.
-* Definición de Grupo Familiar: A los efectos de este reglamento, se considera "grupo familiar" al cónyuge/pareja y a los hijos menores de 18 años del socio titular.
+
+Registro y Aprobación: Para poder ingresar al complejo, es indispensable que cada socio se registre previamente en la aplicación móvil de Allegro y que su solicitud sea aprobada por la administración. Este proceso garantiza un control de acceso y seguridad para todos.
+Documentación y Mascotas: Al ingresar, se requerirá la presentación del DNI de cada miembro del grupo familiar registrado. Por razones de seguridad e higiene, no se permite el ingreso de ningún tipo de mascotas, sin excepción.
+Uso de Vehículos: En caso de entrar con un vehículo, el mismo deberá permanecer exclusivamente en el lugar destinado a estacionamiento. Solo podrá circular por las calles internas de manera prudente, a una velocidad máxima de 10 km/h, y únicamente para bajar y subir pertenencias. Está estrictamente prohibido el ingreso de autos o motos a los sectores verdes.
+Definición de Grupo Familiar: A los efectos de este reglamento, se considera "grupo familiar" al cónyuge/pareja y a los hijos menores de 18 años del socio titular.
 Horarios del Camping:
-* Temporada Alta: Del 08 de diciembre al día anterior al comienzo de clases. (La temporada de pileta puede extenderse dependiendo las condiciones climáticas).
-  * Abrimos de 10:00 a 22:00 hs de martes a domingos, con excepción de los días sábado que cerramos a las 20:00 hs.
-  * Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
-* Temporada Baja: Del comienzo de clases al 07 de diciembre.
-  * Abrimos de 10:00 a 19:00 hs de martes a domingos.
-  * Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
-  * La administración del lugar atiende de 12:00 a 19:00 hs.
+
+Temporada Alta: Del 08 de diciembre al día anterior al comienzo de clases. (La temporada de pileta puede extenderse dependiendo las condiciones climáticas). 
+
+Abrimos de 10:00 a 22:00 hs de martes a domingos, con excepción de los días sábado que cerramos a las 20:00 hs.
+Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
+Temporada Baja: Del comienzo de clases al 07 de diciembre. 
+Abrimos de 10:00 a 19:00 hs de martes a domingos.
+Los días lunes feriados el lugar abrirá sus puertas y cerraremos el día siguiente.
+La administración del lugar atiende de 12:00 a 19:00 hs.
 Regla N°2 - Carnet Digital:
-* Su Acceso Digital: Una vez registrado y aprobado en la aplicación, se generará automáticamente su carnet digital. Este carnet es personal e intransferible.
-* Presentación Obligatoria: Deberá ser presentado cada vez que sea requerido por el personal a cargo del complejo o por las autoridades del mismo.
+
+Su Acceso Digital: Una vez registrado y aprobado en la aplicación, se generará automáticamente su carnet digital. Este carnet es personal e intransferible.
+Presentación Obligatoria: Deberá ser presentado cada vez que sea requerido por el personal a cargo del complejo o por las autoridades del mismo.
 Regla N°3 - Invitados:
-* Registro Previo de Invitados: El socio debe registrar previamente a cada uno de los invitados por medio de la aplicación, ingresando nombre, apellido, DNI y fecha de nacimiento. Este registro es indispensable para el acceso.
-* Acompañamiento y Canon: Solo podrán ingresar acompañados de un socio responsable y abonando el canon de entrada dispuesto por las autoridades. Cada invitado deberá presentar su documento para corroborar identidad.
+
+Registro Previo de Invitados: El socio debe registrar previamente a cada uno de los invitados por medio de la aplicación, ingresando nombre, apellido, DNI y fecha de nacimiento. Este registro es indispensable para el acceso.
+Acompañamiento y Canon: Solo podrán ingresar acompañados de un socio responsable y abonando el canon de entrada dispuesto por las autoridades. Cada invitado deberá presentar su documento para corroborar identidad.
 Regla N°4 - Pileta:
-* Temporada y Revisación Médica: Solo podrán hacer uso de la pileta en temporada habilitada y teniendo la revisión médica actualizada, realizada por el médico del complejo. Se autorizará el ingreso a la misma siempre y cuando esté el guardavidas presente.
-* Normas de Uso: No se permitirá el ingreso de alimentos ni de bebidas, ni objetos contundentes que puedan representar un riesgo para los presentes en la pileta.
-  * Cabello recogido o gorro de natación.
-  * Revisión médica obligatoria.
-  * Traje de baño.
-* Higiene Obligatoria: El ingreso a la pileta es exclusivamente por la ducha. Todo aquel que ingrese sin pasar por la misma será suspendido por un tiempo determinado por el guardavida o expulsado de la pileta.
+
+Temporada y Revisación Médica: Solo podrán hacer uso de la pileta en temporada habilitada y teniendo la revisión médica actualizada, realizada por el médico del complejo. Se autorizará el ingreso a la misma siempre y cuando esté el guardavidas presente.
+Normas de Uso: No se permitirá el ingreso de alimentos ni de bebidas, ni objetos contundentes que puedan representar un riesgo para los presentes en la pileta. 
+Cabello recogido o gorro de natación.
+Revisión médica obligatoria.
+Traje de baño.
+Higiene Obligatoria: El ingreso a la pileta es exclusivamente por la ducha. Todo aquel que ingrese sin pasar por la misma será suspendido por un tiempo determinado por el guardavida o expulsado de la pileta por todo el día.
+
+Restricciones para Niños: Los niños menores de 3 años o que aún usen pañales no pueden ingresar.
+Regla N°5 - Salones:
+
+Uso Exclusivo para Eventos: Los salones son solo para eventos. Para poder utilizarlos, deberán ser reservados con anticipación por medio de una seña.
+Beneficio para Socios: Los socios gozarán del beneficio de un descuento en el precio final del alquiler , dicho descuento dependerá del convenio vigente con las empresas asociadas.
+Horario de Cierre Sábados: Los días sábados el lugar cierra a las 20:00 hs.
+Regla N°6 - Responsabilidades:
+
+Cuidado de las Instalaciones: Todo socio es responsable de cuidar y hacer cuidar los espacios e instalaciones.
+Supervisión de Menores: El socio también es responsable de cuidar a sus hijos en los juegos y en las piletas.
+Regla N°7 - Objetos Personales:
+
+Responsabilidad del Socio: Cada socio es responsable de sus pertenencias. El complejo no se hará responsable por pérdida o hurto de los objetos personales. Se recomienda encarecidamente no dejar objetos de valor desatendidos.
+Seguridad en el Complejo: El lugar cuenta con cámaras de seguridad para la vigilancia general de las instalaciones.
+Regla N°8 - Comportamientos:
+
+Conducta Adecuada: Los comportamientos indebidos que alteren la convivencia, la seguridad o el buen funcionamiento del complejo serán penados con sanciones. Estas sanciones pueden ir desde la suspensión de ingreso al complejo por un tiempo determinado hasta la expulsión definitiva.
+Faltas Graves: Se considerará como falta grave el realizar sus necesidades físicas fuera de los baños habilitados.
+Proceso de Sanción: La aplicación de sanciones será determinada por la administración del complejo, pudiendo requerir un descargo previo al socio involucrado. La decisión final será notificada por los canales de comunicación establecidos (app, correo electrónico, etc.).
+Regla N°9 - Ruidos Molestos:
+
+Respeto por el Descanso: No se permitirá el uso de equipos de audio o instrumentos amplificados que perturben la tranquilidad de los demás socios.
+Prohibición de Pirotecnia: Está prohibido el uso de pirotecnia dentro de las instalaciones.
+Disposiciones Finales:
+
+Derecho de Admisión y Permanencia: La administración de Allegro se reserva el derecho de admisión y permanencia dentro de sus instalaciones, siempre que no implique un acto discriminatorio.
+Modificaciones del Reglamento y Horarios: El presente reglamento podrá ser modificado por la administración del complejo. Los socios serán notificados de cualquier cambio relevante a través de la aplicación de Allegro, correo electrónico o avisos visibles en el complejo. Los horarios pueden sufrir modificaciones sin previo aviso según disposiciones municipales, provinciales o de la administración.
+Fuerza Mayor: Allegro no será responsable por el incumplimiento o retraso en la prestación de sus servicios debido a causas de fuerza mayor o caso fortuito, incluyendo pero no limitándose a desastres naturales, eventos climáticos extremos, actos de autoridad gubernamental, cortes de energía prolongados o cualquier otra circunstancia imprevisible e incontrolable que impida el normal funcionamiento de las instalaciones. En tales casos, la administración informará a los socios sobre las medidas adoptadas.
 `;
 
 
