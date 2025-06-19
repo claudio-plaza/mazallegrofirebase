@@ -112,7 +112,7 @@ export function GestionSociosDashboard() {
   };
 
   const handleNuevoMiembro = () => {
-     toast({ title: 'Función no implementada', description: 'La creación de nuevos miembros desde admin será implementada.' });
+     router.push('/admin/socios/nuevo');
   };
 
   const handleVerEditarPerfil = (socioId: string) => {
@@ -388,7 +388,7 @@ export function GestionSociosDashboard() {
           socio={selectedSocioForAdherentes}
           open={isAdherentesDialogOpen}
           onOpenChange={setIsAdherentesDialogOpen}
-          onAdherentesUpdated={loadSocios} 
+          onAdherentesUpdated={loadSocios}
         />
       )}
       {selectedSocioForRevision && (
