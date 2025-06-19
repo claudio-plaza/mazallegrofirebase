@@ -59,7 +59,7 @@ const Header = () => {
                  <Link href="/admin/gestion-socios">
                    <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80"> {/* Adjusted for contrast */}
                      <Settings className="mr-0 sm:mr-2 h-4 w-4" /> 
-                     <span className="hidden sm:inline">Admin</span>
+                     <span className="hidden sm:inline">Gestión de Socios</span>
                    </Button>
                  </Link>
               )}
