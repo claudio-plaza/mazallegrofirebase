@@ -235,7 +235,7 @@ export function AdminInvitadosDiariosDashboard() {
             </div>
             <Button
               onClick={handleDescargarListaInvitadosDiarios}
-              disabled={loading || solicitudesFiltradas.length === 0}
+              disabled={loading || !selectedDate || solicitudesFiltradas.length === 0}
               className="w-full sm:w-auto mt-2 sm:mt-0 self-end sm:self-center"
             >
               <Download className="mr-2 h-4 w-4" />
@@ -328,3 +328,4 @@ export function AdminInvitadosDiariosDashboard() {
     </div>
   );
 }
+
