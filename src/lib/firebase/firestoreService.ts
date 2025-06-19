@@ -199,7 +199,7 @@ export const initializePreciosInvitadosDB = (): void => {
 };
 
 export const initializeNovedadesDB = (): void => {
-  if (typeof window !== 'undefined' || localStorage.getItem(KEYS.NOVEDADES)) return;
+  if (typeof window === 'undefined' || localStorage.getItem(KEYS.NOVEDADES)) return;
   saveDbAndNotify(KEYS.NOVEDADES, []);
 };
 
@@ -655,4 +655,4 @@ if (typeof window !== 'undefined') {
     initializePreciosInvitadosDB();
     initializeNovedadesDB();
 }
-isValid(new Date());
+
