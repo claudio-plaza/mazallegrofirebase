@@ -470,7 +470,7 @@ export function AltaSocioMultiStepForm() {
                         {hijosFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
-                            <p className="font-medium mb-2">Hijo/a ${index + 1}</p>
+                            <p className="font-medium mb-2">Hijo/a {index + 1}</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -490,7 +490,7 @@ export function AltaSocioMultiStepForm() {
                             <FormField control={control} name={`familiares.hijos.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             <FormField control={control} name={`familiares.hijos.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             </div>
-                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a ${index + 1}</h5>
+                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
                                     <FormField control={control} name={`familiares.hijos.${index}.${docType}`} key={`hijo-${index}-${docType}`}
@@ -527,7 +527,7 @@ export function AltaSocioMultiStepForm() {
                         {padresFields.map((item, index) => (
                         <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
                             <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}> <Trash2 className="h-4 w-4" /> </Button>
-                            <p className="font-medium mb-2">Padre/Madre ${index + 1}</p>
+                            <p className="font-medium mb-2">Padre/Madre {index + 1}</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -547,7 +547,7 @@ export function AltaSocioMultiStepForm() {
                               <FormField control={control} name={`familiares.padres.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name={`familiares.padres.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE} /></FormControl> <FormMessage /> </FormItem> )} />
                             </div>
-                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre ${index + 1}</h5>
+                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => (
                                     <FormField control={control} name={`familiares.padres.${index}.${docType}`} key={`padre-${index}-${docType}`}
@@ -604,13 +604,13 @@ export function AltaSocioMultiStepForm() {
                   {(watch("tipoGrupoFamiliar") === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') && (
                     <>
                       {watch("familiares.conyuge") && <p className="pl-4"><strong>Cónyuge:</strong> {watch("familiares.conyuge.nombre")} {watch("familiares.conyuge.apellido")}</p>}
-                      {watch("familiares.hijos")?.map((h, i) => <p key={`hijo-rev-${i}`} className="pl-4"><strong>Hijo/a ${i+1}:</strong> {h.nombre} {h.apellido}</p>)}
+                      {watch("familiares.hijos")?.map((h, i) => <p key={`hijo-rev-${i}`} className="pl-4"><strong>Hijo/a {i+1}:</strong> {h.nombre} {h.apellido}</p>)}
                       {watch("familiares.hijos")?.length === 0 && !watch("familiares.conyuge") && <p className="pl-4 text-muted-foreground">No se proponen cónyuges ni hijos/as.</p>}
                     </>
                   )}
                   {(watch("tipoGrupoFamiliar") === 'padresMadres' || existingGroupType === 'padresMadres') && (
                     <>
-                      {watch("familiares.padres")?.map((p, i) => <p key={`padre-rev-${i}`} className="pl-4"><strong>Padre/Madre ${i+1}:</strong> {p.nombre} {p.apellido}</p>)}
+                      {watch("familiares.padres")?.map((p, i) => <p key={`padre-rev-${i}`} className="pl-4"><strong>Padre/Madre {i+1}:</strong> {p.nombre} {p.apellido}</p>)}
                       {watch("familiares.padres")?.length === 0 && <p className="pl-4 text-muted-foreground">No se proponen padres/madres.</p>}
                     </>
                   )}
