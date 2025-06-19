@@ -170,10 +170,68 @@ export function AdminInvitadosDiariosDashboard() {
       }
     });
 
-    console.log("Simulando generación de PDF para invitados diarios:\n", reportContent);
+    console.log("Contenido del reporte para PDF:\n", reportContent);
+
+    // Comentario: Para generar un PDF real, necesitarías una biblioteca como jsPDF.
+    // Ejemplo conceptual (requiere instalar jsPDF y jspdf-autotable):
+    /*
+    if (typeof window !== 'undefined') {
+      import('jspdf').then(jsPDFModule => {
+        const jsPDF = jsPDFModule.default; // o jsPDFModule.jsPDF si es así la exportación
+        import('jspdf-autotable').then(() => { // Asegura que autotable esté cargado
+          const doc = new jsPDF();
+          doc.text("Reporte de Invitados Diarios", 14, 16);
+          doc.setFontSize(10);
+          doc.text(`Fecha: ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : 'N/A'}`, 14, 22);
+          
+          let currentY = 30;
+          const pageHeight = doc.internal.pageSize.height;
+          const margin = 10;
+
+          const addTextWithSplit = (text: string, x: number, y: number, maxWidth: number) => {
+            const lines = doc.splitTextToSize(text, maxWidth);
+            doc.text(lines, x, y);
+            return y + (lines.length * (doc.getLineHeight() / doc.internal.scaleFactor));
+          };
+          
+          currentY = addTextWithSplit(`Resumen del Día:\n- Socios con Listas: ${estadisticasDia.sociosConListas}\n- Invitados Totales Registrados: ${estadisticasDia.invitadosTotales}\n- Invitados que Ingresaron (Total): ${estadisticasDia.invitadosIngresaronTotal}\n  - De Cumpleaños: ${estadisticasDia.ingresaronCumpleanos}\n  - Pagaron Efectivo: ${estadisticasDia.ingresaronPagaronEfectivo}\n  - Pagaron Transferencia: ${estadisticasDia.ingresaronPagaronTransferencia}\n  - Pagaron Caja: ${estadisticasDia.ingresaronPagaronCaja}\n  - Menores (Gratis): ${estadisticasDia.ingresaronMenoresGratis}\n\nDetalle por Socio:`, 14, currentY, 180);
+
+          solicitudesFiltradas.forEach(solicitud => {
+            if (currentY > pageHeight - margin * 3) { // Espacio para footer y cabecera de nueva página
+              doc.addPage();
+              currentY = margin;
+            }
+            currentY = addTextWithSplit(`\nSocio: ${solicitud.nombreSocioTitular} (N°: ${solicitud.idSocioTitular})\nInvitados:`, 14, currentY, 180);
+            
+            if (solicitud.listaInvitadosDiarios.length > 0) {
+              solicitud.listaInvitadosDiarios.forEach(inv => {
+                 let detalleIngreso = "Pendiente de Ingreso";
+                  if (inv.ingresado) {
+                    detalleIngreso = "Ingresó";
+                    if (inv.esDeCumpleanos) detalleIngreso += " (Cumpleaños)";
+                    else {
+                      let edad = inv.fechaNacimiento ? differenceInYears(new Date(), new Date(inv.fechaNacimiento)) : -1;
+                      if (edad !== -1 && edad < 3) detalleIngreso += " (Menor - Gratuito)";
+                      else if (inv.metodoPago) detalleIngreso += ` (Pagó: ${inv.metodoPago})`;
+                      else detalleIngreso += " (Pago Pendiente/No especificado)";
+                    }
+                  }
+                currentY = addTextWithSplit(`- ${inv.nombre} ${inv.apellido} (DNI: ${inv.dni}) - ${detalleIngreso}`, 18, currentY, 170);
+              });
+            } else {
+              currentY = addTextWithSplit("- Sin invitados en esta lista.", 18, currentY, 170);
+            }
+          });
+          doc.save(`invitados_diarios_${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'general'}.pdf`);
+        }).catch(err => console.error("Error loading jspdf-autotable", err));
+      }).catch(err => console.error("Error loading jspdf", err));
+    }
+    */
+
     toast({
-      title: "Descarga de Invitados Diarios Iniciada (Simulada)",
-      description: `Se está generando un PDF con las listas de invitados del ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : ''}. (Ver consola para datos).`,
+      title: "Descarga de Invitados (Simulada)",
+      description: `El contenido del reporte para el ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : ''} se ha mostrado en la consola. La descarga directa de PDF requiere una biblioteca adicional.`,
+      duration: 7000,
     });
   };
 
