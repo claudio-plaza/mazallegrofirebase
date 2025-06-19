@@ -439,118 +439,121 @@ export function PanelMedicoDashboard() {
         )}
       </Card>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-            <CardTitle className="flex items-center"><UserRound className="mr-2 h-6 w-6 text-primary"/>Invitados del Día Ingresados (Hoy)</CardTitle>
-            <CardDescription>Lista de invitados que han registrado su ingreso hoy. Puede registrar o actualizar su revisión médica desde aquí.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <ScrollArea className="h-[300px] w-full">
+      {userRole === 'administrador' && (
+        <>
+          <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="flex items-center"><UserRound className="mr-2 h-6 w-6 text-primary"/>Invitados del Día Ingresados (Hoy)</CardTitle>
+                <CardDescription>Lista de invitados que han registrado su ingreso hoy. Puede registrar o actualizar su revisión médica desde aquí.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-[300px] w-full">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Invitado</TableHead>
+                                <TableHead>DNI</TableHead>
+                                <TableHead>Anfitrión</TableHead>
+                                <TableHead>Apto Médico (Hoy)</TableHead>
+                                <TableHead className="text-right">Acción</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {invitadosIngresadosSinAptoHoy.length === 0 && (
+                                <TableRow key="no-invitados-row"><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
+                            )}
+                            {invitadosIngresadosSinAptoHoy.map((invitado, index) => {
+                                const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
+                                const key = `invitado-${invitado.id || 'no-id'}-${invitado.dni || 'no-dni'}-${index}`;
+                                return (
+                                    <TableRow key={key}>
+                                        <TableCell className="font-medium">{invitado.nombreCompleto}</TableCell>
+                                        <TableCell>{invitado.dni}</TableCell>
+                                        <TableCell>{invitado.socioAnfitrionNombre} (N°{invitado.socioAnfitrionNumero})</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={`${aptoStatusInvitado.colorClass} border-current font-medium`}>
+                                                {aptoStatusInvitado.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => handleOpenRevisionDialogParaInvitado(invitado)}>
+                                                <FileEdit className="mr-1.5 h-4 w-4"/>
+                                                Revisión
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-6 w-6 text-primary"/> Últimas Revisiones Registradas</CardTitle>
+              <CardDescription>Mostrando las últimas 10 revisiones. El apto es válido por 15 días desde la fecha de revisión (incluida) para todas las personas (socios, familiares, adherentes e invitados).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] w-full">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Invitado</TableHead>
-                            <TableHead>DNI</TableHead>
-                            <TableHead>Anfitrión</TableHead>
-                            <TableHead>Apto Médico (Hoy)</TableHead>
-                            <TableHead className="text-right">Acción</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {invitadosIngresadosSinAptoHoy.length === 0 && (
-                            <TableRow key="no-invitados-row"><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay invitados que hayan ingresado hoy o todos tienen apto médico válido.</TableCell></TableRow>
-                        )}
-                        {invitadosIngresadosSinAptoHoy.map((invitado, index) => {
-                            const aptoStatusInvitado = getAptoMedicoStatus(invitado.aptoMedico, invitado.fechaNacimiento);
-                            const key = `invitado-${invitado.id || 'no-id'}-${invitado.dni || 'no-dni'}-${index}`;
-                            return (
-                                <TableRow key={key}>
-                                    <TableCell className="font-medium">{invitado.nombreCompleto}</TableCell>
-                                    <TableCell>{invitado.dni}</TableCell>
-                                    <TableCell>{invitado.socioAnfitrionNombre} (N°{invitado.socioAnfitrionNumero})</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className={`${aptoStatusInvitado.colorClass} border-current font-medium`}>
-                                            {aptoStatusInvitado.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" onClick={() => handleOpenRevisionDialogParaInvitado(invitado)}>
-                                            <FileEdit className="mr-1.5 h-4 w-4"/>
-                                            Revisión
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </ScrollArea>
-        </CardContent>
-      </Card>
-
-
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-6 w-6 text-primary"/> Últimas Revisiones Registradas</CardTitle>
-          <CardDescription>Mostrando las últimas 10 revisiones. El apto es válido por 15 días desde la fecha de revisión (incluida) para todas las personas (socios, familiares, adherentes e invitados).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px] w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha Revisión</TableHead>
-                  <TableHead>Persona (Nombre y DNI/ID)</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Resultado</TableHead>
-                  <TableHead>Vencimiento Apto</TableHead>
-                  <TableHead>Observaciones</TableHead>
-                  <TableHead>Médico</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {revisiones.slice(0, 10).map((revision) => {
-                  let iconType = <UserCircle className="mr-1 h-3.5 w-3.5" />;
-                  if (revision.tipoPersona === 'Invitado Diario') iconType = <UserRound className="mr-1 h-3.5 w-3.5" />;
-                  
-                  return (
-                    <TableRow key={revision.id}>
-                      <TableCell>{formatDate(revision.fechaRevision)}</TableCell>
-                      <TableCell>{revision.socioNombre} ({revision.socioId})</TableCell>
-                      <TableCell><Badge variant="outline" className="flex items-center">{iconType}{revision.tipoPersona}</Badge></TableCell>
-                      <TableCell>
-                        <Badge variant={revision.resultado === 'Apto' ? 'default' : 'destructive'} className={revision.resultado === 'Apto' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}>
-                          {revision.resultado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {revision.resultado === 'Apto' && revision.fechaVencimientoApto
-                          ? formatDate(revision.fechaVencimientoApto)
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate" title={revision.observaciones}>{revision.observaciones || '-'}</TableCell>
-                      <TableCell className="max-w-[150px] truncate" title={revision.medicoResponsable}>{revision.medicoResponsable || 'No especificado'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewRevision(revision.id)} title="Ver detalles de la revisión">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha Revisión</TableHead>
+                      <TableHead>Persona (Nombre y DNI/ID)</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Resultado</TableHead>
+                      <TableHead>Vencimiento Apto</TableHead>
+                      <TableHead>Observaciones</TableHead>
+                      <TableHead>Médico</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  );
-                })}
-                {revisiones.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      No hay revisiones registradas.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {revisiones.slice(0, 10).map((revision) => {
+                      let iconType = <UserCircle className="mr-1 h-3.5 w-3.5" />;
+                      if (revision.tipoPersona === 'Invitado Diario') iconType = <UserRound className="mr-1 h-3.5 w-3.5" />;
+                      
+                      return (
+                        <TableRow key={revision.id}>
+                          <TableCell>{formatDate(revision.fechaRevision)}</TableCell>
+                          <TableCell>{revision.socioNombre} ({revision.socioId})</TableCell>
+                          <TableCell><Badge variant="outline" className="flex items-center">{iconType}{revision.tipoPersona}</Badge></TableCell>
+                          <TableCell>
+                            <Badge variant={revision.resultado === 'Apto' ? 'default' : 'destructive'} className={revision.resultado === 'Apto' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}>
+                              {revision.resultado}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {revision.resultado === 'Apto' && revision.fechaVencimientoApto
+                              ? formatDate(revision.fechaVencimientoApto)
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate" title={revision.observaciones}>{revision.observaciones || '-'}</TableCell>
+                          <TableCell className="max-w-[150px] truncate" title={revision.medicoResponsable}>{revision.medicoResponsable || 'No especificado'}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleViewRevision(revision.id)} title="Ver detalles de la revisión">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {revisiones.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          No hay revisiones registradas.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
