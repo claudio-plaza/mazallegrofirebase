@@ -663,4 +663,3 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
-    
