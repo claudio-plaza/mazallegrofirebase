@@ -664,5 +664,3 @@ export const adminEditSocioTitularSchema = z.object({
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
     
-
-    
