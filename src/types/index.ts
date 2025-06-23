@@ -430,9 +430,6 @@ export const familiaresDetallesSchema = z.object({
 });
 export type FamiliaresDetallesData = z.infer<typeof familiaresDetallesSchema>;
 
-let currentStepForSchemaValidation = 1;
-export const setCurrentStepForSchema = (step: number) => { currentStepForSchemaValidation = step; };
-
 export const agregarFamiliaresSchema = z.object({
   tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
     required_error: "Debe seleccionar un tipo de grupo familiar.",
@@ -668,10 +665,6 @@ export const adminEditSocioTitularSchema = z.object({
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 
 
-export const getStepSpecificValidationSchema = (step: number) => {
-  setCurrentStepForSchema(step);
-  return agregarFamiliaresSchema;
-};
-// isValid(new Date()); // This line was removed in a previous step
-
+export const altaSocioSchema = titularSchema.merge(z.object({ familiares: familiaresDetallesSchema }));
+export type AltaSocioData = z.infer<typeof altaSocioSchema>;
     
