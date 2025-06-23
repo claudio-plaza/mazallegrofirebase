@@ -655,4 +655,3 @@ if (typeof window !== 'undefined') {
     initializePreciosInvitadosDB();
     initializeNovedadesDB();
 }
-
