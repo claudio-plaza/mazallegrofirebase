@@ -12,6 +12,7 @@ interface EditarSocioPageProps {
   params: {
     socioId: string;
   };
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export default function EditarSocioPage({ params }: EditarSocioPageProps) {
