@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio, getAllSolicitudesInvitadosDiarios } from '@/lib/firebase/firestoreService';
+import { getSocios, getSocioByNumeroSocioOrDNI, addOrUpdateSolicitudInvitadosDiarios, getSolicitudInvitadosDiarios, addRevisionMedica, updateSocio, getAllSolicitudesInvitadosDiarios } from '@/lib/firebase/firestoreService';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -142,34 +142,31 @@ export function NuevaRevisionDialog({
     }
     
     if (!personFound) {
-        const socios = await getSocioByNumeroSocioOrDNI(''); 
-        if (socios) { 
-            const allSociosArray = Array.isArray(socios) ? socios : [socios]; 
-            for (const socio of allSociosArray) {
-                const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
-                if (familiarFound) {
-                  personFound = {
-                    id: familiarFound.dni, 
-                    nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
-                    fechaNacimiento: familiarFound.fechaNacimiento,
-                    tipo: 'Familiar',
-                    socioTitularId: socio.numeroSocio,
-                    aptoMedicoActual: familiarFound.aptoMedico
-                  };
-                  break;
-                }
-                const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
-                if (adherenteFound) {
-                   personFound = {
-                    id: adherenteFound.dni, 
-                    nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
-                    fechaNacimiento: adherenteFound.fechaNacimiento,
-                    tipo: 'Adherente',
-                    socioTitularId: socio.numeroSocio,
-                    aptoMedicoActual: adherenteFound.aptoMedico
-                  };
-                  break;
-                }
+        const allSociosArray = await getSocios();
+        for (const socio of allSociosArray) {
+            const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
+            if (familiarFound) {
+              personFound = {
+                id: familiarFound.dni, 
+                nombreCompleto: `${familiarFound.nombre} ${familiarFound.apellido}`,
+                fechaNacimiento: familiarFound.fechaNacimiento,
+                tipo: 'Familiar',
+                socioTitularId: socio.numeroSocio,
+                aptoMedicoActual: familiarFound.aptoMedico
+              };
+              break;
+            }
+            const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
+            if (adherenteFound) {
+               personFound = {
+                id: adherenteFound.dni, 
+                nombreCompleto: `${adherenteFound.nombre} ${adherenteFound.apellido}`,
+                fechaNacimiento: adherenteFound.fechaNacimiento,
+                tipo: 'Adherente',
+                socioTitularId: socio.numeroSocio,
+                aptoMedicoActual: adherenteFound.aptoMedico
+              };
+              break;
             }
         }
     }

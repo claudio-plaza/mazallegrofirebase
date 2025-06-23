@@ -663,8 +663,6 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+    
 
-
-export const altaSocioSchema = titularSchema.merge(z.object({ familiares: familiaresDetallesSchema }));
-export type AltaSocioData = z.infer<typeof altaSocioSchema>;
     
