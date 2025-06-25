@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { loginUser, initializeMockDatabases, mockUsers } from '@/lib/auth'; 
+import { loginUser, mockUsers } from '@/lib/auth'; 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn } from 'lucide-react';
@@ -47,7 +47,6 @@ export function LoginForm() {
     const user = loginUser(data.email, data.password);
 
     if (user) {
-      initializeMockDatabases(); 
       auth.login(user.role, user.name, user.numeroSocio); 
       toast({
         title: 'Inicio de Sesión Exitoso',
