@@ -2,19 +2,17 @@
 import { z } from 'zod';
 import { subYears, parseISO, isValid, formatISO } from 'date-fns';
 
-const preprocessedDate = z.preprocess((arg) => {
+const safeDate = z.preprocess((arg) => {
   if (typeof arg === 'string') {
-    // Handle empty string from input field
-    if (arg.trim() === '') return null;
     const date = parseISO(arg);
     if (isValid(date)) return date;
-    return arg; // Let Zod handle the invalid string
   }
-  if (arg instanceof Date) {
-    if (isValid(arg)) return arg;
+  if (arg instanceof Date && isValid(arg)) {
+    return arg;
   }
+  // Return the original argument to let Zod's base type catch the invalid type error.
   return arg;
-}, z.date({ required_error: "La fecha es requerida.", invalid_type_error: "Fecha inválida." }));
+}, z.date({ invalid_type_error: "Fecha inválida." }));
 
 
 export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
@@ -239,9 +237,9 @@ export const optionalFileField = (config: FileSchemaConfig) =>
 export const signupTitularSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: preprocessedDate.refine(date => {
-    return date <= subYears(new Date(), 18);
-  }, "Debe ser mayor de 18 años.").optional(),
+  fechaNacimiento: safeDate.refine(date => date <= subYears(new Date(), 18), {
+    message: "Debe ser mayor de 18 años."
+  }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
@@ -265,9 +263,9 @@ export type SignupTitularData = z.infer<typeof signupTitularSchema>;
 export const titularSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: preprocessedDate.refine(date => {
-    return date <= subYears(new Date(), 18);
-  }, "Debe ser mayor de 18 años.").optional(),
+  fechaNacimiento: safeDate.refine(date => date <= subYears(new Date(), 18), {
+    message: "Debe ser mayor de 18 años."
+  }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
@@ -336,7 +334,7 @@ export const familiarBaseSchema = z.object({
   id: z.string().optional(),
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: preprocessedDate,
+  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   fotoDniFrente: optionalFileField(dniFileSchemaConfig),
   fotoDniDorso: optionalFileField(dniFileSchemaConfig),
@@ -430,7 +428,7 @@ export const solicitudCumpleanosSchema = z.object({
   nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
   idCumpleanero: z.string({ required_error: "Debe seleccionar quién cumple años." }),
   nombreCumpleanero: z.string({ required_error: "Nombre del cumpleañero es requerido." }),
-  fechaEvento: preprocessedDate,
+  fechaEvento: safeDate,
   listaInvitados: z.array(invitadoCumpleanosSchema)
     .min(1, "Debe agregar al menos un invitado.")
     .max(MAX_INVITADOS_CUMPLEANOS, `No puede agregar más de ${MAX_INVITADOS_CUMPLEANOS} invitados.`),
@@ -464,7 +462,7 @@ export const invitadoDiarioSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: preprocessedDate.optional(),
+  fechaNacimiento: safeDate.optional(),
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
@@ -510,7 +508,7 @@ export const solicitudInvitadosDiariosSchema = z.object({
 export const adherenteFormSchema = z.object({
     nombre: z.string().min(2, "Nombre es requerido."),
     apellido: z.string().min(2, "Apellido es requerido."),
-    fechaNacimiento: preprocessedDate,
+    fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
     dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
     empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
@@ -543,7 +541,7 @@ export const novedadSchema = z.object({
   titulo: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   contenido: z.string().min(10, "El contenido debe tener al menos 10 caracteres."),
   fechaCreacion: z.string().default(() => formatISO(new Date())),
-  fechaVencimiento: preprocessedDate.nullable().optional(),
+  fechaVencimiento: safeDate.nullable().optional(),
   activa: z.boolean().default(true),
   tipo: z.nativeEnum(TipoNovedad).default(TipoNovedad.INFO),
 });
@@ -554,7 +552,7 @@ export const adminEditableFamiliarSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido."),
   apellido: z.string().min(2, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: preprocessedDate,
+  fechaNacimiento: safeDate,
   relacion: z.nativeEnum(RelacionFamiliar, { required_error: "Relación es requerida." }),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
@@ -571,7 +569,9 @@ export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSche
 export const adminEditSocioTitularSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
-  fechaNacimiento: preprocessedDate.refine(date => date <= subYears(new Date(), 18), "Debe ser mayor de 18 años para ser titular.").optional(),
+  fechaNacimiento: safeDate.optional().refine(date => !date || date <= subYears(new Date(), 18), {
+    message: "El titular debe ser mayor de 18 años."
+  }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números."),
@@ -589,3 +589,5 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+
+    
