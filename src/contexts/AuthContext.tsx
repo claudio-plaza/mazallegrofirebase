@@ -64,7 +64,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     performLogout(); // This clears localStorage and dispatches 'authChange'
-    // The event listener will then call updateAuthState
+    // We also update the state immediately to prevent UI flicker.
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setUserName(null);
+    setLoggedInUserNumeroSocio(null);
   };
 
   return (
