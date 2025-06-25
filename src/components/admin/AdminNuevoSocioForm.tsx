@@ -90,7 +90,7 @@ export function AdminNuevoSocioForm() {
     const socioParaCrear: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'miembroDesde' | 'aptoMedico'> & { aptoMedico?: Partial<Socio['aptoMedico']> } = {
       nombre: data.nombre,
       apellido: data.apellido,
-      fechaNacimiento: data.fechaNacimiento instanceof Date ? formatISO(data.fechaNacimiento) : data.fechaNacimiento as string,
+      fechaNacimiento: data.fechaNacimiento as Date,
       dni: data.dni,
       empresa: data.empresa,
       telefono: data.telefono,
@@ -113,7 +113,7 @@ export function AdminNuevoSocioForm() {
                 ...formFamiliar,
                 id: formFamiliar.id || generateId(),
                 relacion: relacionCorrecta,
-                fechaNacimiento: formFamiliar.fechaNacimiento instanceof Date ? formatISO(formFamiliar.fechaNacimiento) : formFamiliar.fechaNacimiento as string,
+                fechaNacimiento: formFamiliar.fechaNacimiento,
                 fotoPerfil: processPhotoFieldForSubmit(formFamiliar.fotoPerfil),
                 fotoDniFrente: processPhotoFieldForSubmit(formFamiliar.fotoDniFrente),
                 fotoDniDorso: processPhotoFieldForSubmit(formFamiliar.fotoDniDorso),
@@ -227,7 +227,7 @@ export function AdminNuevoSocioForm() {
                             <FormControl>
                                 <Input
                                     type="date"
-                                    value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                    value={field.value && isValid(field.value) ? format(field.value, 'yyyy-MM-dd') : ''}
                                     onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                     max={maxBirthDateTitular}
                                     className="w-full"
@@ -317,7 +317,7 @@ export function AdminNuevoSocioForm() {
                                         <FormControl>
                                             <Input
                                                 type="date"
-                                                value={formField.value ? format(new Date(formField.value), 'yyyy-MM-dd') : ''}
+                                                value={formField.value && isValid(formField.value) ? format(formField.value, 'yyyy-MM-dd') : ''}
                                                 onChange={(e) => formField.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                                 max={maxBirthDate}
                                                 className="w-full h-9 text-sm"

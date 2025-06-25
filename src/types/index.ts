@@ -78,8 +78,8 @@ export enum TipoNovedad {
 
 export interface AptoMedicoInfo {
   valido: boolean;
-  fechaEmision?: string | Date;
-  fechaVencimiento?: string | Date;
+  fechaEmision?: Date;
+  fechaVencimiento?: Date;
   razonInvalidez?: string;
   observaciones?: string;
 }
@@ -109,7 +109,7 @@ export interface MiembroFamiliar {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento: Date | string; // Runtime: Date preferred, supports string for initial
+  fechaNacimiento: Date;
   relacion: RelacionFamiliar;
   direccion?: string;
   telefono?: string;
@@ -132,7 +132,7 @@ export interface Adherente {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento: Date | string;
+  fechaNacimiento: Date;
   empresa: string;
   telefono?: string;
   direccion?: string;
@@ -178,8 +178,8 @@ export interface Novedad {
   id: string;
   titulo: string;
   contenido: string;
-  fechaCreacion: string | Date;
-  fechaVencimiento?: string | Date | null;
+  fechaCreacion: Date;
+  fechaVencimiento?: Date | null;
   activa: boolean;
   tipo: TipoNovedad;
 }
@@ -296,8 +296,8 @@ export interface Socio extends TitularData {
   fotoUrl?: string; 
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
-  miembroDesde: string | Date; // Runtime: Date
-  ultimaRevisionMedica?: string | Date; // Runtime: Date
+  miembroDesde: Date;
+  ultimaRevisionMedica?: Date;
   grupoFamiliar: MiembroFamiliar[];
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
@@ -325,13 +325,13 @@ export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado
 
 export interface RevisionMedica {
   id: string;
-  fechaRevision: string | Date;
+  fechaRevision: Date;
   socioId: string; // DNI or NumeroSocio depending on TipoPersona
   socioNombre: string;
   tipoPersona: TipoPersona;
   idSocioAnfitrion?: string; // NumeroSocio of titular if familiar, adherente, invitado
   resultado: 'Apto' | 'No Apto';
-  fechaVencimientoApto?: string | Date;
+  fechaVencimientoApto?: Date;
   observaciones?: string;
   medicoResponsable?: string;
 }
@@ -504,7 +504,7 @@ export const novedadSchema = z.object({
   id: z.string().default(() => `nov-${Date.now().toString(36)}`),
   titulo: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   contenido: z.string().min(10, "El contenido debe tener al menos 10 caracteres."),
-  fechaCreacion: z.string().default(() => formatISO(new Date())),
+  fechaCreacion: z.date().default(() => new Date()),
   fechaVencimiento: safeDate.nullable().optional(),
   activa: z.boolean().default(true),
   tipo: z.nativeEnum(TipoNovedad).default(TipoNovedad.INFO),

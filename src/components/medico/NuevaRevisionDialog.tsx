@@ -36,11 +36,11 @@ type RevisionFormValues = z.infer<typeof revisionSchema>;
 export interface SearchedPerson {
   id: string; 
   nombreCompleto: string;
-  fechaNacimiento: string | Date;
+  fechaNacimiento: Date;
   tipo: TipoPersona;
   socioTitularId?: string; 
   aptoMedicoActual?: AptoMedicoInfo;
-  fechaVisitaInvitado?: string; 
+  fechaVisitaInvitado?: Date; 
 }
 
 interface NuevaRevisionDialogProps {
@@ -87,9 +87,8 @@ export function NuevaRevisionDialog({
 
   useEffect(() => {
     if (searchedPerson?.fechaNacimiento) {
-      const birthDate = typeof searchedPerson.fechaNacimiento === 'string' ? parseISO(searchedPerson.fechaNacimiento) : searchedPerson.fechaNacimiento;
-      if (isValid(birthDate)) {
-        const age = differenceInYears(new Date(), birthDate);
+      if (isValid(searchedPerson.fechaNacimiento)) {
+        const age = differenceInYears(new Date(), searchedPerson.fechaNacimiento);
         setIsUnderThree(age < 3);
       } else {
         setIsUnderThree(false);
@@ -126,8 +125,7 @@ export function NuevaRevisionDialog({
     
     let personFound: SearchedPerson | null = null;
     const term = searchTerm.trim().toLowerCase();
-    const todayISO = formatISO(new Date(), { representation: 'date' });
-
+    
     const socioTitular = await getSocioByNumeroSocioOrDNI(term);
     if (socioTitular) {
         if (socioTitular.numeroSocio.toLowerCase() === term || socioTitular.dni.toLowerCase() === term || `${socioTitular.nombre.toLowerCase()} ${socioTitular.apellido.toLowerCase()}`.includes(term)) {
@@ -173,7 +171,7 @@ export function NuevaRevisionDialog({
 
     if (!personFound) {
         const todasSolicitudes = await getAllSolicitudesInvitadosDiarios();
-        const solicitudesHoy = todasSolicitudes.filter((sol: SolicitudInvitadosDiarios) => sol.fecha === todayISO);
+        const solicitudesHoy = todasSolicitudes.filter((sol: SolicitudInvitadosDiarios) => sol.fecha === formatISO(new Date(), { representation: 'date' }));
         
         for (const solicitud of solicitudesHoy) {
             const invitadoFound = solicitud.listaInvitadosDiarios.find(inv => 
@@ -184,11 +182,11 @@ export function NuevaRevisionDialog({
                 personFound = {
                     id: invitadoFound.dni, 
                     nombreCompleto: `${invitadoFound.nombre} ${invitadoFound.apellido}`,
-                    fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0).toISOString(),
+                    fechaNacimiento: invitadoFound.fechaNacimiento || new Date(0),
                     tipo: 'Invitado Diario',
                     socioTitularId: solicitud.idSocioTitular,
                     aptoMedicoActual: invitadoFound.aptoMedico || undefined,
-                    fechaVisitaInvitado: solicitud.fecha,
+                    fechaVisitaInvitado: new Date(solicitud.fecha),
                 };
                 break;
             }
@@ -215,19 +213,15 @@ export function NuevaRevisionDialog({
       return;
     }
 
-    const fechaRevisionSeleccionada = new Date(data.fechaRevision);
+    const fechaRevisionSeleccionada = data.fechaRevision;
 
-    let fechaDeEmisionFinal = fechaRevisionSeleccionada;
     let fechaDeVencimientoFinal: Date | undefined;
-
     if (data.resultado === 'Apto') {
-      // Apto médico es válido por 15 días (fecha revisión + 14 días) para TODOS los tipos de persona
       fechaDeVencimientoFinal = addDays(fechaRevisionSeleccionada, 14);
     }
-    // Si no es 'Apto', fechaDeVencimientoFinal permanece undefined.
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
-      fechaRevision: formatISO(fechaDeEmisionFinal),
+      fechaRevision: fechaRevisionSeleccionada,
       socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
@@ -235,32 +229,11 @@ export function NuevaRevisionDialog({
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
-      fechaVencimientoApto: fechaDeVencimientoFinal ? formatISO(fechaDeVencimientoFinal) : undefined,
-    };
-
-    const aptoMedicoUpdate: AptoMedicoInfo = {
-      valido: data.resultado === 'Apto',
-      fechaEmision: formatISO(fechaDeEmisionFinal),
-      observaciones: data.observaciones,
-      fechaVencimiento: fechaDeVencimientoFinal ? formatISO(fechaDeVencimientoFinal) : undefined,
-      razonInvalidez: data.resultado === 'No Apto' ? (data.observaciones || 'No Apto según última revisión') : undefined,
+      fechaVencimientoApto: fechaDeVencimientoFinal,
     };
 
     try {
         await addRevisionMedica(nuevaRevision);
-
-        if (searchedPerson.tipo === 'Invitado Diario' && searchedPerson.socioTitularId && searchedPerson.fechaVisitaInvitado) {
-            const solicitud = await getSolicitudInvitadosDiarios(searchedPerson.socioTitularId, searchedPerson.fechaVisitaInvitado);
-            if (solicitud) {
-                const updatedLista = solicitud.listaInvitadosDiarios.map(inv => 
-                    inv.dni === searchedPerson.id ? { ...inv, aptoMedico: aptoMedicoUpdate } : inv
-                );
-                await addOrUpdateSolicitudInvitadosDiarios({ ...solicitud, listaInvitadosDiarios: updatedLista });
-            } else {
-                 console.error("No se encontró la solicitud de invitados diarios para actualizar el apto del invitado.");
-                 toast({ title: "Advertencia", description: "Se guardó la revisión, pero no se encontró la lista de invitados para actualizar el apto del invitado directamente.", variant: "default"});
-            }
-        }
         
         toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
         onRevisionGuardada();

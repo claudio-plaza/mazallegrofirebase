@@ -88,7 +88,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         form.reset({
           nombre: data.nombre,
           apellido: data.apellido,
-          fechaNacimiento: typeof data.fechaNacimiento === 'string' ? parseISO(data.fechaNacimiento) : data.fechaNacimiento,
+          fechaNacimiento: data.fechaNacimiento,
           dni: data.dni,
           empresa: data.empresa.toString(),
           telefono: data.telefono,
@@ -101,16 +101,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           fotoDniFrente: data.fotoDniFrente as string | null,
           fotoDniDorso: data.fotoDniDorso as string | null,
           fotoCarnet: data.fotoCarnet as string | null,
-          grupoFamiliar: data.grupoFamiliar.map(f => ({
-            ...f,
-            id: f.id || f.dni,
-            fechaNacimiento: typeof f.fechaNacimiento === 'string' ? parseISO(f.fechaNacimiento) : f.fechaNacimiento,
-            fotoPerfil: f.fotoPerfil as string | null,
-            fotoDniFrente: f.fotoDniFrente as string | null,
-            fotoDniDorso: f.fotoDniDorso as string | null,
-            fotoCarnet: f.fotoCarnet as string | null,
-            aptoMedico: f.aptoMedico, 
-          })),
+          grupoFamiliar: data.grupoFamiliar,
         });
       } else {
         toast({ title: "Error", description: "Socio no encontrado.", variant: "destructive" });
@@ -138,51 +129,11 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
-
-    const processPhotoField = (fieldValue: FileList | string | null | undefined, existingUrl?: string | null): string | null | undefined => {
-        if (fieldValue === null) return null; 
-        if (fieldValue instanceof FileList && fieldValue.length > 0) {
-            return `https://placehold.co/150x150.png?text=NUEVA_FOTO_${Date.now()}`;
-        }
-        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; 
-        return existingUrl || undefined; 
-    };
-    
-    const updatedData: Partial<Socio> = {
-        ...data,
-        fechaNacimiento: data.fechaNacimiento instanceof Date ? formatISO(data.fechaNacimiento as Date) : data.fechaNacimiento as string,
-        fotoUrl: processPhotoField(data.fotoPerfil, socio.fotoUrl), 
-        fotoPerfil: processPhotoField(data.fotoPerfil, socio.fotoPerfil as string | undefined),
-        fotoDniFrente: processPhotoField(data.fotoDniFrente, socio.fotoDniFrente as string | undefined),
-        fotoDniDorso: processPhotoField(data.fotoDniDorso, socio.fotoDniDorso as string | undefined),
-        fotoCarnet: processPhotoField(data.fotoCarnet, socio.fotoCarnet as string | undefined),
-
-        grupoFamiliar: data.grupoFamiliar?.filter(Boolean).map((formFamiliar) => {
-            const existingFamiliar = socio.grupoFamiliar?.find(ef => ef.id === formFamiliar.id || ef.dni === formFamiliar.dni);
-            let relacionCorrecta = formFamiliar.relacion;
-            if (data.tipoGrupoFamiliar === 'conyugeEHijos' && formFamiliar.relacion === RelacionFamiliar.PADRE_MADRE) {
-                relacionCorrecta = RelacionFamiliar.HIJO_A; 
-            } else if (data.tipoGrupoFamiliar === 'padresMadres' && (formFamiliar.relacion === RelacionFamiliar.CONYUGE || formFamiliar.relacion === RelacionFamiliar.HIJO_A)) {
-                relacionCorrecta = RelacionFamiliar.PADRE_MADRE; 
-            }
-
-            return {
-                ...formFamiliar,
-                id: formFamiliar.id || generateId(),
-                relacion: relacionCorrecta,
-                fechaNacimiento: formFamiliar.fechaNacimiento instanceof Date ? formatISO(formFamiliar.fechaNacimiento as Date) : formFamiliar.fechaNacimiento as string,
-                fotoPerfil: processPhotoField(formFamiliar.fotoPerfil, existingFamiliar?.fotoPerfil as string | undefined),
-                fotoDniFrente: processPhotoField(formFamiliar.fotoDniFrente, existingFamiliar?.fotoDniFrente as string | undefined),
-                fotoDniDorso: processPhotoField(formFamiliar.fotoDniDorso, existingFamiliar?.fotoDniDorso as string | undefined),
-                fotoCarnet: processPhotoField(formFamiliar.fotoCarnet, existingFamiliar?.fotoCarnet as string | undefined),
-                aptoMedico: existingFamiliar?.aptoMedico || formFamiliar.aptoMedico, 
-            }
-        }) as MiembroFamiliar[],
-    };
     
     const finalDataForUpdate: Socio = {
-        ...socio, 
-        ...updatedData, 
+      ...socio,
+      ...data,
+      fotoUrl: data.fotoPerfil instanceof FileList ? `https://placehold.co/150x150.png?text=NEW_FOTO_${Date.now()}` : data.fotoUrl,
     };
 
     try {
@@ -320,7 +271,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <FormControl>
                                 <Input 
                                     type="date" 
-                                    value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                    value={field.value && isValid(field.value) ? format(field.value, 'yyyy-MM-dd') : ''}
                                     onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                     max={maxBirthDateTitular}
                                     className="w-full"
@@ -435,7 +386,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                                         <FormControl>
                                             <Input 
                                                 type="date" 
-                                                value={formField.value ? format(new Date(formField.value), 'yyyy-MM-dd') : ''}
+                                                value={formField.value && isValid(formField.value) ? format(formField.value, 'yyyy-MM-dd') : ''}
                                                 onChange={(e) => formField.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                                 max={maxBirthDate}
                                                 className="w-full h-9 text-sm"
