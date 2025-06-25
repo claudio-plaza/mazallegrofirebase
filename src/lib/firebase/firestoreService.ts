@@ -68,6 +68,9 @@ const parseOptionalDate = (dateString?: string | null): Date | undefined => {
 };
 
 const parseRequiredDate = (dateString: string): Date => {
+  if (typeof dateString !== 'string' || !dateString) {
+      return new Date(0); // Return epoch for invalid input to avoid crash
+  }
   const date = parseISO(dateString);
   return isValid(date) ? date : new Date(0); // Default to epoch if invalid
 };
