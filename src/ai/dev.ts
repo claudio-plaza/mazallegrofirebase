@@ -1,4 +1,6 @@
+
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/suggest-member-updates.ts';
+// This will register all flows defined in the imported files.
+import './flows/suggest-member-updates.ts';

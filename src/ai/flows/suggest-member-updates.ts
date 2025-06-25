@@ -8,9 +8,9 @@
  * - SuggestMemberUpdatesOutput - The output type for the suggestMemberUpdates function.
  */
 
-import {defineFlow, generate} from 'genkit';
-import {z} from 'zod';
-import {geminiPro} from 'genkit/models';
+import { ai } from '../genkit';
+import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SuggestionSchema = z.object({
   memberId: z.string().describe('The ID of the member for whom the update is suggested.'),
@@ -37,41 +37,38 @@ const SuggestMemberUpdatesOutputSchema = z.object({
 });
 export type SuggestMemberUpdatesOutput = z.infer<typeof SuggestMemberUpdatesOutputSchema>;
 
-export const suggestMemberUpdatesFlow = defineFlow(
+export async function suggestMemberUpdates(input: SuggestMemberUpdatesInput): Promise<SuggestMemberUpdatesOutput> {
+  return suggestMemberUpdatesFlow(input);
+}
+
+const suggestMemberUpdatesPrompt = ai.definePrompt({
+  name: 'suggestMemberUpdatesPrompt',
+  model: googleAI.model('gemini-1.5-flash'),
+  input: { schema: SuggestMemberUpdatesInputSchema },
+  output: { schema: SuggestMemberUpdatesOutputSchema },
+  prompt: `You are an AI assistant tasked with analyzing member data and suggesting updates to member statuses.
+
+  Analyze the provided member data and identify members who may require updates to their status based on the following criteria:
+  
+  - Expired Medical Evaluations: Identify members whose medical evaluations have expired and suggest a status update to inactive until a new evaluation is submitted.
+  - Account Inactivity: Identify members who have been inactive for a significant period (e.g., more than 6 months) and suggest account deactivation.
+  
+  Provide a list of suggestions, including the member ID, the type of update suggested, the reason for the suggestion, and the urgency of the update.
+  
+  Here is the member data:
+  {{{memberData}}}
+  
+  Return ONLY the JSON object with the suggestions.`,
+});
+
+const suggestMemberUpdatesFlow = ai.defineFlow(
   {
     name: 'suggestMemberUpdatesFlow',
     inputSchema: SuggestMemberUpdatesInputSchema,
     outputSchema: SuggestMemberUpdatesOutputSchema,
   },
   async (input) => {
-    const prompt = `You are an AI assistant tasked with analyzing member data and suggesting updates to member statuses.
-
-    Analyze the provided member data and identify members who may require updates to their status based on the following criteria:
-  
-    - Expired Medical Evaluations: Identify members whose medical evaluations have expired and suggest a status update to inactive until a new evaluation is submitted.
-    - Account Inactivity: Identify members who have been inactive for a significant period (e.g., more than 6 months) and suggest account deactivation.
-  
-    Provide a list of suggestions, including the member ID, the type of update suggested, the reason for the suggestion, and the urgency of the update.
-  
-    Here is the member data:
-    ${input.memberData}
-    \n
-    Return ONLY the JSON object with the suggestions.
-    `;
-
-    const llmResponse = await generate({
-      model: geminiPro,
-      prompt: prompt,
-      output: {
-        schema: SuggestMemberUpdatesOutputSchema,
-      },
-    });
-
-    return llmResponse.output() || { suggestions: [] };
+    const { output } = await suggestMemberUpdatesPrompt(input);
+    return output || { suggestions: [] };
   }
 );
-
-export async function suggestMemberUpdates(input: SuggestMemberUpdatesInput): Promise<SuggestMemberUpdatesOutput> {
-  const result = await suggestMemberUpdatesFlow(input);
-  return result;
-}
