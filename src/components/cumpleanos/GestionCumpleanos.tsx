@@ -38,9 +38,12 @@ export function GestionCumpleanos() {
   const [birthdayPeopleOptions, setBirthdayPeopleOptions] = useState<BirthdayPersonOption[]>([]);
   const [currentTitular, setCurrentTitular] = useState<Socio | null>(null);
   const [minEventDate, setMinEventDate] = useState<string>('');
+  const [maxBirthDate, setMaxBirthDate] = useState<string>('');
 
   useEffect(() => {
-    setMinEventDate(format(new Date(), 'yyyy-MM-dd'));
+    const today = new Date();
+    setMinEventDate(format(today, 'yyyy-MM-dd'));
+    setMaxBirthDate(format(today, 'yyyy-MM-dd'));
   }, []);
 
   const { toast } = useToast();
@@ -105,7 +108,7 @@ export function GestionCumpleanos() {
       idCumpleanero: '',
       nombreCumpleanero: '',
       fechaEvento: new Date(),
-      listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
+      listaInvitados: [{ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false }],
       estado: EstadoSolicitudCumpleanos.APROBADA, 
       fechaSolicitud: new Date().toISOString(),
       titularIngresadoEvento: false,
@@ -170,7 +173,7 @@ export function GestionCumpleanos() {
       idCumpleanero: currentTitular?.dni || '',
       nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}`: '',
       fechaEvento: new Date(),
-      listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
+      listaInvitados: [{ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false }],
       estado: EstadoSolicitudCumpleanos.APROBADA,
       fechaSolicitud: new Date().toISOString(),
       titularIngresadoEvento: false,
@@ -184,7 +187,7 @@ export function GestionCumpleanos() {
       form.reset({
         ...solicitud,
         fechaEvento: new Date(solicitud.fechaEvento),
-        listaInvitados: solicitud.listaInvitados.length > 0 ? solicitud.listaInvitados : [{ nombre: '', apellido: '', dni: ''}]
+        listaInvitados: solicitud.listaInvitados.length > 0 ? solicitud.listaInvitados.map(inv => ({...inv, fechaNacimiento: inv.fechaNacimiento ? new Date(inv.fechaNacimiento) : undefined })) : [{ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false }]
       });
     } else {
       setEditingSolicitud(null);
@@ -195,7 +198,7 @@ export function GestionCumpleanos() {
         idCumpleanero: currentTitular?.dni || '',
         nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}` : '',
         fechaEvento: new Date(),
-        listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
+        listaInvitados: [{ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false }],
         estado: EstadoSolicitudCumpleanos.APROBADA,
         fechaSolicitud: new Date().toISOString(),
         titularIngresadoEvento: false,
@@ -295,7 +298,7 @@ export function GestionCumpleanos() {
                 idCumpleanero: currentTitular?.dni || '',
                 nombreCumpleanero: currentTitular ? `${currentTitular.nombre} ${currentTitular.apellido}`: '',
                 fechaEvento: new Date(),
-                listaInvitados: [{ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false }],
+                listaInvitados: [{ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false }],
                 estado: EstadoSolicitudCumpleanos.APROBADA,
                 fechaSolicitud: new Date().toISOString(),
                 titularIngresadoEvento: false,
@@ -387,7 +390,7 @@ export function GestionCumpleanos() {
                 
                 <div>
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length}/{MAX_INVITADOS_CUMPLEANOS})</h3>
-                  <p className="text-xs text-muted-foreground mb-3">DNI es obligatorio. Teléfono y email son opcionales.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                   <ScrollArea className="max-h-[300px] pr-3">
                   <div className="space-y-4">
                     {fields.map((item, index) => (
@@ -426,13 +429,34 @@ export function GestionCumpleanos() {
                               </FormItem>
                             )}
                           />
-                          <FormField
+                           <FormField
                             control={form.control}
                             name={`listaInvitados.${index}.dni`}
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="text-xs">DNI</FormLabel>
                                 <FormControl><Input type="number" placeholder="DNI (sin puntos)" {...field} className="h-9 text-sm"/></FormControl>
+                                <FormMessage className="text-xs"/>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`listaInvitados.${index}.fechaNacimiento`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="date"
+                                    value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
+                                    max={maxBirthDate}
+                                    min="1900-01-01"
+                                    className="h-9 text-sm"
+                                    disabled={!maxBirthDate}
+                                  />
+                                </FormControl>
                                 <FormMessage className="text-xs"/>
                               </FormItem>
                             )}
@@ -452,7 +476,7 @@ export function GestionCumpleanos() {
                             control={form.control}
                             name={`listaInvitados.${index}.email`}
                             render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
+                              <FormItem className="sm:col-span-1">
                                 <FormLabel className="text-xs">Email (Opcional)</FormLabel>
                                 <FormControl><Input type="email" placeholder="Email" {...field} className="h-9 text-sm"/></FormControl>
                                 <FormMessage className="text-xs"/>
@@ -482,7 +506,7 @@ export function GestionCumpleanos() {
                       variant="outline"
                       size="sm"
                       className="mt-3"
-                      onClick={() => append({ nombre: '', apellido: '', dni: '', telefono: '', email: '', ingresado: false })}
+                      onClick={() => append({ nombre: '', apellido: '', dni: '', fechaNacimiento: undefined, telefono: '', email: '', ingresado: false })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Agregar Invitado
                     </Button>

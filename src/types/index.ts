@@ -419,6 +419,7 @@ export const invitadoCumpleanosSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
+  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
   telefono: z.string().optional(),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   ingresado: z.boolean().default(false),
@@ -439,9 +440,10 @@ export interface SolicitudCumpleanos {
   titularIngresadoEvento: boolean;
 }
 
-export interface SolicitudCumpleanosRaw extends Omit<SolicitudCumpleanos, 'fechaEvento' | 'fechaSolicitud'> {
+export interface SolicitudCumpleanosRaw extends Omit<SolicitudCumpleanos, 'fechaEvento' | 'fechaSolicitud' | 'listaInvitados'> {
   fechaEvento: string; // ISO string
   fechaSolicitud: string; // ISO string
+  listaInvitados: z.infer<typeof invitadoCumpleanosSchema>[];
 }
 
 export const solicitudCumpleanosSchema = z.object({
@@ -611,5 +613,3 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
-
-    
