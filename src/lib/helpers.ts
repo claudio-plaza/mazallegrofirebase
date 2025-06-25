@@ -143,4 +143,3 @@ export const esFechaRestringidaParaCumpleanos = (fecha: Date): boolean => {
 
   return false;
 };
-

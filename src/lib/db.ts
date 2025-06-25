@@ -50,12 +50,6 @@ export const initializeDatabases = () => {
        console.log('Revisiones DB Initialized.');
     }
 
-    // Initialize Cumpleaños
-    if (!localStorage.getItem(FirestoreKeys.CUMPLEANOS)) {
-        localStorage.setItem(FirestoreKeys.CUMPLEANOS, JSON.stringify([]));
-        console.log('Cumpleaños DB Initialized.');
-    }
-
     // Initialize Invitados Diarios
     if (!localStorage.getItem(FirestoreKeys.INVITADOS_DIARIOS)) {
         localStorage.setItem(FirestoreKeys.INVITADOS_DIARIOS, JSON.stringify([]));

@@ -4,7 +4,6 @@
 import type {
   Socio, SocioRaw,
   RevisionMedica, RevisionMedicaRaw,
-  SolicitudCumpleanos, SolicitudCumpleanosRaw,
   InvitadoDiario, InvitadoDiarioRaw, SolicitudInvitadosDiarios, SolicitudInvitadosDiariosRaw,
   AptoMedicoInfo, AptoMedicoInfoRaw,
   Adherente, AdherenteRaw,
@@ -24,7 +23,6 @@ import { parseISO, isValid, formatISO } from 'date-fns';
 export const KEYS = {
   SOCIOS: 'firestore/socios',
   REVISIONES: 'firestore/revisionesMedicas',
-  CUMPLEANOS: 'firestore/solicitudesCumpleanos',
   INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
   PRECIOS_INVITADOS: 'firestore/preciosInvitados',
   NOVEDADES: 'firestore/novedades',
@@ -49,7 +47,6 @@ const saveDbAndNotify = <T>(key: string, data: T[] | T, isConfig: boolean = fals
 
   const eventMap: Record<string, string> = {
     [KEYS.SOCIOS]: 'sociosDBUpdated',
-    [KEYS.CUMPLEANOS]: 'cumpleanosDBUpdated',
     [KEYS.INVITADOS_DIARIOS]: 'firestore/solicitudesInvitadosDiariosUpdated',
     [KEYS.REVISIONES]: 'revisionesDBUpdated',
     [KEYS.PRECIOS_INVITADOS]: 'preciosInvitadosDBUpdated',
@@ -153,9 +150,6 @@ const parseCambiosPendientesFromRaw = (cambiosRaw?: CambiosPendientesGrupoFamili
     } : undefined,
   };
 };
-
-
-// --- DB Initialization (moved to lib/db.ts) ---
 
 
 // --- Socios Service ---
@@ -385,69 +379,16 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
   };
 };
 
-// --- Solicitudes Cumpleanos Service ---
-export const getAllSolicitudesCumpleanos = async (): Promise<SolicitudCumpleanos[]> => {
-    const solicitudesRaw = getDb<SolicitudCumpleanosRaw>(KEYS.CUMPLEANOS);
-    return solicitudesRaw.map(sRaw => ({
-      ...sRaw,
-      fechaEvento: parseRequiredDate(sRaw.fechaEvento),
-      fechaSolicitud: parseRequiredDate(sRaw.fechaSolicitud),
-    }));
-};
-
-export const getSolicitudesCumpleanosBySocio = async (idSocioTitular: string): Promise<SolicitudCumpleanos[]> => {
-    const todas = await getAllSolicitudesCumpleanos();
-    return todas.filter(s => s.idSocioTitular === idSocioTitular);
-};
-
-export const addSolicitudCumpleanos = async (solicitud: Omit<SolicitudCumpleanos, 'id' | 'fechaSolicitud' | 'estado' | 'titularIngresadoEvento'>): Promise<SolicitudCumpleanos> => {
-    const solicitudesRaw = getDb<SolicitudCumpleanosRaw>(KEYS.CUMPLEANOS);
-    const nuevaSolicitudRaw: SolicitudCumpleanosRaw = {
-        ...solicitud,
-        id: generateId(),
-        fechaSolicitud: formatISO(new Date()),
-        estado: solicitud.estado || EstadoSolicitudCumpleanos.APROBADA,
-        titularIngresadoEvento: false,
-        fechaEvento: formatRequiredDate(solicitud.fechaEvento),
-    };
-    saveDbAndNotify(KEYS.CUMPLEANOS, [...solicitudesRaw, nuevaSolicitudRaw]);
-    return {
-        ...nuevaSolicitudRaw,
-        fechaEvento: parseRequiredDate(nuevaSolicitudRaw.fechaEvento),
-        fechaSolicitud: parseRequiredDate(nuevaSolicitudRaw.fechaSolicitud),
-    };
-};
-
-export const updateSolicitudCumpleanos = async (updatedSolicitud: SolicitudCumpleanos): Promise<SolicitudCumpleanos | null> => {
-    let solicitudesRaw = getDb<SolicitudCumpleanosRaw>(KEYS.CUMPLEANOS);
-    const index = solicitudesRaw.findIndex(s => s.id === updatedSolicitud.id);
-    if (index > -1) {
-        const solicitudToSave: SolicitudCumpleanosRaw = {
-            ...updatedSolicitud,
-            fechaEvento: formatRequiredDate(updatedSolicitud.fechaEvento),
-            fechaSolicitud: formatRequiredDate(updatedSolicitud.fechaSolicitud), // Ensure this is also stringified
-        };
-        solicitudesRaw[index] = solicitudToSave;
-        saveDbAndNotify(KEYS.CUMPLEANOS, solicitudesRaw);
-        return {
-            ...solicitudToSave,
-            fechaEvento: parseRequiredDate(solicitudToSave.fechaEvento),
-            fechaSolicitud: parseRequiredDate(solicitudToSave.fechaSolicitud),
-        };
-    }
-    return null;
-};
-
 // --- Solicitudes Invitados Diarios Service ---
 const parseInvitadoDiarioFromRaw = (invitadoRaw: InvitadoDiarioRaw): InvitadoDiario => ({
     ...invitadoRaw,
-    fechaNacimiento: parseOptionalDate(invitadoRaw.fechaNacimiento),
+    fechaNacimiento: parseRequiredDate(invitadoRaw.fechaNacimiento),
     aptoMedico: parseAptoMedicoFromRaw(invitadoRaw.aptoMedico),
 });
 
 const formatInvitadoDiarioToRaw = (invitado: InvitadoDiario): InvitadoDiarioRaw => ({
     ...invitado,
-    fechaNacimiento: formatOptionalDate(invitado.fechaNacimiento),
+    fechaNacimiento: formatRequiredDate(invitado.fechaNacimiento),
     aptoMedico: formatAptoMedicoToRaw(invitado.aptoMedico),
 });
 

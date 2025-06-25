@@ -19,7 +19,6 @@ export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
 
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;
-export const MAX_INVITADOS_CUMPLEANOS = 15;
 
 export enum RelacionFamiliar {
   CONYUGE = "Conyuge",
@@ -39,14 +38,6 @@ export enum EstadoSolicitudSocio {
   EN_REVISION = "En Revisión",
   APROBADA = "Aprobada",
   RECHAZADA = "Rechazada",
-}
-
-export enum EstadoSolicitudCumpleanos {
-  PENDIENTE_APROBACION = "Pendiente Aprobación",
-  APROBADA = "Aprobada",
-  RECHAZADA = "Rechazada",
-  REALIZADO = "Realizado",
-  CANCELADA = "Cancelada",
 }
 
 export enum EstadoCambioGrupoFamiliar {
@@ -414,56 +405,6 @@ export interface QuickAccessFeature {
   imageHint?: string;
 }
 
-export const invitadoCumpleanosSchema = z.object({
-  id: z.string().optional(),
-  nombre: z.string().min(1, "Nombre es requerido."),
-  apellido: z.string().min(1, "Apellido es requerido."),
-  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
-  telefono: z.string().optional(),
-  email: z.string().email("Email inválido.").optional().or(z.literal('')),
-  ingresado: z.boolean().default(false),
-  metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
-});
-export type InvitadoCumpleanos = z.infer<typeof invitadoCumpleanosSchema>;
-
-export interface SolicitudCumpleanos {
-  id: string;
-  idSocioTitular: string;
-  nombreSocioTitular: string;
-  idCumpleanero: string;
-  nombreCumpleanero: string;
-  fechaEvento: Date | string; // Runtime: Date
-  listaInvitados: InvitadoCumpleanos[];
-  estado: EstadoSolicitudCumpleanos;
-  fechaSolicitud: string | Date; // Runtime: Date
-  titularIngresadoEvento: boolean;
-}
-
-export interface SolicitudCumpleanosRaw extends Omit<SolicitudCumpleanos, 'fechaEvento' | 'fechaSolicitud' | 'listaInvitados'> {
-  fechaEvento: string; // ISO string
-  fechaSolicitud: string; // ISO string
-  listaInvitados: z.infer<typeof invitadoCumpleanosSchema>[];
-}
-
-export const solicitudCumpleanosSchema = z.object({
-  id: z.string().default(() => `evt-${Date.now().toString(36)}`),
-  idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
-  nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
-  idCumpleanero: z.string({ required_error: "Debe seleccionar quién cumple años." }),
-  nombreCumpleanero: z.string({ required_error: "Nombre del cumpleañero es requerido." }),
-  fechaEvento: safeDate,
-  listaInvitados: z.array(invitadoCumpleanosSchema)
-    .min(1, "Debe agregar al menos un invitado.")
-    .max(MAX_INVITADOS_CUMPLEANOS, `No puede agregar más de ${MAX_INVITADOS_CUMPLEANOS} invitados.`),
-  estado: z.nativeEnum(EstadoSolicitudCumpleanos).default(EstadoSolicitudCumpleanos.APROBADA),
-  fechaSolicitud: z.string().default(() => new Date().toISOString()),
-  titularIngresadoEvento: z.boolean().default(false),
-});
-// Type for form data is derived from schema
-// export type SolicitudCumpleanosFormData = z.infer<typeof solicitudCumpleanosSchema>;
-
-
 export interface InvitadoDiario {
   id: string;
   nombre: string;
@@ -492,7 +433,6 @@ export const invitadoDiarioSchema = z.object({
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
   esDeCumpleanos: z.boolean().optional(), 
 });
-// export type InvitadoDiarioFormData = z.infer<typeof invitadoDiarioSchema>;
 
 
 export interface SolicitudInvitadosDiarios {
@@ -526,7 +466,6 @@ export const solicitudInvitadosDiariosSchema = z.object({
   fechaUltimaModificacion: z.string().default(() => formatISO(new Date())),
   titularIngresadoEvento: z.boolean().default(false),
 });
-// export type SolicitudInvitadosDiariosFormData = z.infer<typeof solicitudInvitadosDiariosSchema>;
 
 
 export const adherenteFormSchema = z.object({

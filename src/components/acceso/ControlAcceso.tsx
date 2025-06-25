@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudCumpleanos, InvitadoCumpleanos, SolicitudInvitadosDiarios, InvitadoDiario, Adherente, MetodoPagoInvitado } from '@/types';
+import type { Socio, MiembroFamiliar, AptoMedicoInfo, SolicitudInvitadosDiarios, InvitadoDiario, Adherente, MetodoPagoInvitado } from '@/types';
 import { EstadoSolicitudInvitados } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,8 +21,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { format, isToday, parseISO, formatISO, differenceInYears, isValid, getMonth, getDate as getDayOfMonth } from 'date-fns';
 import {
   getSocioByNumeroSocioOrDNI,
-  getAllSolicitudesCumpleanos,
-  updateSolicitudCumpleanos,
   getAllSolicitudesInvitadosDiarios,
   updateSolicitudInvitadosDiarios
 } from '@/lib/firebase/firestoreService';
@@ -52,14 +50,9 @@ export function ControlAcceso() {
   const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
   const [router, setRouter] = useState(useRouter());
 
-  const [solicitudCumpleanosHoySocioBuscado, setSolicitudCumpleanosHoySocioBuscado] = useState<SolicitudCumpleanos | null>(null);
-  const [invitadosCumpleanosSocioBuscado, setInvitadosCumpleanosSocioBuscado] = useState<InvitadoCumpleanos[]>([]);
-
   const [solicitudInvitadosDiariosHoySocioBuscado, setSolicitudInvitadosDiariosHoySocioBuscado] = useState<SolicitudInvitadosDiarios | null>(null);
   const [invitadosDiariosSocioBuscado, setInvitadosDiariosSocioBuscado] = useState<InvitadoDiario[]>([]);
-
-  const [eventoHabilitadoPorIngresoFamiliarCumple, setEventoHabilitadoPorIngresoFamiliarCumple] = useState(false);
-  const [eventoHabilitadoPorIngresoFamiliarDiario, setEventoHabilitadoPorIngresoFamiliarDiario] = useState(false);
+  const [eventoHabilitadoPorIngresoFamiliar, setEventoHabilitadoPorIngresoFamiliar] = useState(false);
 
   const [metodosPagoSeleccionados, setMetodosPagoSeleccionados] = useState<Record<string, MetodoPagoInvitado | null>>({});
   const [invitadosCumpleanosCheckboxState, setInvitadosCumpleanosCheckboxState] = useState<Record<string, boolean>>({});
@@ -130,8 +123,7 @@ export function ControlAcceso() {
 
   const handleToggleIngresoMiembroGrupo = useCallback(async () => {
     if (!socioEncontrado) {
-      setEventoHabilitadoPorIngresoFamiliarCumple(false);
-      setEventoHabilitadoPorIngresoFamiliarDiario(false);
+      setEventoHabilitadoPorIngresoFamiliar(false);
       return;
     }
 
@@ -142,16 +134,10 @@ export function ControlAcceso() {
           ) && ingresosSesion[p.dni]
     );
     
-    setEventoHabilitadoPorIngresoFamiliarCumple(anyMemberOfGroupHasSessionIncome);
-    setEventoHabilitadoPorIngresoFamiliarDiario(anyMemberOfGroupHasSessionIncome);
+    setEventoHabilitadoPorIngresoFamiliar(anyMemberOfGroupHasSessionIncome);
 
     if (anyMemberOfGroupHasSessionIncome) {
       try {
-        if (solicitudCumpleanosHoySocioBuscado && !solicitudCumpleanosHoySocioBuscado.titularIngresadoEvento) {
-          const updatedSolicitud = { ...solicitudCumpleanosHoySocioBuscado, titularIngresadoEvento: true };
-          await updateSolicitudCumpleanos(updatedSolicitud);
-          setSolicitudCumpleanosHoySocioBuscado(updatedSolicitud); 
-        }
         if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
           await updateSolicitudInvitadosDiarios(updatedSolicitud);
@@ -166,7 +152,6 @@ export function ControlAcceso() {
     socioEncontrado, 
     displayablePeople, 
     ingresosSesion, 
-    solicitudCumpleanosHoySocioBuscado, 
     solicitudInvitadosDiariosHoySocioBuscado, 
     toast
   ]);
@@ -184,12 +169,9 @@ export function ControlAcceso() {
     if (!termToSearch.trim()) {
       setMensajeBusqueda('Por favor, ingrese un N° Socio, DNI o Nombre para buscar.');
       setSocioEncontrado(null);
-      setSolicitudCumpleanosHoySocioBuscado(null);
-      setInvitadosCumpleanosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliarCumple(false);
       setSolicitudInvitadosDiariosHoySocioBuscado(null);
       setInvitadosDiariosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliarDiario(false);
+      setEventoHabilitadoPorIngresoFamiliar(false);
       setAccordionValue(undefined);
       setMetodosPagoSeleccionados({});
       setInvitadosCumpleanosCheckboxState({});
@@ -202,12 +184,9 @@ export function ControlAcceso() {
     setLoading(true);
     if(!isRefresh) {
       setSocioEncontrado(null);
-      setSolicitudCumpleanosHoySocioBuscado(null);
-      setInvitadosCumpleanosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliarCumple(false);
       setSolicitudInvitadosDiariosHoySocioBuscado(null);
       setInvitadosDiariosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliarDiario(false);
+      setEventoHabilitadoPorIngresoFamiliar(false);
       setAccordionValue(undefined);
       setMetodosPagoSeleccionados({});
       setInvitadosCumpleanosCheckboxState({});
@@ -239,23 +218,6 @@ export function ControlAcceso() {
         setCountCumpleanerosEnGrupo(cumpleanerosCount);
         setCupoTotalInvitadosCumple(cumpleanerosCount * 15);
 
-
-        const todasSolicitudesCumple = await getAllSolicitudesCumpleanos();
-        const solicitudHoyCumple = todasSolicitudesCumple.find(sol =>
-          sol.idSocioTitular === socio.numeroSocio &&
-          sol.fechaEvento && isToday(sol.fechaEvento as Date) &&
-          sol.estado === 'Aprobada'
-        );
-        if (solicitudHoyCumple) {
-          setSolicitudCumpleanosHoySocioBuscado(solicitudHoyCumple);
-          setInvitadosCumpleanosSocioBuscado(solicitudHoyCumple.listaInvitados.map(inv => ({...inv, id: inv.dni })));
-          setEventoHabilitadoPorIngresoFamiliarCumple(solicitudHoyCumple.titularIngresadoEvento || false);
-        } else {
-          setSolicitudCumpleanosHoySocioBuscado(null);
-          setInvitadosCumpleanosSocioBuscado([]);
-          setEventoHabilitadoPorIngresoFamiliarCumple(false);
-        }
-
         const todasSolicitudesDiarias = await getAllSolicitudesInvitadosDiarios();
         const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol =>
             sol.idSocioTitular === socio.numeroSocio &&
@@ -280,11 +242,11 @@ export function ControlAcceso() {
             });
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
             setInvitadosDiariosSocioBuscado(invitadosDiariosProcesados);
-            setEventoHabilitadoPorIngresoFamiliarDiario(solicitudHoyDiaria.titularIngresadoEvento || false);
+            setEventoHabilitadoPorIngresoFamiliar(solicitudHoyDiaria.titularIngresadoEvento || false);
         } else {
           setSolicitudInvitadosDiariosHoySocioBuscado(null);
           setInvitadosDiariosSocioBuscado([]);
-          setEventoHabilitadoPorIngresoFamiliarDiario(false);
+          setEventoHabilitadoPorIngresoFamiliar(false);
         }
         setInvitadosCumpleRegistradosHoy(currentInvitadosCumpleRegistrados);
         setInvitadosCumpleanosCheckboxState(initialCheckboxState);
@@ -309,12 +271,10 @@ export function ControlAcceso() {
         if (socioEncontrado) await handleSearch(true);
     };
 
-    window.addEventListener('cumpleanosDBUpdated', refreshData);
     window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
     window.addEventListener('sociosDBUpdated', refreshData);
 
     return () => {
-        window.removeEventListener('cumpleanosDBUpdated', refreshData);
         window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', refreshData);
         window.removeEventListener('sociosDBUpdated', refreshData);
     };
@@ -412,47 +372,32 @@ export function ControlAcceso() {
     }
   };
 
-  const handleRegistrarIngresoInvitado = async (invitadoDni: string, tipoInvitado: 'cumpleanos' | 'diario', festejoId?: string) => {
-    // 1. Encontrar el invitado en la lista correcta
-    let invitadoOriginal: InvitadoCumpleanos | InvitadoDiario | undefined;
-    let listaOriginal: 'cumpleanos' | 'diario' | null = null;
-    let targetFestejo: SolicitudCumpleanos | null = null;
-    let targetSolicitudDiaria: SolicitudInvitadosDiarios | null = null;
-
-    if (tipoInvitado === 'cumpleanos' && solicitudCumpleanosHoySocioBuscado) {
-        invitadoOriginal = solicitudCumpleanosHoySocioBuscado.listaInvitados.find(inv => inv.dni === invitadoDni);
-        listaOriginal = 'cumpleanos';
-        targetFestejo = solicitudCumpleanosHoySocioBuscado;
-    } else if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
-        invitadoOriginal = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
-        listaOriginal = 'diario';
-        targetSolicitudDiaria = solicitudInvitadosDiariosHoySocioBuscado;
+  const handleRegistrarIngresoInvitado = async (invitadoDni: string) => {
+    if (!solicitudInvitadosDiariosHoySocioBuscado) {
+      toast({ title: "Error", description: "No hay una lista de invitados diarios activa.", variant: "destructive" });
+      return;
     }
+    const invitadoOriginal = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
 
     if (!invitadoOriginal) {
         toast({ title: "Error", description: "No se encontró al invitado para registrar el ingreso.", variant: "destructive" });
         return;
     }
 
-    // 2. Verificar si el titular/familia ha ingresado
-    const eventoHabilitado = (listaOriginal === 'cumpleanos' && eventoHabilitadoPorIngresoFamiliarCumple) || (listaOriginal === 'diario' && eventoHabilitadoPorIngresoFamiliarDiario);
-    if (!eventoHabilitado) {
+    if (!eventoHabilitadoPorIngresoFamiliar) {
         toast({ title: 'Acceso Denegado', description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero.', variant: 'destructive' });
         return;
     }
     
-    // 3. Validar pago y cupos si se está registrando un nuevo ingreso
     const esDeCumpleanosSeleccionado = !!invitadosCumpleanosCheckboxState[invitadoDni];
     if (!invitadoOriginal.ingresado) {
-        // Validación del cupo de cumpleaños
-        if (listaOriginal === 'diario' && esDeCumpleanosSeleccionado && (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple)) {
+        if (esDeCumpleanosSeleccionado && (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple)) {
             toast({ title: "Cupo Excedido", description: "Se ha alcanzado el límite de invitados de cumpleaños para este grupo familiar hoy.", variant: "destructive" });
             return;
         }
 
-        // Validación de método de pago
         let esMenorDeTresSinCosto = false;
-        if (invitadoOriginal.fechaNacimiento) {
+        if (invitadoOriginal.fechaNacimiento && isValid(new Date(invitadoOriginal.fechaNacimiento))) {
             const edad = differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento));
             if (edad < 3) esMenorDeTresSinCosto = true;
         }
@@ -467,11 +412,10 @@ export function ControlAcceso() {
     }
 
 
-    // 4. Actualizar el estado del invitado
     const nuevoEstadoIngreso = !invitadoOriginal.ingresado;
 
     let esMenorDeTresParaPago = false;
-    if (invitadoOriginal.fechaNacimiento) {
+    if (invitadoOriginal.fechaNacimiento && isValid(new Date(invitadoOriginal.fechaNacimiento))) {
         const edad = differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento));
         if (edad < 3) esMenorDeTresParaPago = true;
     }
@@ -479,48 +423,32 @@ export function ControlAcceso() {
     const invitadoActualizado = {
         ...invitadoOriginal,
         ingresado: nuevoEstadoIngreso,
-        esDeCumpleanos: listaOriginal === 'diario' ? esDeCumpleanosSeleccionado : undefined,
+        esDeCumpleanos: esDeCumpleanosSeleccionado,
         metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || esMenorDeTresParaPago ? null : metodosPagoSeleccionados[invitadoDni]) : invitadoOriginal.metodoPago
     };
 
-    // 5. Actualizar la base de datos
     try {
-        if (listaOriginal === 'cumpleanos' && targetFestejo) {
-            const updatedFestejo = {
-                ...targetFestejo,
-                listaInvitados: targetFestejo.listaInvitados.map(inv => inv.dni === invitadoDni ? invitadoActualizado : inv) as InvitadoCumpleanos[],
-            };
-            await updateSolicitudCumpleanos(updatedFestejo);
-            setInvitadosCumpleanosSocioBuscado(updatedFestejo.listaInvitados);
-            setSolicitudCumpleanosHoySocioBuscado(updatedFestejo);
-        } else if (listaOriginal === 'diario' && targetSolicitudDiaria) {
-            const updatedSolicitud = {
-                ...targetSolicitudDiaria,
-                listaInvitadosDiarios: targetSolicitudDiaria.listaInvitadosDiarios.map(inv => inv.dni === invitadoDni ? invitadoActualizado : inv) as InvitadoDiario[],
-            };
-            await updateSolicitudInvitadosDiarios(updatedSolicitud);
-            setInvitadosDiariosSocioBuscado(updatedSolicitud.listaInvitadosDiarios);
-            setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
-        }
+        const updatedSolicitud = {
+            ...solicitudInvitadosDiariosHoySocioBuscado,
+            listaInvitadosDiarios: solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.map(inv => inv.dni === invitadoDni ? invitadoActualizado : inv) as InvitadoDiario[],
+        };
+        await updateSolicitudInvitadosDiarios(updatedSolicitud);
+        setInvitadosDiariosSocioBuscado(updatedSolicitud.listaInvitadosDiarios);
+        setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
 
-        // 6. Actualizar contador local de invitados de cumpleaños
-        if (listaOriginal === 'diario') {
-            const eraDeCumpleanos = invitadoOriginal.esDeCumpleanos;
-            const esDeCumpleanos = invitadoActualizado.esDeCumpleanos;
-            if (nuevoEstadoIngreso) { // Si está ingresando
-              if(esDeCumpleanos && !eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => prev + 1);
-            } else { // Si se anula el ingreso
-              if(eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => Math.max(0, prev - 1));
-            }
+        const eraDeCumpleanos = invitadoOriginal.esDeCumpleanos;
+        const esDeCumpleanos = invitadoActualizado.esDeCumpleanos;
+        if (nuevoEstadoIngreso) { // Si está ingresando
+          if(esDeCumpleanos && !eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => prev + 1);
+        } else { // Si se anula el ingreso
+          if(eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => Math.max(0, prev - 1));
         }
         
-        // 7. Mostrar notificación
         toast({
             title: `Ingreso Invitado ${nuevoEstadoIngreso ? 'Registrado' : 'Anulado'}`,
             description: `${invitadoActualizado.nombre} ${invitadoActualizado.apellido} ha sido ${nuevoEstadoIngreso ? 'marcado como ingresado' : 'desmarcado'}.`,
         });
 
-        // 8. Limpiar método de pago seleccionado
         setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
 
     } catch (error) {
@@ -756,66 +684,6 @@ export function ControlAcceso() {
                       </div>
                   </div>
 
-                  {solicitudCumpleanosHoySocioBuscado && (
-                    <div className="border-t border-border px-4 py-4 mt-6">
-                      <h4 className="text-lg font-semibold mb-3 flex items-center">
-                          <Cake className="mr-2 h-5 w-5 text-pink-500" />
-                          Invitados Lista Cumpleaños (Hoy: {solicitudCumpleanosHoySocioBuscado.fechaEvento ? formatDate(solicitudCumpleanosHoySocioBuscado.fechaEvento as Date) : 'Fecha Invalida'})
-                      </h4>
-                      {!eventoHabilitadoPorIngresoFamiliarCumple && (
-                          <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
-                              <ShieldAlert className="inline mr-1 h-4 w-4" /> Un miembro del grupo ({socioEncontrado.nombre} {socioEncontrado.apellido} o familiar) debe registrar su ingreso primero para habilitar el registro de invitados de esta lista.
-                          </p>
-                      )}
-                       {eventoHabilitadoPorIngresoFamiliarCumple && (
-                          <p className="text-sm text-green-600 bg-green-100 p-2 rounded-md mb-3">
-                              <UserCheck className="inline mr-1 h-4 w-4" /> Un miembro del grupo ya registró su ingreso para el evento de cumpleaños. Puede proceder con los invitados de la lista.
-                          </p>
-                      )}
-                      <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                        {invitadosCumpleanosSocioBuscado.map(invitado => (
-                          <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                   <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
-                                   {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, false, true)}
-                                </div>
-                                <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
-                              </div>
-                              {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarCumple && (
-                                <RadioGroup
-                                    onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
-                                    defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
-                                    className="flex flex-col sm:flex-row gap-1 sm:gap-3 py-1 sm:py-0 items-start sm:items-center"
-                                >
-                                    {(['Efectivo', 'Transferencia', 'Caja'] as MetodoPagoInvitado[]).map(metodo => (
-                                        <div key={metodo} className="flex items-center space-x-1.5">
-                                            <RadioGroupItem value={metodo} id={`cumple-${invitado.dni}-${metodo}`} className="h-3.5 w-3.5" />
-                                            <Label htmlFor={`cumple-${invitado.dni}-${metodo}`} className="text-xs font-normal cursor-pointer">{metodo}</Label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
-                              )}
-                              <div className="flex items-center space-x-2 self-end sm:self-center">
-                                 <Button
-                                   size="sm"
-                                   variant={invitado.ingresado ? "outline" : "default"}
-                                   onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'cumpleanos', solicitudCumpleanosHoySocioBuscado!.id)}
-                                   disabled={!eventoHabilitadoPorIngresoFamiliarCumple || (!invitado.ingresado && !metodosPagoSeleccionados[invitado.dni])}
-                                   className="min-w-[120px]"
-                                 >
-                                  {invitado.ingresado ? "Anular Ingreso" : "Registrar Ingreso"}
-                                 </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                        {invitadosCumpleanosSocioBuscado.length === 0 && <p className="text-sm text-muted-foreground">No hay invitados en la lista de cumpleaños de este socio para hoy.</p>}
-                      </div>
-                    </div>
-                  )}
-
                   {solicitudInvitadosDiariosHoySocioBuscado && (
                     <div className="border-t border-border px-4 py-4 mt-6">
                       <h4 className="text-lg font-semibold mb-3 flex items-center">
@@ -837,12 +705,12 @@ export function ControlAcceso() {
                             <Info className="inline mr-1 h-4 w-4" /> Este grupo familiar no tiene cumpleañeros hoy, por lo que no aplica el cupo especial de invitados de cumpleaños.
                         </p>
                       )}
-                      {!eventoHabilitadoPorIngresoFamiliarDiario && (
+                      {!eventoHabilitadoPorIngresoFamiliar && (
                           <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
                               <ShieldAlert className="inline mr-1 h-4 w-4" /> Un miembro del grupo ({socioEncontrado.nombre} {socioEncontrado.apellido} o familiar) debe registrar su ingreso primero para habilitar el registro de invitados diarios.
                           </p>
                       )}
-                       {eventoHabilitadoPorIngresoFamiliarDiario && (
+                       {eventoHabilitadoPorIngresoFamiliar && (
                           <p className="text-sm text-green-600 bg-green-100 p-2 rounded-md mb-3">
                               <UserCheck className="inline mr-1 h-4 w-4" /> Un miembro del grupo ya registró su ingreso. Puede proceder con los invitados diarios.
                           </p>
@@ -877,7 +745,7 @@ export function ControlAcceso() {
                                     </p>
                                  </div>
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                                    {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarDiario && !esMenorDeTres && (
+                                    {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliar && !esMenorDeTres && (
                                       <div className="flex items-center space-x-2 py-1 sm:border-2 sm:border-pink-500 sm:p-1">
                                         <Checkbox
                                           id={`cumple-diario-${invitado.dni}`}
@@ -890,7 +758,7 @@ export function ControlAcceso() {
                                         </Label>
                                       </div>
                                     )}
-                                    {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliarDiario && !esMenorDeTres && !invitadosCumpleanosCheckboxState[invitado.dni] && (
+                                    {!invitado.ingresado && eventoHabilitadoPorIngresoFamiliar && !esMenorDeTres && !invitadosCumpleanosCheckboxState[invitado.dni] && (
                                       <RadioGroup
                                           onValueChange={(value) => handleMetodoPagoChange(invitado.dni, value as MetodoPagoInvitado)}
                                           defaultValue={metodosPagoSeleccionados[invitado.dni] || undefined}
@@ -909,9 +777,9 @@ export function ControlAcceso() {
                                    <Button
                                      size="sm"
                                      variant={invitado.ingresado ? "outline" : "default"}
-                                     onClick={() => handleRegistrarIngresoInvitado(invitado.dni, 'diario')}
+                                     onClick={() => handleRegistrarIngresoInvitado(invitado.dni)}
                                      disabled={
-                                       !eventoHabilitadoPorIngresoFamiliarDiario ||
+                                       !eventoHabilitadoPorIngresoFamiliar ||
                                        (!invitado.ingresado && !esMenorDeTres && !(hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitado.dni]) && !metodosPagoSeleccionados[invitado.dni])
                                      }
                                      className="min-w-[120px]"
@@ -927,7 +795,6 @@ export function ControlAcceso() {
                       </div>
                     </div>
                   )}
-
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -938,5 +805,3 @@ export function ControlAcceso() {
     </div>
   );
 }
-
-    

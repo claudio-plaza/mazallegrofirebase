@@ -41,14 +41,6 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['socio'],
   },
   {
-    id: 'mis-cumpleanos',
-    title: 'Mis Cumpleaños',
-    description: 'Gestiona las listas de invitados para tus festejos.',
-    icon: Cake,
-    href: '/cumpleanos',
-    roles: [], // Rol 'socio' eliminado para desconectar la característica
-  },
-  {
     id: 'invitados-diarios',
     title: 'Cargar Invitados del Día',
     description: 'Registra tus invitados para el acceso diario.',
@@ -87,22 +79,6 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: ShieldCheck,
     href: '/control-acceso',
     roles: ['portero', 'administrador'],
-  },
-  // {
-  //   id: 'ai-suggestions',
-  //   title: 'Sugerencias IA',
-  //   description: 'Recomendaciones de IA para gestión de socios.',
-  //   icon: Sparkles,
-  //   href: '/admin/ai-suggestions',
-  //   roles: [], 
-  // },
-  {
-    id: 'gestion-eventos',
-    title: 'Gestión de Eventos (Cumpleaños)',
-    description: 'Administra y descarga listas de cumpleaños.',
-    icon: CalendarDays,
-    href: '/admin/gestion-eventos',
-    roles: ['administrador'],
   },
   {
     id: 'gestion-invitados-diarios-admin',
