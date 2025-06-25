@@ -224,25 +224,31 @@ export const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
-const fileValidation = (config: FileSchemaConfig) => z.custom<FileList | string>()
-  .refine((val) => {
-    if (typeof val === 'string') return true; // Pass if it's already a URL string
-    if (val instanceof FileListInstance && val.length > 0) {
+const fileValidation = (config: FileSchemaConfig) => 
+  z.any()
+    .refine((val) => {
+      if (!val || typeof val === 'string') return true;
+      if (val instanceof FileListInstance && val.length > 0) {
         return val[0].size <= MAX_FILE_SIZE_BYTES;
-    }
-    return true; // Pass if no file is selected (for optional fields)
-  }, { message: config.sizeError })
-  .refine((val) => {
-    if (typeof val === 'string') return true;
-    if (val instanceof FileListInstance && val.length > 0) {
+      }
+      return true;
+    }, { message: config.sizeError })
+    .refine((val) => {
+      if (!val || typeof val === 'string') return true;
+      if (val instanceof FileListInstance && val.length > 0) {
         return config.mimeTypes.includes(val[0].type);
-    }
-    return true;
-  }, { message: config.mimeTypeError });
+      }
+      return true;
+    }, { message: config.mimeTypeError });
 
 
 export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  fileValidation(config).refine(val => val !== null && val !== undefined && (typeof val === 'string' ? val.length > 0 : (val instanceof FileList ? val.length > 0 : false)), {
+  fileValidation(config).refine(val => {
+    if (val === null || val === undefined) return false;
+    if (typeof val === 'string' && val.length > 0) return true;
+    if (val instanceof FileList && val.length > 0) return true;
+    return false;
+  }, {
     message: requiredMessage,
   });
 
@@ -570,7 +576,7 @@ export const adminEditableFamiliarSchema = z.object({
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
   fechaNacimiento: safeDate,
   relacion: z.nativeEnum(RelacionFamiliar, { required_error: "Relación es requerida." }),
-  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
@@ -605,3 +611,5 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+
+    
