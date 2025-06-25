@@ -734,7 +734,7 @@ export function ControlAcceso() {
                                    <div className="flex items-center justify-between">
                                       <p className="font-medium text-sm flex items-center">
                                         {invitado.nombre} {invitado.apellido}
-                                        {esMenorDeTres && <Baby className="ml-2 h-4 w-4 text-purple-500" title="Menor de 3 años (Ingreso Gratuito)" />}
+                                        {esMenorDeTres && <Baby className="ml-2 h-4 w-4 text-purple-500" />}
                                         {esCumpleanosHoy(invitado.fechaNacimiento) && <Badge variant="secondary" className="ml-2 text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}
                                       </p>
                                       {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, esMenorDeTres, hoyEsFechaRestringida ? false : invitado.esDeCumpleanos)}

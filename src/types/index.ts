@@ -55,7 +55,7 @@ export enum EstadoAdherente {
 export enum EstadoSolicitudAdherente {
   PENDIENTE = "Pendiente",
   APROBADO = "Aprobado",
-  RECHAZADO = "Rechazado",
+  RECHAZADO = "Rechazada",
   PENDIENTE_ELIMINACION = "Pendiente Eliminación",
 }
 
@@ -421,6 +421,7 @@ export interface InvitadoDiarioRaw extends Omit<InvitadoDiario, 'fechaNacimiento
   fechaNacimiento: string; // ISO string
   aptoMedico?: AptoMedicoInfoRaw | null;
 }
+
 
 export const invitadoDiarioSchema = z.object({
   id: z.string().optional(),
