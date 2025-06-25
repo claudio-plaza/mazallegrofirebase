@@ -21,7 +21,7 @@ import { generateId, normalizeText } from '../helpers';
 import { parseISO, isValid, formatISO } from 'date-fns';
 
 
-const KEYS = {
+export const KEYS = {
   SOCIOS: 'firestore/socios',
   REVISIONES: 'firestore/revisionesMedicas',
   CUMPLEANOS: 'firestore/solicitudesCumpleanos',
@@ -152,56 +152,7 @@ const parseCambiosPendientesFromRaw = (cambiosRaw?: CambiosPendientesGrupoFamili
 };
 
 
-// --- DB Initialization ---
-export const initializeSociosDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.SOCIOS)) return;
-  const sociosToStore = mockSocios.map(socio => ({
-    ...socio,
-    fechaNacimiento: formatRequiredDate(socio.fechaNacimiento),
-    miembroDesde: formatRequiredDate(socio.miembroDesde),
-    ultimaRevisionMedica: formatOptionalDate(socio.ultimaRevisionMedica),
-    aptoMedico: formatAptoMedicoToRaw(socio.aptoMedico) as AptoMedicoInfoRaw,
-    grupoFamiliar: socio.grupoFamiliar?.map(formatMiembroFamiliarToRaw) || [],
-    adherentes: socio.adherentes?.map(formatAdherenteToRaw) || [],
-    cambiosPendientesGrupoFamiliar: formatCambiosPendientesToRaw(socio.cambiosPendientesGrupoFamiliar),
-  }));
-  saveDbAndNotify(KEYS.SOCIOS, sociosToStore);
-};
-
-// (Other initializations remain similar, focusing on Socio which is most complex)
-export const initializeRevisionesDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.REVISIONES)) return;
-  const revisionesToStore = mockRevisiones.map(r => ({
-      ...r,
-      fechaRevision: formatRequiredDate(r.fechaRevision),
-      fechaVencimientoApto: formatOptionalDate(r.fechaVencimientoApto),
-  }));
-  saveDbAndNotify(KEYS.REVISIONES, revisionesToStore);
-};
-
-export const initializeCumpleanosDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.CUMPLEANOS)) return;
-  saveDbAndNotify(KEYS.CUMPLEANOS, []);
-};
-
-export const initializeInvitadosDiariosDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.INVITADOS_DIARIOS)) return;
-  saveDbAndNotify(KEYS.INVITADOS_DIARIOS, []);
-};
-
-export const initializePreciosInvitadosDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.PRECIOS_INVITADOS)) return;
-  const defaultConfig: PreciosInvitadosConfig = {
-    precioInvitadoDiario: 0,
-    precioInvitadoCumpleanos: 0,
-  };
-  saveDbAndNotify(KEYS.PRECIOS_INVITADOS, defaultConfig, true);
-};
-
-export const initializeNovedadesDB = (): void => {
-  if (typeof window === 'undefined' || localStorage.getItem(KEYS.NOVEDADES)) return;
-  saveDbAndNotify(KEYS.NOVEDADES, []);
-};
+// --- DB Initialization (moved to lib/db.ts) ---
 
 
 // --- Socios Service ---
@@ -645,13 +596,3 @@ export const deleteNovedad = async (novedadId: string): Promise<boolean> => {
   }
   return false;
 };
-
-
-if (typeof window !== 'undefined') {
-    initializeSociosDB();
-    initializeRevisionesDB();
-    initializeCumpleanosDB();
-    initializeInvitadosDiariosDB();
-    initializePreciosInvitadosDB();
-    initializeNovedadesDB();
-}

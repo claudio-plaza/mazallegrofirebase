@@ -3,11 +3,9 @@
 
 import type { UserRole } from '@/types';
 import { mockSocios } from '../lib/mockData'; // To find socio details on login
-import { mockRevisiones } from '../lib/mockData'; // Needed for initializeMockDatabases
 
 // Import KEYS from firestoreService to ensure consistency if used, though firestoreService manages its own keys primarily.
 // For 'sociosDB' (KEYS.SOCIOS), firestoreService.ts is responsible for initialization.
-import { initializeSociosDB as initializeSociosInFirestoreService } from './firebase/firestoreService';
 
 
 interface UserDetails {
@@ -60,8 +58,7 @@ export const loginUser = (email: string, passwordInput: string): UserDetails | n
     } else {
       localStorage.removeItem('loggedInUserNumeroSocio');
     }
-    initializeSociosInFirestoreService();
-    initializeMockDatabases();
+    // Database initialization is now handled by the Providers component.
     window.dispatchEvent(new Event('authChange'));
     return user;
   }
@@ -86,23 +83,4 @@ export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | nul
   const userName = localStorage.getItem('userName');
   const loggedInUserNumeroSocio = localStorage.getItem('loggedInUserNumeroSocio');
   return { isLoggedIn, userRole, userName, loggedInUserNumeroSocio };
-};
-
-export const initializeMockDatabases = () => {
-  if (typeof window !== 'undefined') {
-    const storedRevisiones = localStorage.getItem('revisionesDB');
-    if (!storedRevisiones) {
-       localStorage.setItem('revisionesDB', JSON.stringify(mockRevisiones));
-    }
-
-    const storedCumpleanos = localStorage.getItem('cumpleanosDB');
-    if (!storedCumpleanos) {
-        localStorage.setItem('cumpleanosDB', JSON.stringify([]));
-    }
-
-    const storedInvitadosDiarios = localStorage.getItem('invitadosDiariosDB');
-    if (!storedInvitadosDiarios) {
-        localStorage.setItem('invitadosDiariosDB', JSON.stringify([]));
-    }
-  }
 };
