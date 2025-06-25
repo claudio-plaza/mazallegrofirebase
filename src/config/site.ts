@@ -88,14 +88,14 @@ export const allFeatures: QuickAccessFeature[] = [
     href: '/control-acceso',
     roles: ['portero', 'administrador'],
   },
-  {
-    id: 'ai-suggestions',
-    title: 'Sugerencias IA',
-    description: 'Recomendaciones de IA para gestión de socios.',
-    icon: Sparkles,
-    href: '/admin/ai-suggestions',
-    roles: [], 
-  },
+  // {
+  //   id: 'ai-suggestions',
+  //   title: 'Sugerencias IA',
+  //   description: 'Recomendaciones de IA para gestión de socios.',
+  //   icon: Sparkles,
+  //   href: '/admin/ai-suggestions',
+  //   roles: [], 
+  // },
   {
     id: 'gestion-eventos',
     title: 'Gestión de Eventos (Cumpleaños)',
@@ -129,5 +129,3 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['administrador'],
   }
 ];
-
-    
