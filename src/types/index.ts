@@ -410,7 +410,7 @@ export interface InvitadoDiario {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento: Date | string; // Runtime: Date
+  fechaNacimiento: Date;
   ingresado: boolean;
   metodoPago: MetodoPagoInvitado | null;
   aptoMedico?: AptoMedicoInfo | null;
@@ -443,8 +443,8 @@ export interface SolicitudInvitadosDiarios {
   fecha: string; // ISO Date string YYYY-MM-DD
   listaInvitadosDiarios: InvitadoDiario[];
   estado: EstadoSolicitudInvitados;
-  fechaCreacion: string | Date; // Runtime: Date
-  fechaUltimaModificacion: string | Date; // Runtime: Date
+  fechaCreacion: Date;
+  fechaUltimaModificacion: Date;
   titularIngresadoEvento: boolean;
 }
 
@@ -463,8 +463,8 @@ export const solicitudInvitadosDiariosSchema = z.object({
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
     .min(1, "Debe agregar al menos un invitado."),
   estado: z.nativeEnum(EstadoSolicitudInvitados).default(EstadoSolicitudInvitados.BORRADOR),
-  fechaCreacion: z.string().default(() => formatISO(new Date())),
-  fechaUltimaModificacion: z.string().default(() => formatISO(new Date())),
+  fechaCreacion: z.date().default(() => new Date()),
+  fechaUltimaModificacion: z.date().default(() => new Date()),
   titularIngresadoEvento: z.boolean().default(false),
 });
 

@@ -30,7 +30,7 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   nombre: '',
   apellido: '',
   dni: '',
-  fechaNacimiento: undefined,
+  fechaNacimiento: new Date(),
   ingresado: false,
   metodoPago: null,
 });
@@ -68,8 +68,8 @@ export function GestionInvitadosDiarios() {
       fecha: selectedDateISO,
       listaInvitadosDiarios: [createDefaultInvitado()],
       estado: EstadoSolicitudInvitados.BORRADOR,
-      fechaCreacion: formatISO(new Date()),
-      fechaUltimaModificacion: formatISO(new Date()),
+      fechaCreacion: new Date(),
+      fechaUltimaModificacion: new Date(),
       titularIngresadoEvento: false,
     },
   });
@@ -88,8 +88,8 @@ export function GestionInvitadosDiarios() {
             fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
             estado: EstadoSolicitudInvitados.BORRADOR,
-            fechaCreacion: formatISO(new Date()),
-            fechaUltimaModificacion: formatISO(new Date()),
+            fechaCreacion: new Date(),
+            fechaUltimaModificacion: new Date(),
             titularIngresadoEvento: false,
         });
         setSolicitudActual(null);
@@ -114,9 +114,7 @@ export function GestionInvitadosDiarios() {
                 ? userSolicitud.listaInvitadosDiarios.map(inv => ({
                     ...inv,
                     id: inv.id || generateId(),
-                    fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' 
-                                      ? parseISO(inv.fechaNacimiento) 
-                                      : inv.fechaNacimiento instanceof Date ? inv.fechaNacimiento : undefined,
+                    fechaNacimiento: inv.fechaNacimiento,
                   }))
                 : [createDefaultInvitado()],
             });
@@ -128,8 +126,8 @@ export function GestionInvitadosDiarios() {
                 fecha: selectedDateISO,
                 listaInvitadosDiarios: [createDefaultInvitado()],
                 estado: EstadoSolicitudInvitados.BORRADOR,
-                fechaCreacion: formatISO(new Date()),
-                fechaUltimaModificacion: formatISO(new Date()),
+                fechaCreacion: new Date(),
+                fechaUltimaModificacion: new Date(),
                 titularIngresadoEvento: false,
             });
         }
@@ -143,8 +141,8 @@ export function GestionInvitadosDiarios() {
             fecha: selectedDateISO,
             listaInvitadosDiarios: [createDefaultInvitado()],
             estado: EstadoSolicitudInvitados.BORRADOR,
-            fechaCreacion: formatISO(new Date()),
-            fechaUltimaModificacion: formatISO(new Date()),
+            fechaCreacion: new Date(),
+            fechaUltimaModificacion: new Date(),
             titularIngresadoEvento: false,
         });
     } finally {
@@ -183,7 +181,7 @@ export function GestionInvitadosDiarios() {
         return;
     }
 
-    const fechaActual = formatISO(new Date());
+    const fechaActual = new Date();
 
     const dataToSave: SolicitudInvitadosDiarios = {
         ...data,
@@ -197,9 +195,6 @@ export function GestionInvitadosDiarios() {
         listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
           ...inv,
           id: inv.id || generateId(),
-          fechaNacimiento: inv.fechaNacimiento instanceof Date 
-                            ? formatISO(inv.fechaNacimiento, { representation: 'date' }) 
-                            : (typeof inv.fechaNacimiento === 'string' && isValid(parseISO(inv.fechaNacimiento)) ? inv.fechaNacimiento : undefined)
         }))
     };
 
@@ -229,13 +224,7 @@ export function GestionInvitadosDiarios() {
     const dataToSave: SolicitudInvitadosDiarios = {
       ...solicitudActual,
       estado: EstadoSolicitudInvitados.ENVIADA,
-      fechaUltimaModificacion: formatISO(new Date()),
-      listaInvitadosDiarios: solicitudActual.listaInvitadosDiarios.map(inv => ({
-          ...inv,
-          fechaNacimiento: inv.fechaNacimiento instanceof Date 
-                            ? formatISO(inv.fechaNacimiento, { representation: 'date' }) 
-                            : (typeof inv.fechaNacimiento === 'string' && isValid(parseISO(inv.fechaNacimiento)) ? inv.fechaNacimiento : undefined)
-        }))
+      fechaUltimaModificacion: new Date(),
     };
      try {
         await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
@@ -534,4 +523,3 @@ export function GestionInvitadosDiarios() {
     </FormProvider>
   );
 }
-
