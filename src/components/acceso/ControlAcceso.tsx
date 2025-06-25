@@ -50,7 +50,7 @@ export function ControlAcceso() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
-  const router = useRouter();
+  const [router, setRouter] = useState(useRouter());
 
   const [solicitudCumpleanosHoySocioBuscado, setSolicitudCumpleanosHoySocioBuscado] = useState<SolicitudCumpleanos | null>(null);
   const [invitadosCumpleanosSocioBuscado, setInvitadosCumpleanosSocioBuscado] = useState<InvitadoCumpleanos[]>([]);
@@ -413,139 +413,115 @@ export function ControlAcceso() {
   };
 
   const handleRegistrarIngresoInvitado = async (invitadoDni: string, tipoInvitado: 'cumpleanos' | 'diario', festejoId?: string) => {
-    let targetFestejo: SolicitudCumpleanos | null = null; 
-    let targetInvitados: (InvitadoCumpleanos | InvitadoDiario)[] = [];
-    let targetEventoHabilitado: boolean = false;
-    let isFestejoDelSocioBuscado = false;
-    let metodoPagoSeleccionado: MetodoPagoInvitado | null = null;
-    let esMenorDeTresSinCosto = false;
-    const esDeCumpleanosSeleccionado = hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitadoDni];
-
+    // 1. Encontrar el invitado en la lista correcta
     let invitadoOriginal: InvitadoCumpleanos | InvitadoDiario | undefined;
-    if (tipoInvitado === 'diario') {
-      invitadoOriginal = solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
-    } else if (tipoInvitado === 'cumpleanos') {
-      invitadoOriginal = invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni);
+    let listaOriginal: 'cumpleanos' | 'diario' | null = null;
+    let targetFestejo: SolicitudCumpleanos | null = null;
+    let targetSolicitudDiaria: SolicitudInvitadosDiarios | null = null;
+
+    if (tipoInvitado === 'cumpleanos' && solicitudCumpleanosHoySocioBuscado) {
+        invitadoOriginal = solicitudCumpleanosHoySocioBuscado.listaInvitados.find(inv => inv.dni === invitadoDni);
+        listaOriginal = 'cumpleanos';
+        targetFestejo = solicitudCumpleanosHoySocioBuscado;
+    } else if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
+        invitadoOriginal = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
+        listaOriginal = 'diario';
+        targetSolicitudDiaria = solicitudInvitadosDiariosHoySocioBuscado;
     }
 
-    if (!invitadoOriginal?.ingresado) {
-        if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
-            const invitadoInfo = solicitudInvitadosDiariosHoySocioBuscado.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
-            if (invitadoInfo?.fechaNacimiento) {
-                const edad = differenceInYears(new Date(), new Date(invitadoInfo.fechaNacimiento));
-                if (edad < 3) {
-                    esMenorDeTresSinCosto = true;
-                }
-            }
-            if (!esDeCumpleanosSeleccionado && !esMenorDeTresSinCosto) {
-              metodoPagoSeleccionado = metodosPagoSeleccionados[invitadoDni] || null;
-              if (!metodoPagoSeleccionado) {
-                toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado diario.", variant: "destructive" });
-                return;
-              }
-            }
-        } else if (tipoInvitado === 'cumpleanos') {
-            metodoPagoSeleccionado = metodosPagoSeleccionados[invitadoDni] || null;
-            if (!metodoPagoSeleccionado) {
-                 toast({ title: "Error", description: "Por favor, seleccione un método de pago para el invitado de cumpleaños.", variant: "destructive" });
-                 return;
-            }
-        }
+    if (!invitadoOriginal) {
+        toast({ title: "Error", description: "No se encontró al invitado para registrar el ingreso.", variant: "destructive" });
+        return;
     }
 
-
-    if (tipoInvitado === 'cumpleanos') {
-        if (solicitudCumpleanosHoySocioBuscado && solicitudCumpleanosHoySocioBuscado.id === festejoId) {
-            targetFestejo = solicitudCumpleanosHoySocioBuscado;
-            targetInvitados = invitadosCumpleanosSocioBuscado;
-            targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarCumple;
-            isFestejoDelSocioBuscado = true;
-        } 
-        if (!targetFestejo) { 
-            toast({ title: "Error", description: "Festejo de cumpleaños no encontrado.", variant: "destructive" });
-            return;
-        }
-        if (!targetEventoHabilitado) {
-          toast({ title: 'Acceso Denegado (Invitado Cumpleaños)', description: 'Un miembro del grupo familiar del socio titular del evento debe registrar su ingreso primero.', variant: 'destructive' });
-          return;
-        }
-    } else { 
-        if (!solicitudInvitadosDiariosHoySocioBuscado) return;
-        targetInvitados = invitadosDiariosSocioBuscado;
-        targetEventoHabilitado = eventoHabilitadoPorIngresoFamiliarDiario;
-        if (!targetEventoHabilitado) {
-          toast({ title: 'Acceso Denegado (Invitado Diario)', description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero.', variant: 'destructive' });
-          return;
-        }
-        if (!invitadoOriginal?.ingresado && esDeCumpleanosSeleccionado && !invitadosDiariosSocioBuscado.find(inv => inv.dni === invitadoDni)?.esDeCumpleanos && invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple) {
+    // 2. Verificar si el titular/familia ha ingresado
+    const eventoHabilitado = (listaOriginal === 'cumpleanos' && eventoHabilitadoPorIngresoFamiliarCumple) || (listaOriginal === 'diario' && eventoHabilitadoPorIngresoFamiliarDiario);
+    if (!eventoHabilitado) {
+        toast({ title: 'Acceso Denegado', description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero.', variant: 'destructive' });
+        return;
+    }
+    
+    // 3. Validar pago y cupos si se está registrando un nuevo ingreso
+    const esDeCumpleanosSeleccionado = !!invitadosCumpleanosCheckboxState[invitadoDni];
+    if (!invitadoOriginal.ingresado) {
+        // Validación del cupo de cumpleaños
+        if (listaOriginal === 'diario' && esDeCumpleanosSeleccionado && (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple)) {
             toast({ title: "Cupo Excedido", description: "Se ha alcanzado el límite de invitados de cumpleaños para este grupo familiar hoy.", variant: "destructive" });
             return;
         }
+
+        // Validación de método de pago
+        let esMenorDeTresSinCosto = false;
+        if (invitadoOriginal.fechaNacimiento) {
+            const edad = differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento));
+            if (edad < 3) esMenorDeTresSinCosto = true;
+        }
+
+        const requierePago = !esDeCumpleanosSeleccionado && !esMenorDeTresSinCosto;
+        const metodoPagoSeleccionado = metodosPagoSeleccionados[invitadoDni] || null;
+
+        if (requierePago && !metodoPagoSeleccionado) {
+            toast({ title: "Error", description: `Por favor, seleccione un método de pago para ${invitadoOriginal.nombre}.`, variant: "destructive" });
+            return;
+        }
     }
 
-    if (!targetFestejo && tipoInvitado === 'cumpleanos') return;
-    if (!solicitudInvitadosDiariosHoySocioBuscado && tipoInvitado === 'diario') return;
 
+    // 4. Actualizar el estado del invitado
+    const nuevoEstadoIngreso = !invitadoOriginal.ingresado;
+    const invitadoActualizado = {
+        ...invitadoOriginal,
+        ingresado: nuevoEstadoIngreso,
+        esDeCumpleanos: listaOriginal === 'diario' ? esDeCumpleanosSeleccionado : undefined,
+        metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || (differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento!)) < 3) ? null : metodosPagoSeleccionados[invitadoDni]) : invitadoOriginal.metodoPago
+    };
 
-    const updatedInvitados = targetInvitados.map(inv => {
-      if (inv.dni === invitadoDni) {
-        const yaIngresado = inv.ingresado;
-        const nuevoEstadoIngreso = !yaIngresado;
-        let nuevoConteoInvitadosCumple = invitadosCumpleRegistradosHoy;
-
-        if (tipoInvitado === 'diario') {
-          const eraDeCumpleanos = inv.esDeCumpleanos;
-          if (nuevoEstadoIngreso) {
-            if (esDeCumpleanosSeleccionado && !eraDeCumpleanos) nuevoConteoInvitadosCumple++;
-          } else {
-            if (eraDeCumpleanos) nuevoConteoInvitadosCumple--;
-          }
-          setInvitadosCumpleRegistradosHoy(Math.max(0, nuevoConteoInvitadosCumple));
-        }
-
-        return {
-          ...inv,
-          ingresado: nuevoEstadoIngreso,
-          esDeCumpleanos: tipoInvitado === 'diario' ? esDeCumpleanosSeleccionado : undefined,
-          metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || esMenorDeTresSinCosto ? null : metodoPagoSeleccionado) : inv.metodoPago
-        };
-      }
-      return inv;
-    });
-
-    const invitado = updatedInvitados.find(inv => inv.dni === invitadoDni);
-    const esDeCumpleReal = tipoInvitado === 'diario' ? invitado?.esDeCumpleanos : true;
-
-    toast({
-        title: `Ingreso Invitado ${invitado?.ingresado ? 'Registrado' : 'Anulado'}`,
-        description: `${invitado?.nombre} ${invitado?.apellido} (DNI: ${invitado?.dni}) ha sido ${invitado?.ingresado ? `marcado como ingresado ${esDeCumpleReal ? '(Cumpleaños)' : (esMenorDeTresSinCosto ? '(Gratuito)' : `(Pago: ${invitado.metodoPago || 'No especificado'})`)}` : 'desmarcado'}.`,
-    });
-
-    if (tipoInvitado === 'cumpleanos' && targetFestejo) {
-        const updatedFestejo = { ...targetFestejo, listaInvitados: updatedInvitados as InvitadoCumpleanos[] };
-        try {
-            await updateSolicitudCumpleanos(updatedFestejo as SolicitudCumpleanos);
-            if (isFestejoDelSocioBuscado) {
-                setInvitadosCumpleanosSocioBuscado(updatedInvitados as InvitadoCumpleanos[]);
-                setSolicitudCumpleanosHoySocioBuscado(updatedFestejo as SolicitudCumpleanos);
-            } 
-        } catch (error) {
-            console.error("Error actualizando ingreso de invitado de cumpleaños:", error);
-            toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
-        }
-    } else if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
-        const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, listaInvitadosDiarios: updatedInvitados as InvitadoDiario[] };
-        try {
+    // 5. Actualizar la base de datos
+    try {
+        if (listaOriginal === 'cumpleanos' && targetFestejo) {
+            const updatedFestejo = {
+                ...targetFestejo,
+                listaInvitados: targetFestejo.listaInvitados.map(inv => inv.dni === invitadoDni ? invitadoActualizado : inv) as InvitadoCumpleanos[],
+            };
+            await updateSolicitudCumpleanos(updatedFestejo);
+            setInvitadosCumpleanosSocioBuscado(updatedFestejo.listaInvitados);
+            setSolicitudCumpleanosHoySocioBuscado(updatedFestejo);
+        } else if (listaOriginal === 'diario' && targetSolicitudDiaria) {
+            const updatedSolicitud = {
+                ...targetSolicitudDiaria,
+                listaInvitadosDiarios: targetSolicitudDiaria.listaInvitadosDiarios.map(inv => inv.dni === invitadoDni ? invitadoActualizado : inv) as InvitadoDiario[],
+            };
             await updateSolicitudInvitadosDiarios(updatedSolicitud);
-            setInvitadosDiariosSocioBuscado(updatedInvitados as InvitadoDiario[]);
+            setInvitadosDiariosSocioBuscado(updatedSolicitud.listaInvitadosDiarios);
             setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
-        } catch (error) {
-            console.error("Error actualizando ingreso de invitado diario:", error);
-            toast({ title: "Error", description: "No se pudo registrar el ingreso del invitado.", variant: "destructive" });
         }
+
+        // 6. Actualizar contador local de invitados de cumpleaños
+        if (listaOriginal === 'diario') {
+            const eraDeCumpleanos = invitadoOriginal.esDeCumpleanos;
+            const esDeCumpleanos = invitadoActualizado.esDeCumpleanos;
+            if (nuevoEstadoIngreso) { // Si está ingresando
+              if(esDeCumpleanos && !eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => prev + 1);
+            } else { // Si se anula el ingreso
+              if(eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => Math.max(0, prev - 1));
+            }
+        }
+        
+        // 7. Mostrar notificación
+        toast({
+            title: `Ingreso Invitado ${nuevoEstadoIngreso ? 'Registrado' : 'Anulado'}`,
+            description: `${invitadoActualizado.nombre} ${invitadoActualizado.apellido} ha sido ${nuevoEstadoIngreso ? 'marcado como ingresado' : 'desmarcado'}.`,
+        });
+
+        // 8. Limpiar método de pago seleccionado
+        setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
+
+    } catch (error) {
+        console.error("Error actualizando ingreso de invitado:", error);
+        toast({ title: "Error de Base de Datos", description: "No se pudo registrar el cambio en la base de datos.", variant: "destructive" });
     }
-    setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
   };
+
 
   const getMetodoPagoBadge = (metodo: MetodoPagoInvitado | null | undefined, esGratuito?: boolean, esDeCumple?: boolean) => {
     if (esDeCumple) {
@@ -796,7 +772,7 @@ export function ControlAcceso() {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                    <p className="font-medium text-sm">{invitado.nombre} {invitado.apellido}</p>
-                                   {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago)}
+                                   {invitado.ingresado && getMetodoPagoBadge(invitado.metodoPago, false, true)}
                                 </div>
                                 <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
                               </div>
@@ -955,3 +931,5 @@ export function ControlAcceso() {
     </div>
   );
 }
+
+    
