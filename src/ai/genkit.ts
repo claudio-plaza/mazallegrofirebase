@@ -1,9 +1,13 @@
+'use server';
 
-import {configureGenkit} from 'genkit';
+import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
-export default configureGenkit({
-  plugins: [googleAI()],
-  logLevel: 'debug',
+export const ai = genkit({
+  plugins: [
+    googleAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+    }),
+  ],
   enableTracingAndMetrics: true,
 });
