@@ -224,14 +224,29 @@ export const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
-// Simplified file validation for debugging build errors
-export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) => 
-  z.any().refine(val => val !== null && val !== undefined && (typeof val === 'string' ? val.length > 0 : (val instanceof FileList ? val.length > 0 : false)), {
+const fileValidation = (config: FileSchemaConfig) => z.custom<FileList | string>()
+  .refine((val) => {
+    if (typeof val === 'string') return true; // Pass if it's already a URL string
+    if (val instanceof FileListInstance && val.length > 0) {
+        return val[0].size <= MAX_FILE_SIZE_BYTES;
+    }
+    return true; // Pass if no file is selected (for optional fields)
+  }, { message: config.sizeError })
+  .refine((val) => {
+    if (typeof val === 'string') return true;
+    if (val instanceof FileListInstance && val.length > 0) {
+        return config.mimeTypes.includes(val[0].type);
+    }
+    return true;
+  }, { message: config.mimeTypeError });
+
+
+export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
+  fileValidation(config).refine(val => val !== null && val !== undefined && (typeof val === 'string' ? val.length > 0 : (val instanceof FileList ? val.length > 0 : false)), {
     message: requiredMessage,
   });
 
-export const optionalFileField = (config: FileSchemaConfig) => 
-  z.any().nullable().optional();
+export const optionalFileField = (config: FileSchemaConfig) => fileValidation(config).nullable().optional();
 
 
 export const signupTitularSchema = z.object({
@@ -380,6 +395,7 @@ export type AgregarFamiliaresData = z.infer<typeof agregarFamiliaresSchema>;
 
 export const altaSocioSchema = titularSchema.merge(z.object({ familiares: familiaresDetallesSchema }));
 export type AltaSocioData = z.infer<typeof altaSocioSchema>;
+
 
 export interface QuickAccessFeature {
   id: string;
@@ -589,5 +605,3 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
-
-    
