@@ -407,7 +407,7 @@ export function GestionInvitadosDiarios() {
                               size="icon"
                               className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
                               onClick={() => remove(index)}
-                              disabled={fields.length <= 1 && index === 0 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
+                              disabled={fields.length <= 1 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -452,7 +452,7 @@ export function GestionInvitadosDiarios() {
                               name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
+                                  <FormLabel className="text-xs">Fecha de Nacimiento (Obligatoria)</FormLabel>
                                   <FormControl>
                                     <Input
                                       type="date"

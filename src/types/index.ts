@@ -467,7 +467,7 @@ export interface InvitadoDiario {
   nombre: string;
   apellido: string;
   dni: string;
-  fechaNacimiento?: Date | string; // Runtime: Date
+  fechaNacimiento: Date | string; // Runtime: Date
   ingresado: boolean;
   metodoPago: MetodoPagoInvitado | null;
   aptoMedico?: AptoMedicoInfo | null;
@@ -475,7 +475,7 @@ export interface InvitadoDiario {
 }
 
 export interface InvitadoDiarioRaw extends Omit<InvitadoDiario, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento?: string; // ISO string
+  fechaNacimiento: string; // ISO string
   aptoMedico?: AptoMedicoInfoRaw | null;
 }
 
@@ -484,7 +484,7 @@ export const invitadoDiarioSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: safeDate.optional(),
+  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
   ingresado: z.boolean().default(false),
   metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),

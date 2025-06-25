@@ -469,11 +469,18 @@ export function ControlAcceso() {
 
     // 4. Actualizar el estado del invitado
     const nuevoEstadoIngreso = !invitadoOriginal.ingresado;
+
+    let esMenorDeTresParaPago = false;
+    if (invitadoOriginal.fechaNacimiento) {
+        const edad = differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento));
+        if (edad < 3) esMenorDeTresParaPago = true;
+    }
+
     const invitadoActualizado = {
         ...invitadoOriginal,
         ingresado: nuevoEstadoIngreso,
         esDeCumpleanos: listaOriginal === 'diario' ? esDeCumpleanosSeleccionado : undefined,
-        metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || (differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento!)) < 3) ? null : metodosPagoSeleccionados[invitadoDni]) : invitadoOriginal.metodoPago
+        metodoPago: nuevoEstadoIngreso ? (esDeCumpleanosSeleccionado || esMenorDeTresParaPago ? null : metodosPagoSeleccionados[invitadoDni]) : invitadoOriginal.metodoPago
     };
 
     // 5. Actualizar la base de datos
