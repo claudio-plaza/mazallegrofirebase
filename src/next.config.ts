@@ -4,12 +4,10 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    // Temporarily ignore build errors to diagnose a silent compilation failure.
-    ignoreBuildErrors: true,
+    // ignoreBuildErrors: true, // Removed to enforce type checking during build
   },
   eslint: {
-    // Temporarily ignore ESLint errors during build for the same reason.
-    ignoreDuringBuilds: true,
+    // ignoreDuringBuilds: true, // Removed to enforce linting during build
   },
   images: {
     remotePatterns: [
