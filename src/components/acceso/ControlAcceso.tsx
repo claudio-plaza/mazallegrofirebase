@@ -421,8 +421,12 @@ export function ControlAcceso() {
     let esMenorDeTresSinCosto = false;
     const esDeCumpleanosSeleccionado = hoyEsFechaRestringida ? false : !!invitadosCumpleanosCheckboxState[invitadoDni];
 
-    const invitadoOriginal = (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni)) ||
-                             (tipoInvitado === 'cumpleanos' && (invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni) ));
+    let invitadoOriginal: InvitadoCumpleanos | InvitadoDiario | undefined;
+    if (tipoInvitado === 'diario') {
+      invitadoOriginal = solicitudInvitadosDiariosHoySocioBuscado?.listaInvitadosDiarios.find(inv => inv.dni === invitadoDni);
+    } else if (tipoInvitado === 'cumpleanos') {
+      invitadoOriginal = invitadosCumpleanosSocioBuscado.find(inv => inv.dni === invitadoDni);
+    }
 
     if (!invitadoOriginal?.ingresado) {
         if (tipoInvitado === 'diario' && solicitudInvitadosDiariosHoySocioBuscado) {
@@ -951,4 +955,3 @@ export function ControlAcceso() {
     </div>
   );
 }
-
