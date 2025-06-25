@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserCircle, ShieldCheck, ShieldAlert, CheckCircle, XCircle, User, Users, LogIn, LogOut, Ticket, ChevronDown, Cake, ListFilter, UserCheck, CalendarDays, Info, Users2, LinkIcon, FileText, CreditCard, Banknote, Archive, Baby, Gift, AlertTriangle as AlertTriangleIcon } from 'lucide-react';
+import { Search, ShieldCheck, ShieldAlert, CheckCircle, XCircle, LogIn, LogOut, Ticket, UserCheck, CalendarDays, Info, Users2, FileText, CreditCard, Banknote, Archive, Baby, Gift, AlertTriangle as AlertTriangleIcon } from 'lucide-react';
 import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText, esFechaRestringidaParaCumpleanos } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
