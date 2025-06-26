@@ -41,13 +41,7 @@ export function AdminInvitadosDiariosDashboard() {
         setLoading(true);
         try {
             const allSolicitudes = await fetchAllSolicitudesInvitadosDiarios();
-            setTodasLasSolicitudes(allSolicitudes.map(s => ({
-                ...s,
-                listaInvitadosDiarios: s.listaInvitadosDiarios.map(inv => ({
-                    ...inv,
-                    fechaNacimiento: inv.fechaNacimiento && isValid(parseISO(inv.fechaNacimiento as string)) ? parseISO(inv.fechaNacimiento as string) : undefined
-                }))
-            })));
+            setTodasLasSolicitudes(allSolicitudes);
         } catch (error) {
             toast({ title: "Error", description: "No se pudieron cargar las listas de invitados.", variant: "destructive"});
             console.error("Error fetching daily guest lists:", error);
@@ -386,4 +380,3 @@ export function AdminInvitadosDiariosDashboard() {
     </div>
   );
 }
-
