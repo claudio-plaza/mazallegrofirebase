@@ -1,10 +1,8 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Socio, MiembroFamiliar } from '@/types';
-import { EstadoCambioGrupoFamiliar } from '@/types';
+import type { Socio } from '@/types';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,31 +17,22 @@ import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { EstadoCambioGrupoFamiliar } from '@/types';
 
 
 export function VistaPerfilSocio() {
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
-  const [socio, setSocio] = useState<Socio | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  const { data: socio, isLoading: isSocioLoading } = useQuery({
+    queryKey: ['socio', loggedInUserNumeroSocio],
+    queryFn: () => getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio!),
+    enabled: !!loggedInUserNumeroSocio && !authLoading,
+  });
 
-  const fetchSocioData = useCallback(async () => {
-    if (authLoading || !loggedInUserNumeroSocio) {
-      if (!authLoading) setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const socioData = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
-    setSocio(socioData);
-    setLoading(false);
-  }, [loggedInUserNumeroSocio, authLoading]);
+  const loading = authLoading || isSocioLoading;
 
-  useEffect(() => {
-    fetchSocioData();
-    window.addEventListener('sociosDBUpdated', fetchSocioData);
-    return () => window.removeEventListener('sociosDBUpdated', fetchSocioData);
-  }, [fetchSocioData]);
-
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <Card className="w-full max-w-3xl mx-auto">
