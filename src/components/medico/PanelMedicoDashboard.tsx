@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { Socio, RevisionMedica, SolicitudInvitadosDiarios, InvitadoDiario, TipoPersona, AptoMedicoInfo as AptoMedicoInfoType } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
 import { getAllSolicitudesInvitadosDiarios, getSocios as fetchSociosFromService, getRevisionesMedicas as fetchRevisionesFromService } from '@/lib/firebase/firestoreService';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 
 interface Stats {
@@ -44,140 +45,121 @@ export interface SearchedPersonForPanel {
 
 export function PanelMedicoDashboard() {
   const { userRole } = useAuth();
-  const [socios, setSocios] = useState<Socio[]>([]);
-  const [revisiones, setRevisiones] = useState<RevisionMedica[]>([]);
-  const [invitadosDiariosHoy, setInvitadosDiariosHoy] = useState<(InvitadoDiario & { idSocioAnfitrion?: string })[]>([]);
-  const [mapaSociosAnfitriones, setMapaSociosAnfitriones] = useState<Record<string, {nombre: string, numeroSocio: string}>>({});
-  const [invitadosIngresadosSinAptoHoy, setInvitadosIngresadosSinAptoHoy] = useState<SearchedPersonForPanel[]>([]);
-  const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPerson | null>(null);
-
-
-  const [stats, setStats] = useState<Stats>({
-    revisionesHoy: 0,
-    aptosPendientesVencidos: 0,
-    vencimientosProximos: 0,
-    revisionesEsteMes: 0,
-  });
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
+  const [selectedInvitadoParaRevision, setSelectedInvitadoParaRevision] = useState<SearchedPerson | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedPersonDisplay, setSearchedPersonDisplay] = useState<SearchedPersonForPanel | null>(null);
   const [searchMessage, setSearchMessage] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // --- Data Fetching with React Query ---
+  const { data: socios = [], isLoading: isLoadingSocios } = useQuery<Socio[]>({
+    queryKey: ['socios'],
+    queryFn: fetchSociosFromService,
+  });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sociosData = await fetchSociosFromService();
-      setSocios(sociosData);
+  const { data: revisiones = [], isLoading: isLoadingRevisiones } = useQuery<RevisionMedica[]>({
+    queryKey: ['revisiones'],
+    queryFn: fetchRevisionesFromService,
+  });
+  
+  const { data: todasSolicitudesInvitados = [], isLoading: isLoadingInvitados } = useQuery<SolicitudInvitadosDiarios[]>({
+    queryKey: ['todasSolicitudesInvitados'],
+    queryFn: getAllSolicitudesInvitadosDiarios,
+  });
 
-      const anfitrionesMap: Record<string, {nombre: string, numeroSocio: string}> = {};
-      sociosData.forEach(s => {
-          anfitrionesMap[s.numeroSocio] = { nombre: `${s.nombre} ${s.apellido}`, numeroSocio: s.numeroSocio};
-      });
-      setMapaSociosAnfitriones(anfitrionesMap);
+  const loading = isLoadingSocios || isLoadingRevisiones || isLoadingInvitados;
 
-      const revisionesData = await fetchRevisionesFromService();
-      revisionesData.sort((a, b) => parseISO(b.fechaRevision as string).getTime() - parseISO(a.fechaRevision as string).getTime());
-      setRevisiones(revisionesData);
-      
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const todayISO = formatISO(today, { representation: 'date' });
+  // --- Derived State with useMemo ---
+  const mapaSociosAnfitriones = useMemo(() => {
+    const anfitrionesMap: Record<string, {nombre: string, numeroSocio: string}> = {};
+    socios.forEach(s => {
+        anfitrionesMap[s.numeroSocio] = { nombre: `${s.nombre} ${s.apellido}`, numeroSocio: s.numeroSocio};
+    });
+    return anfitrionesMap;
+  }, [socios]);
 
-      const todasSolicitudesInvitados = await getAllSolicitudesInvitadosDiarios();
-      const invitadosDeHoyRaw = todasSolicitudesInvitados
-          .filter(sol => sol.fecha === todayISO)
-          .flatMap(sol => sol.listaInvitadosDiarios.map(inv => ({...inv, idSocioAnfitrion: sol.idSocioTitular})));
-      setInvitadosDiariosHoy(invitadosDeHoyRaw);
-      
-      const invitadosQueIngresaronHoyConInfoCompleta = invitadosDeHoyRaw
-        .filter(inv => inv.ingresado) 
-        .map(inv => {
-            const anfitrion = anfitrionesMap[inv.idSocioAnfitrion!];
-            const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
-            if (aptoStatus.status !== 'Válido') {
-              return {
-                  id: inv.id!, 
-                  nombreCompleto: `${inv.nombre} ${inv.apellido}`,
-                  dni: inv.dni,
-                  fechaNacimiento: inv.fechaNacimiento,
-                  aptoMedico: inv.aptoMedico,
-                  tipo: 'Invitado Diario' as TipoPersona,
-                  socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
-                  socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
-              };
-            }
-            return null;
-        }).filter(Boolean) as SearchedPersonForPanel[];
-      setInvitadosIngresadosSinAptoHoy(invitadosQueIngresaronHoyConInfoCompleta);
-      
-      const revHoy = revisionesData.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
-      
-      let aptosPendVenc = 0;
-      let vencProximos = 0;
+  const invitadosDiariosHoy = useMemo(() => {
+    const todayISO = formatISO(new Date(), { representation: 'date' });
+    return todasSolicitudesInvitados
+        .filter(sol => sol.fecha === todayISO)
+        .flatMap(sol => sol.listaInvitadosDiarios.map(inv => ({...inv, idSocioAnfitrion: sol.idSocioTitular})));
+  }, [todasSolicitudesInvitados]);
 
-      const allPeopleForStats = [
-          ...sociosData.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
-          ...sociosData.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
-          ...sociosData.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
-          ...invitadosDeHoyRaw.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
-      ];
-
-      allPeopleForStats.forEach(p => {
-        const status = getAptoMedicoStatus(p.aptoMedico, p.fechaNacimiento as string | Date);
-        if (status.status === 'Vencido' || status.status === 'Inválido' || status.status === 'Pendiente') {
-          aptosPendVenc++;
-        }
-        if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
-          let fechaVenc: Date;
-          if (p.aptoMedico.fechaVencimiento instanceof Date && isValid(p.aptoMedico.fechaVencimiento)) {
-            fechaVenc = p.aptoMedico.fechaVencimiento;
-          } else if (typeof p.aptoMedico.fechaVencimiento === 'string' && isValid(parseISO(p.aptoMedico.fechaVencimiento as string))) {
-            fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
-          } else {
-            return; 
+  const invitadosIngresadosSinAptoHoy = useMemo(() => {
+    return invitadosDiariosHoy
+      .filter(inv => inv.ingresado) 
+      .map(inv => {
+          const anfitrion = mapaSociosAnfitriones[inv.idSocioAnfitrion!];
+          const aptoStatus = getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento);
+          if (aptoStatus.status !== 'Válido') {
+            return {
+                id: inv.id!, 
+                nombreCompleto: `${inv.nombre} ${inv.apellido}`,
+                dni: inv.dni,
+                fechaNacimiento: inv.fechaNacimiento,
+                aptoMedico: inv.aptoMedico,
+                tipo: 'Invitado Diario' as TipoPersona,
+                socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
+                socioAnfitrionNumero: anfitrion?.numeroSocio || inv.idSocioAnfitrion,
+            };
           }
-          if (!isValid(fechaVenc)) return;
+          return null;
+      }).filter(Boolean) as SearchedPersonForPanel[];
+  }, [invitadosDiariosHoy, mapaSociosAnfitriones]);
 
-          const diff = differenceInDays(fechaVenc, today);
-          if (diff >= 0 && diff <= 7) {
-            vencProximos++;
-          }
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const revHoy = revisiones.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
+    
+    let aptosPendVenc = 0;
+    let vencProximos = 0;
+
+    const allPeopleForStats = [
+        ...socios.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
+        ...socios.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
+        ...socios.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
+        ...invitadosDiariosHoy.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
+    ];
+
+    allPeopleForStats.forEach(p => {
+      const status = getAptoMedicoStatus(p.aptoMedico, p.fechaNacimiento as string | Date);
+      if (status.status === 'Vencido' || status.status === 'Inválido' || status.status === 'Pendiente') {
+        aptosPendVenc++;
+      }
+      if (p.aptoMedico?.valido && p.aptoMedico.fechaVencimiento) {
+        let fechaVenc: Date;
+        if (p.aptoMedico.fechaVencimiento instanceof Date && isValid(p.aptoMedico.fechaVencimiento)) {
+          fechaVenc = p.aptoMedico.fechaVencimiento;
+        } else if (typeof p.aptoMedico.fechaVencimiento === 'string' && isValid(parseISO(p.aptoMedico.fechaVencimiento as string))) {
+          fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
+        } else {
+          return; 
         }
-      });
+        if (!isValid(fechaVenc)) return;
 
-      const revMes = revisionesData.filter(r => isSameMonth(parseISO(r.fechaRevision as string), today)).length;
+        const diff = differenceInDays(fechaVenc, today);
+        if (diff >= 0 && diff <= 7) {
+          vencProximos++;
+        }
+      }
+    });
 
-      setStats({
-        revisionesHoy: revHoy,
-        aptosPendientesVencidos: aptosPendVenc,
-        vencimientosProximos: vencProximos,
-        revisionesEsteMes: revMes,
-      });
-    } catch (error) {
-        console.error("Error loading data for medical panel:", error);
-        toast({ title: "Error", description: "No se pudieron cargar los datos del panel médico.", variant: "destructive" });
-    } finally {
-        setLoading(false);
-    }
-  }, [toast]);
+    const revMes = revisiones.filter(r => isSameMonth(parseISO(r.fechaRevision as string), today)).length;
 
-  useEffect(() => {
-    loadData();
-    const handleDbUpdates = () => loadData();
-    window.addEventListener('sociosDBUpdated', handleDbUpdates);
-    window.addEventListener('revisionesDBUpdated', handleDbUpdates);
-    window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdates); 
-    return () => {
-      window.removeEventListener('sociosDBUpdated', handleDbUpdates);
-      window.removeEventListener('revisionesDBUpdated', handleDbUpdates);
-      window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdates);
+    return {
+      revisionesHoy: revHoy,
+      aptosPendientesVencidos: aptosPendVenc,
+      vencimientosProximos: vencProximos,
+      revisionesEsteMes: revMes,
     };
-  }, [loadData]);
+  }, [revisiones, socios, invitadosDiariosHoy]);
+
 
   const handleSearchPersona = useCallback(async () => {
     if (!searchTerm.trim()) {
@@ -264,11 +246,6 @@ export function PanelMedicoDashboard() {
     setSearchLoading(false);
   }, [searchTerm, socios, invitadosDiariosHoy, mapaSociosAnfitriones]);
 
-  useEffect(() => {
-    if (searchedPersonDisplay) {
-    }
-  }, [socios, invitadosDiariosHoy, mapaSociosAnfitriones, searchedPersonDisplay, handleSearchPersona]);
-
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -287,11 +264,11 @@ export function PanelMedicoDashboard() {
     const personaParaDialog: SearchedPerson = {
       id: invitado.dni || invitado.id, 
       nombreCompleto: invitado.nombreCompleto,
-      fechaNacimiento: invitado.fechaNacimiento || new Date(0).toISOString(),
+      fechaNacimiento: invitado.fechaNacimiento as Date,
       tipo: invitado.tipo,
       socioTitularId: invitado.socioAnfitrionNumero,
       aptoMedicoActual: invitado.aptoMedico,
-      fechaVisitaInvitado: invitado.tipo === 'Invitado Diario' ? formatISO(new Date(), { representation: 'date'}) : undefined,
+      fechaVisitaInvitado: invitado.tipo === 'Invitado Diario' ? new Date() : undefined,
     };
     setSelectedInvitadoParaRevision(personaParaDialog);
     setIsDialogOpen(true);
@@ -328,7 +305,11 @@ export function PanelMedicoDashboard() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold flex items-center"><Stethoscope className="mr-3 h-8 w-8 text-primary"/>Panel Médico</h1>
         <NuevaRevisionDialog
-            onRevisionGuardada={loadData}
+            onRevisionGuardada={() => {
+              queryClient.invalidateQueries({ queryKey: ['socios'] });
+              queryClient.invalidateQueries({ queryKey: ['revisiones'] });
+              queryClient.invalidateQueries({ queryKey: ['todasSolicitudesInvitados'] });
+            }}
             open={isDialogOpen}
             onOpenChange={(openState) => {
                 setIsDialogOpen(openState);
@@ -557,4 +538,3 @@ export function PanelMedicoDashboard() {
     </div>
   );
 }
-
