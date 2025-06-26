@@ -21,6 +21,7 @@ import { parseISO, isValid, formatISO } from 'date-fns';
 
 
 export const KEYS = {
+  USERS: 'firestore/users',
   SOCIOS: 'firestore/socios',
   REVISIONES: 'firestore/revisionesMedicas',
   INVITADOS_DIARIOS: 'firestore/solicitudesInvitadosDiarios',
@@ -540,3 +541,5 @@ export const deleteNovedad = async (novedadId: string): Promise<boolean> => {
   }
   return false;
 };
+
+    

@@ -35,6 +35,8 @@ import { signupTitularSchema, type SignupTitularData } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect } from 'react';
+import { signupUser } from '@/lib/auth';
+import { addSocio } from '@/lib/firebase/firestoreService';
 
 const renderFilePreview = (
   fileList: FileList | null | undefined | string,
@@ -174,13 +176,47 @@ export function SignupForm() {
     },
   });
 
-  function onSubmit(data: SignupTitularData) {
-    console.log('Signup data submitted:', data);
-    toast({
-      title: 'Cuenta Creada Exitosamente',
-      description: 'Tu cuenta de titular ha sido creada. Ahora puedes iniciar sesión.',
-    });
-    router.push('/login');
+  async function onSubmit(data: SignupTitularData) {
+    try {
+      // 1. Create the authentication user
+      const authUser = await signupUser(data);
+      if (!authUser) {
+        // signupUser already shows a toast on error
+        return;
+      }
+      
+      // 2. Create the socio profile data, passing the auth user details
+      await addSocio({
+        nombre: data.nombre,
+        apellido: data.apellido,
+        fechaNacimiento: data.fechaNacimiento,
+        dni: data.dni,
+        empresa: data.empresa,
+        telefono: data.telefono,
+        direccion: data.direccion,
+        email: data.email,
+        // The service will handle generating ID, numeroSocio, etc.
+        fotoUrl: null, // This will be handled by the service/backend
+        fotoPerfil: data.fotoPerfil,
+        fotoDniFrente: data.fotoDniFrente,
+        fotoDniDorso: data.fotoDniDorso,
+        fotoCarnet: data.fotoCarnet,
+        grupoFamiliar: [],
+      }, true); // `isTitularSignup = true` sets estado to 'Pendiente Validacion'
+
+      toast({
+        title: 'Cuenta Creada Exitosamente',
+        description: 'Tu cuenta de titular ha sido creada y está pendiente de validación. Ya puedes iniciar sesión.',
+      });
+      router.push('/login');
+    } catch (error) {
+      console.error('Error in signup process:', error);
+      toast({
+        title: 'Error en el Registro',
+        description: error instanceof Error ? error.message : 'Ocurrió un error inesperado al crear la cuenta.',
+        variant: 'destructive',
+      });
+    }
   }
 
 
@@ -489,3 +525,5 @@ export function SignupForm() {
     </Card>
   );
 }
+
+    
