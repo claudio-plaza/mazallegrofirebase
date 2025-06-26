@@ -143,6 +143,17 @@ Modificaciones del Reglamento y Horarios: El presente reglamento podrá ser modi
 Fuerza Mayor: Allegro no será responsable por el incumplimiento o retraso en la prestación de sus servicios debido a causas de fuerza mayor o caso fortuito, incluyendo pero no limitándose a desastres naturales, eventos climáticos extremos, actos de autoridad gubernamental, cortes de energía prolongados o cualquier otra circunstancia imprevisible e incontrolable que impida el normal funcionamiento de las instalaciones. En tales casos, la administración informará a los socios sobre las medidas adoptadas.
 `;
 
+const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
+  if (typeof window !== 'undefined' && fieldValue instanceof FileList && fieldValue.length > 0) {
+      const timestamp = Date.now();
+      const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
+      return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
+  }
+  if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
+      return fieldValue;
+  }
+  return null;
+};
 
 export function SignupForm() {
   const { toast } = useToast();
@@ -195,12 +206,11 @@ export function SignupForm() {
         telefono: data.telefono,
         direccion: data.direccion,
         email: data.email,
-        // The service will handle generating ID, numeroSocio, etc.
-        fotoUrl: null, // This will be handled by the service/backend
-        fotoPerfil: data.fotoPerfil,
-        fotoDniFrente: data.fotoDniFrente,
-        fotoDniDorso: data.fotoDniDorso,
-        fotoCarnet: data.fotoCarnet,
+        fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil),
+        fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil),
+        fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente),
+        fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso),
+        fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet),
         grupoFamiliar: [],
       }, true); // `isTitularSignup = true` sets estado to 'Pendiente Validacion'
 
@@ -525,5 +535,3 @@ export function SignupForm() {
     </Card>
   );
 }
-
-    
