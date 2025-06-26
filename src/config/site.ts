@@ -1,6 +1,6 @@
 
 import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, Cake, CalendarDays, Download, UserPlus, ListFilter, Handshake, DollarSign, Megaphone } from 'lucide-react'; 
+import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, Sparkles, UserPlus, ListFilter, Handshake, DollarSign, Megaphone } from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',

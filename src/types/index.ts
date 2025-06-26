@@ -10,7 +10,6 @@ const safeDate = z.preprocess((arg) => {
   if (arg instanceof Date && isValid(arg)) {
     return arg;
   }
-  // Return the original argument to let Zod's base type catch the invalid type error.
   return arg;
 }, z.date({ invalid_type_error: "Fecha inválida." }));
 
@@ -84,7 +83,6 @@ export interface AptoMedicoInfo {
   observaciones?: string;
 }
 
-// Raw type for localStorage storage where dates are strings
 export interface AptoMedicoInfoRaw extends Omit<AptoMedicoInfo, 'fechaEmision' | 'fechaVencimiento'> {
   fechaEmision?: string;
   fechaVencimiento?: string;
@@ -123,7 +121,7 @@ export interface MiembroFamiliar {
 }
 
 export interface MiembroFamiliarRaw extends Omit<MiembroFamiliar, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento: string; // Stored as ISO string
+  fechaNacimiento: string; 
   aptoMedico?: AptoMedicoInfoRaw;
 }
 
@@ -148,7 +146,7 @@ export interface Adherente {
 }
 
 export interface AdherenteRaw extends Omit<Adherente, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento: string; // Stored as ISO string
+  fechaNacimiento: string;
   aptoMedico: AptoMedicoInfoRaw;
 }
 
@@ -309,11 +307,10 @@ export interface Socio extends TitularData {
   motivoRechazoCambioGrupoFamiliar?: string;
 }
 
-// Raw type for Socio as stored in localStorage
 export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'grupoFamiliar' | 'adherentes' | 'cambiosPendientesGrupoFamiliar'> {
-  fechaNacimiento: string; // ISO string
-  miembroDesde: string; // ISO string
-  ultimaRevisionMedica?: string; // ISO string
+  fechaNacimiento: string;
+  miembroDesde: string;
+  ultimaRevisionMedica?: string;
   aptoMedico: AptoMedicoInfoRaw;
   grupoFamiliar: MiembroFamiliarRaw[];
   adherentes?: AdherenteRaw[];
@@ -326,10 +323,10 @@ export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado
 export interface RevisionMedica {
   id: string;
   fechaRevision: Date;
-  socioId: string; // DNI or NumeroSocio depending on TipoPersona
+  socioId: string;
   socioNombre: string;
   tipoPersona: TipoPersona;
-  idSocioAnfitrion?: string; // NumeroSocio of titular if familiar, adherente, invitado
+  idSocioAnfitrion?: string;
   resultado: 'Apto' | 'No Apto';
   fechaVencimientoApto?: Date;
   observaciones?: string;
@@ -418,7 +415,7 @@ export interface InvitadoDiario {
 }
 
 export interface InvitadoDiarioRaw extends Omit<InvitadoDiario, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento: string; // ISO string
+  fechaNacimiento: string;
   aptoMedico?: AptoMedicoInfoRaw | null;
 }
 
@@ -450,8 +447,8 @@ export interface SolicitudInvitadosDiarios {
 
 export interface SolicitudInvitadosDiariosRaw extends Omit<SolicitudInvitadosDiarios, 'listaInvitadosDiarios' | 'fechaCreacion' | 'fechaUltimaModificacion'> {
   listaInvitadosDiarios: InvitadoDiarioRaw[];
-  fechaCreacion: string; // ISO string
-  fechaUltimaModificacion: string; // ISO string
+  fechaCreacion: string;
+  fechaUltimaModificacion: string;
 }
 
 

@@ -18,7 +18,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { format, isToday, parseISO, formatISO, differenceInYears, isValid, getMonth, getDate as getDayOfMonth } from 'date-fns';
+import { format, isToday, parseISO, formatISO, differenceInYears, isValid } from 'date-fns';
 import {
   getSocioByNumeroSocioOrDNI,
   getAllSolicitudesInvitadosDiarios,
@@ -234,11 +234,7 @@ export function ControlAcceso() {
                     currentInvitadosCumpleRegistrados++;
                 }
                 initialCheckboxState[inv.dni] = hoyEsFechaRestringida ? false : !!inv.esDeCumpleanos;
-                return {
-                    ...inv,
-                    id: inv.dni,
-                    fechaNacimiento: inv.fechaNacimiento && typeof inv.fechaNacimiento === 'string' ? parseISO(inv.fechaNacimiento) : inv.fechaNacimiento,
-                };
+                return { ...inv };
             });
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
             setInvitadosDiariosSocioBuscado(invitadosDiariosProcesados);
@@ -718,8 +714,8 @@ export function ControlAcceso() {
                       <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                         {invitadosDiariosSocioBuscado.map(invitado => {
                           let esMenorDeTres = false;
-                          if (invitado.fechaNacimiento && isValid(new Date(invitado.fechaNacimiento))) {
-                            const edad = differenceInYears(new Date(), new Date(invitado.fechaNacimiento));
+                          if (isValid(invitado.fechaNacimiento)) {
+                            const edad = differenceInYears(new Date(), invitado.fechaNacimiento);
                             if (edad < 3) {
                               esMenorDeTres = true;
                             }

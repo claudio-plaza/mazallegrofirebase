@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate, generateId, esCumpleanosHoy } from '@/lib/helpers';
+import { formatDate, generateId } from '@/lib/helpers';
 import { PlusCircle, Trash2, Users, Info, CalendarDays, Send, Edit, ListChecks, Clock } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid, addDays, isBefore, isSameDay } from 'date-fns';
@@ -266,11 +266,10 @@ export function GestionInvitadosDiarios() {
     if (!solicitudActual || !isEditable) return false;
     
     const isTodayOrFutureWithinLimit = !isBefore(selectedDate, today) && isBefore(selectedDate, addDays(today,6));
-    // const isOneDayBeforeEvent = isSameDay(addDays(today, 1), selectedDate);
     
     return solicitudActual.estado === EstadoSolicitudInvitados.BORRADOR && 
            isTodayOrFutureWithinLimit &&
-           (isSameDay(selectedDate, today) || isBefore(today,selectedDate)); // Ajustado para permitir enviar si es hoy o futuro dentro del límite
+           (isSameDay(selectedDate, today) || isBefore(today,selectedDate));
   }, [solicitudActual, selectedDate, today, isEditable]);
 
 
@@ -441,7 +440,7 @@ export function GestionInvitadosDiarios() {
                               name={`listaInvitadosDiarios.${index}.fechaNacimiento`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="text-xs">Fecha de Nacimiento (Obligatoria)</FormLabel>
+                                  <FormLabel className="text-xs">Fecha de Nacimiento</FormLabel>
                                   <FormControl>
                                     <Input
                                       type="date"
