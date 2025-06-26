@@ -48,7 +48,7 @@ export function ControlAcceso() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
-  const [router, setRouter] = useState(useRouter());
+  const router = useRouter();
 
   const [solicitudInvitadosDiariosHoySocioBuscado, setSolicitudInvitadosDiariosHoySocioBuscado] = useState<SolicitudInvitadosDiarios | null>(null);
   const [invitadosDiariosSocioBuscado, setInvitadosDiariosSocioBuscado] = useState<InvitadoDiario[]>([]);

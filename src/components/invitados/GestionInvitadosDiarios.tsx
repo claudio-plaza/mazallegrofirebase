@@ -395,7 +395,7 @@ export function GestionInvitadosDiarios() {
                               size="icon"
                               className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
                               onClick={() => remove(index)}
-                              disabled={fields.length <= 1 && !item.nombre && !item.apellido && !item.dni && !item.fechaNacimiento}
+                              disabled={fields.length <= 1 && !item.nombre && !item.apellido && !item.dni}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

@@ -334,8 +334,8 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
       if (socio) {
         const aptoInfo: AptoMedicoInfo = {
           valido: nuevaRevisionRaw.resultado === 'Apto',
-          fechaEmision: nuevaRevisionRaw.fechaRevision,
-          fechaVencimiento: nuevaRevisionRaw.fechaVencimientoApto,
+          fechaEmision: parseRequiredDate(nuevaRevisionRaw.fechaRevision),
+          fechaVencimiento: parseOptionalDate(nuevaRevisionRaw.fechaVencimientoApto),
           observaciones: nuevaRevisionRaw.observaciones,
           razonInvalidez: nuevaRevisionRaw.resultado === 'No Apto' ? (nuevaRevisionRaw.observaciones || 'No Apto según última revisión') : undefined,
         };
@@ -343,7 +343,7 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
         let socioActualizado = { ...socio };
         if (nuevaRevisionRaw.tipoPersona === 'Socio Titular') {
             socioActualizado.aptoMedico = aptoInfo;
-            socioActualizado.ultimaRevisionMedica = nuevaRevisionRaw.fechaRevision;
+            socioActualizado.ultimaRevisionMedica = parseRequiredDate(nuevaRevisionRaw.fechaRevision);
         } else if (nuevaRevisionRaw.tipoPersona === 'Familiar') {
             socioActualizado.grupoFamiliar = socio.grupoFamiliar.map(f =>
                 f.dni === nuevaRevisionRaw.socioId ? { ...f, aptoMedico: aptoInfo } : f
@@ -361,8 +361,8 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
     if (solicitud) {
         const aptoInfo: AptoMedicoInfo = {
           valido: nuevaRevisionRaw.resultado === 'Apto',
-          fechaEmision: nuevaRevisionRaw.fechaRevision,
-          fechaVencimiento: nuevaRevisionRaw.fechaVencimientoApto,
+          fechaEmision: parseRequiredDate(nuevaRevisionRaw.fechaRevision),
+          fechaVencimiento: parseOptionalDate(nuevaRevisionRaw.fechaVencimientoApto),
           observaciones: nuevaRevisionRaw.observaciones,
           razonInvalidez: nuevaRevisionRaw.resultado === 'No Apto' ? (nuevaRevisionRaw.observaciones || 'No Apto según última revisión') : undefined,
         };
