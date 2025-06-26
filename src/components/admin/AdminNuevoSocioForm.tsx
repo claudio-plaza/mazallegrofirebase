@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { addSocio } from '@/lib/firebase/firestoreService';
-import { formatDate, getFileUrl, generateId } from '@/lib/helpers';
+import { getFileUrl, generateId } from '@/lib/helpers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserPlus, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
 import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
@@ -24,6 +24,16 @@ import Image from 'next/image';
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
 type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
 type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
+
+
+const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
+    if (fieldValue instanceof FileList && fieldValue.length > 0) {
+        const timestamp = Date.now();
+        const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
+        return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
+    }
+    return null;
+};
 
 
 export function AdminNuevoSocioForm() {
@@ -76,18 +86,7 @@ export function AdminNuevoSocioForm() {
 
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
-    const processPhotoFieldForSubmit = (fieldValue: FileList | string | null | undefined): string | null => {
-        if (fieldValue === null) return null;
-        if (fieldValue instanceof FileList && fieldValue.length > 0) {
-            const timestamp = Date.now();
-            const filename = fieldValue[0].name.substring(0,10).replace(/[^a-zA-Z0-9]/g, '');
-            return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
-        }
-        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue;
-        return null;
-    };
-
-    const socioParaCrear: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'miembroDesde' | 'aptoMedico'> & { aptoMedico?: Partial<Socio['aptoMedico']> } = {
+    const socioParaCrear: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'aptoMedico' | 'miembroDesde'> & { aptoMedico?: Partial<Socio['aptoMedico']> } = {
       nombre: data.nombre,
       apellido: data.apellido,
       fechaNacimiento: data.fechaNacimiento as Date,
@@ -133,36 +132,50 @@ export function AdminNuevoSocioForm() {
     }
   };
 
+
   const renderFotoInput = (
     fieldName: FotoFieldName,
     label: string
   ) => {
     const currentFieldValue = form.watch(fieldName);
     let displayUrl: string | null = null;
-
+    let newFileName: string | null = null;
+  
     if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
-        displayUrl = getFileUrl(currentFieldValue);
-    } else if (typeof currentFieldValue === 'string' && currentFieldValue.startsWith('http')) {
-        displayUrl = currentFieldValue;
+      if (typeof window !== 'undefined') {
+        displayUrl = URL.createObjectURL(currentFieldValue[0]);
+        newFileName = currentFieldValue[0].name;
+      }
+    } else if (typeof currentFieldValue === 'string') {
+      displayUrl = currentFieldValue;
     }
-
+  
     return (
       <FormItem>
         <FormLabel>{label}</FormLabel>
-        {displayUrl && (
-          <div className="mb-2">
-            <Image src={displayUrl} alt={label} width={100} height={100} className="rounded border object-contain" data-ai-hint="user photo"/>
-          </div>
-        )}
-        <FormField
+        <Card className="p-2 space-y-2">
+          {displayUrl ? (
+            <Image
+              src={displayUrl}
+              alt={`Vista previa de ${label}`}
+              width={100}
+              height={100}
+              className="rounded border object-contain"
+              data-ai-hint="user photo document placeholder"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[100px] w-[100px] bg-muted rounded border text-muted-foreground text-xs text-center">
+              Sin foto
+            </div>
+          )}
+          <FormField
             control={form.control}
             name={fieldName}
             render={({ field }) => (
               <>
                 <FormControl>
-                  <label className="cursor-pointer w-full flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors text-xs">
-                    <UploadCloud className="h-5 w-5 text-muted-foreground mb-1" />
-                    <span>{displayUrl || (field.value && field.value instanceof FileList && field.value.length > 0) ? 'Cambiar Foto' : 'Subir Foto'}</span>
+                  <label className="cursor-pointer text-sm font-medium text-primary hover:underline">
+                    {displayUrl ? 'Cambiar...' : 'Subir...'}
                     <Input
                       type="file"
                       className="hidden"
@@ -171,24 +184,24 @@ export function AdminNuevoSocioForm() {
                     />
                   </label>
                 </FormControl>
-                 {(field.value && field.value instanceof FileList && field.value.length > 0) && (
-                    <p className="text-xs text-muted-foreground mt-1">Nuevo: {field.value[0].name}</p>
+                {newFileName && (
+                  <p className="text-xs text-muted-foreground mt-1">Nuevo: {newFileName}</p>
                 )}
-                <FormMessage />
+                {displayUrl && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-xs text-destructive p-0 h-auto"
+                    onClick={() => form.setValue(fieldName, null)}
+                  >
+                    Eliminar foto
+                  </Button>
+                )}
+                <FormMessage className="text-xs" />
               </>
             )}
           />
-        {displayUrl && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="mt-1 text-xs"
-            onClick={() => form.setValue(fieldName, null)}
-          >
-            <Trash2 className="mr-1 h-3 w-3" /> Eliminar Foto
-          </Button>
-        )}
+        </Card>
       </FormItem>
     );
   };
@@ -266,11 +279,11 @@ export function AdminNuevoSocioForm() {
             <section>
                 <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Salud y Documentación (Titular)</h3>
                  <p className="text-xs text-muted-foreground mb-4">El apto médico se gestionará desde el Panel Médico una vez creado el socio.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    {renderFotoInput('fotoPerfil', 'Foto de Perfil (Titular)')}
-                    {renderFotoInput('fotoDniFrente', 'Foto DNI Frente (Titular)')}
-                    {renderFotoInput('fotoDniDorso', 'Foto DNI Dorso (Titular)')}
-                    {renderFotoInput('fotoCarnet', 'Foto Carnet (Titular)')}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {renderFotoInput('fotoPerfil', 'Foto de Perfil')}
+                    {renderFotoInput('fotoDniFrente', 'DNI Frente')}
+                    {renderFotoInput('fotoDniDorso', 'DNI Dorso')}
+                    {renderFotoInput('fotoCarnet', 'Foto Carnet')}
                 </div>
             </section>
             <Separator />
@@ -353,10 +366,10 @@ export function AdminNuevoSocioForm() {
                             </div>
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'Foto DNI Frente')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'Foto DNI Dorso')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'DNI Frente')}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'DNI Dorso')}
                                 {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet')}
                              </div>
                         </Card>

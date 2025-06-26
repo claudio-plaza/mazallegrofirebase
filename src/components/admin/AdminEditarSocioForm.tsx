@@ -33,6 +33,22 @@ interface AdminEditarSocioFormProps {
   socioId: string;
 }
 
+const processPhotoFieldForUpdate = (formValue: any, originalUrl: string | null | undefined): string | null => {
+    if (formValue instanceof FileList && formValue.length > 0) {
+        // Simula la subida de un nuevo archivo y devuelve una URL de marcador de posición
+        const timestamp = Date.now();
+        const filename = formValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
+        return `https://placehold.co/150x150.png?text=UPD_${filename}_${timestamp}`;
+    }
+    if (formValue === null) {
+        // La foto fue eliminada explícitamente en el formulario
+        return null;
+    }
+    // Si no es un FileList y no es null, es la URL original o no se tocó
+    return originalUrl || null;
+};
+
+
 export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const [socio, setSocio] = useState<Socio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +106,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           apellido: data.apellido,
           fechaNacimiento: data.fechaNacimiento,
           dni: data.dni,
-          empresa: data.empresa.toString(),
+          empresa: data.empresa,
           telefono: data.telefono,
           direccion: data.direccion,
           email: data.email,
@@ -101,7 +117,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           fotoDniFrente: data.fotoDniFrente,
           fotoDniDorso: data.fotoDniDorso,
           fotoCarnet: data.fotoCarnet,
-          grupoFamiliar: data.grupoFamiliar.map(f => ({ ...f, fotoPerfil: f.fotoPerfil || null, fotoDniFrente: f.fotoDniFrente || null, fotoDniDorso: f.fotoDniDorso || null, fotoCarnet: f.fotoCarnet || null })),
+          grupoFamiliar: data.grupoFamiliar,
         });
       } else {
         toast({ title: "Error", description: "Socio no encontrado.", variant: "destructive" });
@@ -130,14 +146,41 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
     
-    const finalDataForUpdate: Socio = {
-      ...socio,
+    // Create a deep copy to avoid mutating the original socio state object
+    const updatedSocio: Socio = JSON.parse(JSON.stringify(socio));
+
+    // Merge non-nested data
+    Object.assign(updatedSocio, {
       ...data,
-      fotoUrl: typeof data.fotoPerfil === 'string' ? data.fotoPerfil : socio.fotoUrl,
-    };
+      grupoFamiliar: [], // Will be rebuilt below
+    });
+
+    // Process titular photos
+    updatedSocio.fotoPerfil = processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoPerfil);
+    updatedSocio.fotoUrl = updatedSocio.fotoPerfil; // fotoUrl is a mirror of fotoPerfil
+    updatedSocio.fotoDniFrente = processPhotoFieldForUpdate(data.fotoDniFrente, socio.fotoDniFrente);
+    updatedSocio.fotoDniDorso = processPhotoFieldForUpdate(data.fotoDniDorso, socio.fotoDniDorso);
+    updatedSocio.fotoCarnet = processPhotoFieldForUpdate(data.fotoCarnet, socio.fotoCarnet);
+
+    // Process grupoFamiliar photos
+    if (data.grupoFamiliar) {
+      updatedSocio.grupoFamiliar = data.grupoFamiliar.map((familiarFormData) => {
+        const originalFamiliar = socio.grupoFamiliar.find(f => f.id === familiarFormData.id);
+        const newFamiliarData: MiembroFamiliar = {
+          ...familiarFormData,
+          id: familiarFormData.id || generateId(),
+          fechaNacimiento: familiarFormData.fechaNacimiento,
+          fotoPerfil: processPhotoFieldForUpdate(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil),
+          fotoDniFrente: processPhotoFieldForUpdate(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente),
+          fotoDniDorso: processPhotoFieldForUpdate(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso),
+          fotoCarnet: processPhotoFieldForUpdate(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet),
+        };
+        return newFamiliarData;
+      });
+    }
 
     try {
-      await updateSocio(finalDataForUpdate);
+      await updateSocio(updatedSocio);
       toast({ title: 'Socio Actualizado', description: `Los datos de ${data.nombre} ${data.apellido} han sido actualizados.` });
       router.push('/admin/gestion-socios');
     } catch (error) {
@@ -146,68 +189,80 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     }
   };
 
+
   const renderFotoInput = (
     fieldName: FotoFieldName,
     label: string,
-    allowUpload: boolean = false,
-    currentPhotoUrlProp?: string | null | FileList 
+    isEditable: boolean
   ) => {
     const currentFieldValue = form.watch(fieldName);
     let displayUrl: string | null = null;
-
+    let newFileName: string | null = null;
+  
     if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
-        if (typeof window !== 'undefined') displayUrl = URL.createObjectURL(currentFieldValue[0]);
-    } else if (typeof currentFieldValue === 'string' && currentFieldValue.startsWith('http')) {
-        displayUrl = currentFieldValue;
-    } else if (typeof currentPhotoUrlProp === 'string' && currentPhotoUrlProp.startsWith('http')) {
-        displayUrl = currentPhotoUrlProp;
+      if (typeof window !== 'undefined') {
+        displayUrl = URL.createObjectURL(currentFieldValue[0]);
+        newFileName = currentFieldValue[0].name;
+      }
+    } else if (typeof currentFieldValue === 'string') {
+      displayUrl = currentFieldValue;
     }
-    
+  
     return (
       <FormItem>
         <FormLabel>{label}</FormLabel>
-        {displayUrl && (
-          <div className="mb-2">
-            <Image src={displayUrl} alt={label} width={100} height={100} className="rounded border object-contain" data-ai-hint="user photo"/>
-          </div>
-        )}
-        {allowUpload && (
-          <FormField
-            control={form.control}
-            name={fieldName}
-            render={({ field }) => (
-              <>
-                <FormControl>
-                  <label className="cursor-pointer w-full flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors text-xs">
-                    <UploadCloud className="h-5 w-5 text-muted-foreground mb-1" />
-                    <span>{displayUrl || (field.value && field.value instanceof FileList && field.value.length > 0) ? 'Cambiar Foto' : 'Subir Foto'}</span>
-                    <Input
-                      type="file"
-                      className="hidden"
-                      onChange={e => field.onChange(e.target.files)}
-                      accept="image/png,image/jpeg"
-                    />
-                  </label>
-                </FormControl>
-                 {(field.value && field.value instanceof FileList && field.value.length > 0) && (
-                    <p className="text-xs text-muted-foreground mt-1">Nuevo: {field.value[0].name}</p>
+        <Card className="p-2 space-y-2">
+          {displayUrl ? (
+            <Image
+              src={displayUrl}
+              alt={`Vista previa de ${label}`}
+              width={100}
+              height={100}
+              className="rounded border object-contain"
+              data-ai-hint="user photo document"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[100px] w-[100px] bg-muted rounded border text-muted-foreground text-xs text-center">
+              Sin foto
+            </div>
+          )}
+          
+          {isEditable && (
+             <FormField
+                control={form.control}
+                name={fieldName}
+                render={({ field }) => (
+                  <>
+                  <FormControl>
+                    <label className="cursor-pointer text-sm font-medium text-primary hover:underline">
+                      {displayUrl ? 'Cambiar...' : 'Subir...'}
+                      <Input
+                        type="file"
+                        className="hidden"
+                        onChange={e => field.onChange(e.target.files)}
+                        accept="image/png,image/jpeg"
+                      />
+                    </label>
+                  </FormControl>
+                  {newFileName && (
+                    <p className="text-xs text-muted-foreground mt-1">Nuevo: {newFileName}</p>
+                  )}
+                  {displayUrl && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-xs text-destructive p-0 h-auto"
+                      onClick={() => form.setValue(fieldName, null)}
+                    >
+                      Eliminar foto
+                    </Button>
+                  )}
+                  <FormMessage className="text-xs" />
+                  </>
                 )}
-                <FormMessage />
-              </>
-            )}
-          />
-        )}
-        {displayUrl && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="mt-1 text-xs"
-            onClick={() => form.setValue(fieldName, null)}
-          >
-            <Trash2 className="mr-1 h-3 w-3" /> Eliminar Foto
-          </Button>
-        )}
+            />
+          )}
+        </Card>
       </FormItem>
     );
   };
@@ -229,8 +284,8 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   
   const fotoTitularActual = typeof form.watch('fotoPerfil') === 'string'
                             ? form.watch('fotoPerfil')
-                            : (form.watch('fotoPerfil') instanceof FileList && typeof window !== 'undefined' ? URL.createObjectURL((form.watch('fotoPerfil') as FileList)[0]) 
-                            : socio.fotoUrl || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`);
+                            : (form.watch('fotoPerfil') instanceof FileList && typeof window !== 'undefined' && (form.watch('fotoPerfil') as FileList).length > 0 ? URL.createObjectURL((form.watch('fotoPerfil') as FileList)[0]) 
+                            : socio.fotoPerfil || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`);
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
 
@@ -333,10 +388,12 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                         <FormLabel>Última Revisión Médica</FormLabel>
                         <Input value={socio.ultimaRevisionMedica ? formatDate(socio.ultimaRevisionMedica) : 'N/A'} disabled className="mt-1 bg-muted/50"/>
                     </div>
-                    {renderFotoInput('fotoPerfil', 'Foto de Perfil (Titular)', true, form.getValues('fotoPerfil') || socio.fotoPerfil)}
-                    {renderFotoInput('fotoDniFrente', 'Foto DNI Frente (Titular)', false, form.getValues('fotoDniFrente') || socio.fotoDniFrente)}
-                    {renderFotoInput('fotoDniDorso', 'Foto DNI Dorso (Titular)', false, form.getValues('fotoDniDorso') || socio.fotoDniDorso)}
-                    {renderFotoInput('fotoCarnet', 'Foto Carnet (Titular)', false, form.getValues('fotoCarnet') || socio.fotoCarnet)}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    {renderFotoInput('fotoPerfil', 'Foto de Perfil', true)}
+                    {renderFotoInput('fotoDniFrente', 'DNI Frente', false)}
+                    {renderFotoInput('fotoDniDorso', 'DNI Dorso', false)}
+                    {renderFotoInput('fotoCarnet', 'Foto Carnet', false)}
                 </div>
             </section>
             <Separator />
@@ -366,7 +423,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                     
                     const fotoPerfilFamiliarActual = typeof form.watch(`grupoFamiliar.${index}.fotoPerfil`) === 'string'
                                                     ? form.watch(`grupoFamiliar.${index}.fotoPerfil`)
-                                                    : (form.watch(`grupoFamiliar.${index}.fotoPerfil`) instanceof FileList && typeof window !== 'undefined' ? URL.createObjectURL((form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList)[0])
+                                                    : (form.watch(`grupoFamiliar.${index}.fotoPerfil`) instanceof FileList && typeof window !== 'undefined' && (form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList).length > 0 ? URL.createObjectURL((form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList)[0])
                                                     : familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || ''}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`);
 
 
@@ -424,11 +481,11 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             </div>
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil', true, form.getValues(`grupoFamiliar.${index}.fotoPerfil`) || familiarData?.fotoPerfil)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'Foto DNI Frente', false, form.getValues(`grupoFamiliar.${index}.fotoDniFrente`) || familiarData?.fotoDniFrente)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'Foto DNI Dorso', false, form.getValues(`grupoFamiliar.${index}.fotoDniDorso`) || familiarData?.fotoDniDorso)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet', false, form.getValues(`grupoFamiliar.${index}.fotoCarnet`) || familiarData?.fotoCarnet)}
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil', true)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'DNI Frente', false)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'DNI Dorso', false)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet', false)}
                              </div>
                         </Card>
                     );
