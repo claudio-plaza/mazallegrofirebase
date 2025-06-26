@@ -189,7 +189,7 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
   ) || null;
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'aptoMedico' | 'miembroDesde'> & { aptoMedico?: Partial<Socio['aptoMedico']> }, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'aptoMedico' | 'miembroDesde' | 'estadoSocio'> & { aptoMedico?: Partial<Socio['aptoMedico']> }, isTitularSignup: boolean = false): Promise<Socio> => {
   const sociosRaw = getDb<SocioRaw>(KEYS.SOCIOS);
   const newNumeroSocio = `S${(Math.max(0, ...sociosRaw.map(s => parseInt(s.numeroSocio.substring(1)))) + 1).toString().padStart(3, '0')}`;
 
