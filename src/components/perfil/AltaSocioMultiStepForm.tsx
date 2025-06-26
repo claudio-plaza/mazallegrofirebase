@@ -75,8 +75,6 @@ export function AltaSocioMultiStepForm() {
   });
 
   const tipoGrupoFamiliar = watch("tipoGrupoFamiliar");
-  const previousTipoGrupoFamiliar = useRef<string | undefined>(tipoGrupoFamiliar);
-
 
   const fetchSocioData = useCallback(async () => {
     if (!loggedInUserNumeroSocio || authLoading) return;
@@ -105,7 +103,6 @@ export function AltaSocioMultiStepForm() {
           };
 
       setValue('tipoGrupoFamiliar', dataToDisplayOrEdit.tipoGrupoFamiliar || undefined);
-      previousTipoGrupoFamiliar.current = dataToDisplayOrEdit.tipoGrupoFamiliar || undefined;
 
       const conyugeData = dataToDisplayOrEdit.familiares?.conyuge;
       const hijosData = dataToDisplayOrEdit.familiares?.hijos;
@@ -179,7 +176,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -199,17 +196,17 @@ export function AltaSocioMultiStepForm() {
         conyuge: data.familiares.conyuge ? {
           ...data.familiares.conyuge,
           id: data.familiares.conyuge.id || generateId(),
-          fechaNacimiento: data.familiares.conyuge.fechaNacimiento, // Already a Date object from Zod transform
+          fechaNacimiento: data.familiares.conyuge.fechaNacimiento,
         } : null,
         hijos: data.familiares.hijos?.map(h => ({
           ...h,
           id: h.id || generateId(),
-          fechaNacimiento: h.fechaNacimiento, // Already a Date object
+          fechaNacimiento: h.fechaNacimiento,
         })) || [],
         padres: data.familiares.padres?.map(p => ({
           ...p,
           id: p.id || generateId(),
-          fechaNacimiento: p.fechaNacimiento, // Already a Date object
+          fechaNacimiento: p.fechaNacimiento,
         })) || [],
       }
     };
@@ -260,21 +257,23 @@ export function AltaSocioMultiStepForm() {
   };
 
   useEffect(() => {
-    const subscription = watch((value, { name }) => {
-        if (name === 'tipoGrupoFamiliar' && value.tipoGrupoFamiliar !== previousTipoGrupoFamiliar.current) {
-            if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
-                if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
-                    setValue('familiares.padres', []);
-                } else if (value.tipoGrupoFamiliar === 'padresMadres') {
-                    setValue('familiares.conyuge', null);
-                    setValue('familiares.hijos', []);
-                }
+    const subscription = watch((value, { name, type }) => {
+      // When the user selects a group type and there was a different one before, reset the other group's data.
+      if (name === 'tipoGrupoFamiliar' && type === 'change') {
+        const newType = value.tipoGrupoFamiliar;
+        if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) {
+            if (newType === 'conyugeEHijos') {
+                setValue('familiares.padres', []);
+            } else if (newType === 'padresMadres') {
+                setValue('familiares.conyuge', null);
+                setValue('familiares.hijos', []);
             }
-            previousTipoGrupoFamiliar.current = value.tipoGrupoFamiliar;
         }
+      }
     });
     return () => subscription.unsubscribe();
   }, [watch, setValue, socioData?.estadoCambioGrupoFamiliar]);
+
 
   if (loadingSocio || authLoading) {
       return <p className="text-center py-10">Cargando datos del perfil...</p>
@@ -330,7 +329,7 @@ export function AltaSocioMultiStepForm() {
                     <AlertTitle className="font-semibold text-secondary">Tipo de Grupo Establecido</AlertTitle>
                     <AlertDescription>
                         Actualmente tiene un grupo familiar de tipo: <strong>{existingGroupType === 'conyugeEHijos' ? 'Cónyuge e Hijos/as' : 'Padres/Madres'}</strong>.
-                        Si necesita cambiar el tipo de grupo fundamental (ej. de 'Padres/Madres' a 'Cónyuge e Hijos/as'), deberá contactar a la administración. Puede editar los miembros dentro del tipo actual o, si cambia el tipo aquí, los familiares del tipo anterior se eliminarán de esta solicitud.
+                        Si necesita cambiar el tipo de grupo fundamental, deberá contactar a la administración, ya que esta selección está bloqueada. Puede editar los miembros dentro del tipo actual en el siguiente paso.
                     </AlertDescription>
                 </Alert>
             )}
@@ -349,8 +348,8 @@ export function AltaSocioMultiStepForm() {
                     name="tipoGrupoFamiliar"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <FormLabel className={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'text-muted-foreground' : ''}>
-                            {socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE ? 'Tipo de grupo solicitado (bloqueado hasta resolución):' :
+                        <FormLabel className={isSelectionTypeDisabled ? 'text-muted-foreground' : ''}>
+                            {isSelectionTypeDisabled ? 'Tipo de grupo actual (bloqueado):' :
                             '¿Qué tipo de grupo familiar desea registrar o modificar?'}
                         </FormLabel>
                         <FormControl>
@@ -358,11 +357,9 @@ export function AltaSocioMultiStepForm() {
                                 <Button
                                     type="button"
                                     variant={field.value === 'conyugeEHijos' ? 'default' : 'outline'}
-                                    onClick={() => {
-                                      if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) field.onChange('conyugeEHijos');
-                                    }}
+                                    onClick={() => field.onChange('conyugeEHijos')}
                                     className="flex-1 justify-start p-6 text-left h-auto"
-                                    disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
+                                    disabled={isSelectionTypeDisabled}
                                 >
                                     <div className="flex items-center">
                                         <Heart className="mr-3 h-6 w-6 text-red-500" />
@@ -375,11 +372,9 @@ export function AltaSocioMultiStepForm() {
                                 <Button
                                     type="button"
                                     variant={field.value === 'padresMadres' ? 'default' : 'outline'}
-                                    onClick={() => {
-                                      if (socioData?.estadoCambioGrupoFamiliar !== EstadoCambioGrupoFamiliar.PENDIENTE) field.onChange('padresMadres');
-                                    }}
+                                    onClick={() => field.onChange('padresMadres')}
                                     className="flex-1 justify-start p-6 text-left h-auto"
-                                    disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}
+                                    disabled={isSelectionTypeDisabled}
                                 >
                                     <div className="flex items-center">
                                         <Users className="mr-3 h-6 w-6 text-secondary" />
@@ -624,7 +619,7 @@ export function AltaSocioMultiStepForm() {
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
             {currentStep < totalSteps ? (
-              <Button type="button" onClick={nextStep} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && currentStep === 2 && isSelectionTypeDisabled}>
+              <Button type="button" onClick={nextStep} disabled={socioData?.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE}>
                 Siguiente <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
