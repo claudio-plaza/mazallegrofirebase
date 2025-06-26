@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { loginUser, mockUsers } from '@/lib/auth'; 
+import { loginUser } from '@/lib/auth'; 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn } from 'lucide-react';
@@ -59,7 +59,6 @@ export function LoginForm() {
         description: 'Email o contraseña incorrectos. Por favor, intente de nuevo.',
         variant: 'destructive',
       });
-      console.log("Login failed. Available mock users for testing:", mockUsers.map(u => ({email: u.email, role: u.role})));
     }
   }
 
