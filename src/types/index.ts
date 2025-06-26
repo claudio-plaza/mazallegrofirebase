@@ -102,6 +102,7 @@ export interface CuentaSocio {
   saldoActual?: number;
 }
 
+// Data model interfaces (used in application logic)
 export interface MiembroFamiliar {
   id?: string;
   nombre: string;
@@ -112,17 +113,12 @@ export interface MiembroFamiliar {
   direccion?: string;
   telefono?: string;
   email?: string;
-  fotoPerfil?: FileList | null | string;
-  fotoDniFrente?: FileList | null | string;
-  fotoDniDorso?: FileList | null | string;
-  fotoCarnet?: FileList | null | string;
+  fotoPerfil?: string | null;
+  fotoDniFrente?: string | null;
+  fotoDniDorso?: string | null;
+  fotoCarnet?: string | null;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
-}
-
-export interface MiembroFamiliarRaw extends Omit<MiembroFamiliar, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento: string; 
-  aptoMedico?: AptoMedicoInfoRaw;
 }
 
 export interface Adherente {
@@ -135,19 +131,67 @@ export interface Adherente {
   telefono?: string;
   direccion?: string;
   email?: string;
-  fotoDniFrente?: FileList | null | string;
-  fotoDniDorso?: FileList | null | string;
-  fotoPerfil?: FileList | null | string;
-  fotoCarnet?: FileList | null | string;
+  fotoDniFrente?: string | null;
+  fotoDniDorso?: string | null;
+  fotoPerfil?: string | null;
+  fotoCarnet?: string | null;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string;
   aptoMedico: AptoMedicoInfo;
 }
 
+export interface Socio {
+  id: string;
+  numeroSocio: string;
+  nombre: string;
+  apellido: string;
+  fechaNacimiento: Date;
+  dni: string;
+  empresa: string;
+  telefono: string;
+  direccion: string;
+  email: string;
+  fotoUrl?: string | null;
+  fotoPerfil?: string | null;
+  fotoDniFrente?: string | null;
+  fotoDniDorso?: string | null;
+  fotoCarnet?: string | null;
+  estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
+  aptoMedico: AptoMedicoInfo;
+  miembroDesde: Date;
+  ultimaRevisionMedica?: Date;
+  grupoFamiliar: MiembroFamiliar[];
+  adherentes?: Adherente[];
+  cuenta?: CuentaSocio;
+  documentos?: DocumentoSocioGeneral[];
+  estadoSolicitud?: EstadoSolicitudSocio;
+  role: Extract<UserRole, 'socio'>;
+  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliar | null;
+  estadoCambioGrupoFamiliar?: EstadoCambioGrupoFamiliar;
+  motivoRechazoCambioGrupoFamiliar?: string;
+}
+
+
+// Raw interfaces for DB storage (dates as strings)
+export interface MiembroFamiliarRaw extends Omit<MiembroFamiliar, 'fechaNacimiento' | 'aptoMedico'> {
+  fechaNacimiento: string; 
+  aptoMedico?: AptoMedicoInfoRaw;
+}
+
 export interface AdherenteRaw extends Omit<Adherente, 'fechaNacimiento' | 'aptoMedico'> {
   fechaNacimiento: string;
   aptoMedico: AptoMedicoInfoRaw;
+}
+
+export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'grupoFamiliar' | 'adherentes' | 'cambiosPendientesGrupoFamiliar'> {
+  fechaNacimiento: string;
+  miembroDesde: string;
+  ultimaRevisionMedica?: string;
+  aptoMedico: AptoMedicoInfoRaw;
+  grupoFamiliar: MiembroFamiliarRaw[];
+  adherentes?: AdherenteRaw[];
+  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliarRaw | null;
 }
 
 export interface CambiosPendientesGrupoFamiliar {
@@ -287,35 +331,6 @@ export const titularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type TitularData = z.infer<typeof titularSchema>;
-
-export interface Socio extends TitularData {
-  id: string;
-  numeroSocio: string;
-  fotoUrl?: string; 
-  estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
-  aptoMedico: AptoMedicoInfo;
-  miembroDesde: Date;
-  ultimaRevisionMedica?: Date;
-  grupoFamiliar: MiembroFamiliar[];
-  adherentes?: Adherente[];
-  cuenta?: CuentaSocio;
-  documentos?: DocumentoSocioGeneral[];
-  estadoSolicitud?: EstadoSolicitudSocio;
-  role: Extract<UserRole, 'socio'>;
-  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliar | null;
-  estadoCambioGrupoFamiliar?: EstadoCambioGrupoFamiliar;
-  motivoRechazoCambioGrupoFamiliar?: string;
-}
-
-export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'grupoFamiliar' | 'adherentes' | 'cambiosPendientesGrupoFamiliar'> {
-  fechaNacimiento: string;
-  miembroDesde: string;
-  ultimaRevisionMedica?: string;
-  aptoMedico: AptoMedicoInfoRaw;
-  grupoFamiliar: MiembroFamiliarRaw[];
-  adherentes?: AdherenteRaw[];
-  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliarRaw | null;
-}
 
 
 export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado Diario';

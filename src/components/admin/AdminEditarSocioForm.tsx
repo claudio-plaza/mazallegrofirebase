@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getSocioById, updateSocio } from '@/lib/firebase/firestoreService';
-import { formatDate, getAptoMedicoStatus, getFileUrl, normalizeText, generateId } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
@@ -97,11 +97,11 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           estadoSocio: data.estadoSocio,
           tipoGrupoFamiliar: groupTypeDetermined,
           fotoUrl: data.fotoUrl,
-          fotoPerfil: data.fotoPerfil as string | null,
-          fotoDniFrente: data.fotoDniFrente as string | null,
-          fotoDniDorso: data.fotoDniDorso as string | null,
-          fotoCarnet: data.fotoCarnet as string | null,
-          grupoFamiliar: data.grupoFamiliar,
+          fotoPerfil: data.fotoPerfil,
+          fotoDniFrente: data.fotoDniFrente,
+          fotoDniDorso: data.fotoDniDorso,
+          fotoCarnet: data.fotoCarnet,
+          grupoFamiliar: data.grupoFamiliar.map(f => ({ ...f, fotoPerfil: f.fotoPerfil || null, fotoDniFrente: f.fotoDniFrente || null, fotoDniDorso: f.fotoDniDorso || null, fotoCarnet: f.fotoCarnet || null })),
         });
       } else {
         toast({ title: "Error", description: "Socio no encontrado.", variant: "destructive" });
@@ -133,7 +133,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     const finalDataForUpdate: Socio = {
       ...socio,
       ...data,
-      fotoUrl: data.fotoPerfil instanceof FileList ? `https://placehold.co/150x150.png?text=NEW_FOTO_${Date.now()}` : data.fotoUrl,
+      fotoUrl: typeof data.fotoPerfil === 'string' ? data.fotoPerfil : socio.fotoUrl,
     };
 
     try {
@@ -156,7 +156,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     let displayUrl: string | null = null;
 
     if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
-        displayUrl = getFileUrl(currentFieldValue);
+        if (typeof window !== 'undefined') displayUrl = URL.createObjectURL(currentFieldValue[0]);
     } else if (typeof currentFieldValue === 'string' && currentFieldValue.startsWith('http')) {
         displayUrl = currentFieldValue;
     } else if (typeof currentPhotoUrlProp === 'string' && currentPhotoUrlProp.startsWith('http')) {
@@ -227,9 +227,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     return <p className="text-center text-destructive">Socio no encontrado.</p>;
   }
   
-  const fotoTitularActual = form.watch('fotoPerfil') instanceof FileList 
-                             ? getFileUrl(form.watch('fotoPerfil') as FileList) 
-                             : form.watch('fotoPerfil') as string || socio.fotoUrl || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+  const fotoTitularActual = typeof form.watch('fotoPerfil') === 'string'
+                            ? form.watch('fotoPerfil')
+                            : (form.watch('fotoPerfil') instanceof FileList && typeof window !== 'undefined' ? URL.createObjectURL((form.watch('fotoPerfil') as FileList)[0]) 
+                            : socio.fotoUrl || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`);
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
 
@@ -249,7 +250,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center gap-4">
                 <Avatar className="h-20 w-20 border">
-                    <AvatarImage src={fotoTitularActual} alt={`${form.watch('nombre') || socio.nombre} ${form.watch('apellido') || socio.apellido}`} data-ai-hint="profile photo"/>
+                    <AvatarImage src={fotoTitularActual!} alt={`${form.watch('nombre') || socio.nombre} ${form.watch('apellido') || socio.apellido}`} data-ai-hint="profile photo"/>
                     <AvatarFallback>{(form.watch('nombre') || socio.nombre)?.[0]}{(form.watch('apellido') || socio.apellido)?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -271,7 +272,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <FormControl>
                                 <Input 
                                     type="date" 
-                                    value={field.value && isValid(field.value) ? format(field.value, 'yyyy-MM-dd') : ''}
+                                    value={field.value && isValid(new Date(field.value)) ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                                     onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                     max={maxBirthDateTitular}
                                     className="w-full"
@@ -363,9 +364,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                     const familiarData = socio.grupoFamiliar?.find(f => f.id === field.id || f.dni === field.dni);
                     const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
                     
-                    const fotoPerfilFamiliarActual = form.watch(`grupoFamiliar.${index}.fotoPerfil`) instanceof FileList
-                                                    ? getFileUrl(form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList)
-                                                    : form.watch(`grupoFamiliar.${index}.fotoPerfil`) as string || familiarData?.fotoPerfil as string || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || ''}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`;
+                    const fotoPerfilFamiliarActual = typeof form.watch(`grupoFamiliar.${index}.fotoPerfil`) === 'string'
+                                                    ? form.watch(`grupoFamiliar.${index}.fotoPerfil`)
+                                                    : (form.watch(`grupoFamiliar.${index}.fotoPerfil`) instanceof FileList && typeof window !== 'undefined' ? URL.createObjectURL((form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList)[0])
+                                                    : familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || ''}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`);
 
 
                     return (
@@ -386,7 +388,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                                         <FormControl>
                                             <Input 
                                                 type="date" 
-                                                value={formField.value && isValid(formField.value) ? format(formField.value, 'yyyy-MM-dd') : ''}
+                                                value={formField.value && isValid(new Date(formField.value)) ? format(new Date(formField.value), 'yyyy-MM-dd') : ''}
                                                 onChange={(e) => formField.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                                 max={maxBirthDate}
                                                 className="w-full h-9 text-sm"
@@ -414,7 +416,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                                 )}/>
                                  <div className="md:col-span-1 flex flex-col items-center">
                                       <Avatar className="h-16 w-16 border">
-                                          <AvatarImage src={fotoPerfilFamiliarActual} alt={form.watch(`grupoFamiliar.${index}.nombre`)} data-ai-hint="family member photo"/>
+                                          <AvatarImage src={fotoPerfilFamiliarActual!} alt={form.watch(`grupoFamiliar.${index}.nombre`)} data-ai-hint="family member photo"/>
                                           <AvatarFallback>{form.watch(`grupoFamiliar.${index}.nombre`)?.[0]}{form.watch(`grupoFamiliar.${index}.apellido`)?.[0]}</AvatarFallback>
                                       </Avatar>
                                       <p className={`text-xs mt-1 text-center p-1 rounded ${aptoStatusFamiliar.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>Apto: {aptoStatusFamiliar.status}</p>

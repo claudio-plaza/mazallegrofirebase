@@ -3,14 +3,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Socio } from '@/types';
+import type { Socio, MiembroFamiliar } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Download, UserCircle, ShieldCheck, ShieldAlert, CalendarClock, AlertTriangle, CheckCircle2, XCircle, Users, QrCode, UserSquare2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus, getFileUrl } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
@@ -23,8 +23,8 @@ import { cn } from '@/lib/utils';
 type DisplayablePerson = Pick<Socio, 'id' | 'nombre' | 'apellido' | 'dni' | 'aptoMedico' | 'fotoUrl' | 'fechaNacimiento'> & {
   relacion?: string;
   numeroSocio?: string;
-  miembroDesde?: string;
-  fotoFile?: FileList | null;
+  miembroDesde?: Date;
+  fotoPerfil?: string | null;
 };
 
 export function CarnetDigital() {
@@ -112,7 +112,7 @@ export function CarnetDigital() {
     ]
   : [];
 
-  const selectedPersonData = titularData && selectedPersonId
+  const selectedPersonData: DisplayablePerson | null = titularData && selectedPersonId
   ? (selectedPersonId === titularData.id 
       ? {
           id: titularData.id,
@@ -122,7 +122,7 @@ export function CarnetDigital() {
           aptoMedico: titularData.aptoMedico,
           fechaNacimiento: titularData.fechaNacimiento,
           fotoUrl: titularData.fotoUrl,
-          fotoFile: (titularData as any).fotoPerfil,
+          fotoPerfil: titularData.fotoPerfil,
           numeroSocio: titularData.numeroSocio,
           miembroDesde: titularData.miembroDesde,
           relacion: 'Titular'
@@ -135,11 +135,10 @@ export function CarnetDigital() {
             dni: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.dni,
             aptoMedico: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.aptoMedico,
             fechaNacimiento: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fechaNacimiento,
-            fotoUrl: (titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil instanceof FileList ? undefined : titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil as string | undefined) || `https://placehold.co/150x150.png?text=${titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.nombre[0]}${titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.apellido[0]}`,
-            fotoFile: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil instanceof FileList ? titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil as FileList : null,
+            fotoPerfil: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil,
             relacion: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.relacion
           }
-        : null) as DisplayablePerson | null
+        : null)
   : null;
 
   if (loading || (authLoading && !searchParams.get('titularId'))) {
@@ -177,12 +176,7 @@ export function CarnetDigital() {
   }
 
   const aptoStatus = getAptoMedicoStatus(selectedPersonData.aptoMedico, selectedPersonData.fechaNacimiento);
-  let fotoToShow = selectedPersonData.fotoUrl;
-  if (selectedPersonData.fotoFile && selectedPersonData.fotoFile.length > 0) {
-    const fileUrl = getFileUrl(selectedPersonData.fotoFile);
-    if (fileUrl) fotoToShow = fileUrl;
-  }
-  fotoToShow = fotoToShow || `https://placehold.co/150x150.png?text=${selectedPersonData.nombre[0]}${selectedPersonData.apellido[0]}`;
+  const fotoToShow = selectedPersonData.fotoUrl || selectedPersonData.fotoPerfil || `https://placehold.co/150x150.png?text=${selectedPersonData.nombre[0]}${selectedPersonData.apellido[0]}`;
   
   const qrData = `Socio N°: ${titularData.numeroSocio}\nTitular: ${titularData.nombre} ${titularData.apellido}\nVerificado por: ${siteConfig.name}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&format=png&bgcolor=ffffff&color=ed771b&qzone=1`; // Updated QR color
