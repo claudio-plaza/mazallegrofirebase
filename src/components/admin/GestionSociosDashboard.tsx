@@ -23,62 +23,65 @@ import { getSocios as fetchSocios, updateSocio as updateSocioInDb, deleteSocio a
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
 import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliarDialog';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
 
 export function GestionSociosDashboard() {
-  const [socios, setSocios] = useState<Socio[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoSocioFiltro>('Todos');
-  const { toast } = useToast();
   const [selectedSocioForAdherentes, setSelectedSocioForAdherentes] = useState<Socio | null>(null);
   const [isAdherentesDialogOpen, setIsAdherentesDialogOpen] = useState(false);
   const [selectedSocioForRevision, setSelectedSocioForRevision] = useState<Socio | null>(null);
   const [isRevisionDialogOpen, setIsRevisionDialogOpen] = useState(false);
-  const router = useRouter();
 
+  // --- Data Fetching with React Query ---
+  const { data: socios = [], isLoading: loading, isError } = useQuery<Socio[]>({
+    queryKey: ['socios'],
+    queryFn: fetchSocios,
+  });
 
-  const loadSocios = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sociosData = await fetchSocios();
-      setSocios(sociosData);
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudieron cargar los socios.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  // --- Mutations ---
+  const { mutate: updateSocioMutation } = useMutation({
+    mutationFn: (updatedSocio: Socio) => updateSocioInDb(updatedSocio),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['socios'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: `No se pudo actualizar el socio: ${error.message}`, variant: "destructive" });
+    },
+  });
 
-  useEffect(() => {
-    loadSocios();
-    const handleSociosUpdated = () => loadSocios();
-    window.addEventListener('sociosDBUpdated', handleSociosUpdated);
-    return () => {
-      window.removeEventListener('sociosDBUpdated', handleSociosUpdated);
-    };
-  }, [loadSocios]);
+  const { mutate: deleteSocioMutation } = useMutation({
+    mutationFn: (socioId: string) => deleteSocioInDb(socioId),
+    onSuccess: (success, socioId) => {
+      if (success) {
+        toast({ title: 'Socio Eliminado', description: `El socio ha sido eliminado.`, variant: 'destructive' });
+        queryClient.invalidateQueries({ queryKey: ['socios'] });
+      } else {
+        toast({ title: "Error", description: "No se pudo eliminar el socio.", variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+       toast({ title: "Error", description: `No se pudo eliminar el socio: ${error.message}`, variant: "destructive" });
+    },
+  });
 
-  const updateSocioData = async (updatedSocio: Socio) => {
-    const result = await updateSocioInDb(updatedSocio);
-    if (result) {
-      return result;
-    }
-    throw new Error("Failed to update socio in DB");
-  };
-
+  // --- Handlers ---
   const handleToggleEstadoSocio = async (socioId: string) => {
     const socio = socios.find(s => s.id === socioId);
     if (socio) {
       const nuevoEstado = socio.estadoSocio === 'Activo' ? 'Inactivo' : 'Activo';
-      try {
-        await updateSocioData({ ...socio, estadoSocio: nuevoEstado });
-        toast({ title: 'Estado Actualizado', description: `Socio ${socio.nombre} ${socio.apellido} ahora está ${nuevoEstado.toLowerCase()}.` });
-      } catch (error) {
-        toast({ title: "Error", description: "No se pudo actualizar el estado del socio.", variant: "destructive" });
-      }
+      updateSocioMutation({ ...socio, estadoSocio: nuevoEstado }, {
+        onSuccess: () => {
+          toast({ title: 'Estado Actualizado', description: `Socio ${socio.nombre} ${socio.apellido} ahora está ${nuevoEstado.toLowerCase()}.` });
+        }
+      });
     }
   };
 
@@ -87,28 +90,19 @@ export function GestionSociosDashboard() {
     if (socio) {
       const hoy = new Date();
       const nuevaInfoApto: AptoMedicoInfo = esValido
-        ? { valido: true, fechaEmision: formatISO(hoy), fechaVencimiento: formatISO(addDays(hoy, 14)), observaciones: 'Apto marcado manually por admin.' }
-        : { valido: false, razonInvalidez: 'Marcado como no apto/vencido por admin.', fechaEmision: formatISO(socio.aptoMedico?.fechaEmision || subDays(hoy, 15)), fechaVencimiento: formatISO(subDays(hoy,1)) };
+        ? { valido: true, fechaEmision: hoy, fechaVencimiento: addDays(hoy, 14), observaciones: 'Apto marcado manualmente por admin.' }
+        : { valido: false, razonInvalidez: 'Marcado como no apto/vencido por admin.', fechaEmision: socio.aptoMedico?.fechaEmision || subDays(hoy, 15), fechaVencimiento: subDays(hoy,1) };
 
-      try {
-        await updateSocioData({ ...socio, aptoMedico: nuevaInfoApto, ultimaRevisionMedica: formatISO(hoy) });
-        toast({ title: 'Apto Médico Actualizado', description: `El apto médico de ${socio.nombre} ${socio.apellido} fue actualizado.` });
-      } catch (error) {
-         toast({ title: "Error", description: "No se pudo actualizar el apto médico.", variant: "destructive" });
-      }
+      updateSocioMutation({ ...socio, aptoMedico: nuevaInfoApto, ultimaRevisionMedica: hoy }, {
+        onSuccess: () => {
+          toast({ title: 'Apto Médico Actualizado', description: `El apto médico de ${socio.nombre} ${socio.apellido} fue actualizado.` });
+        }
+      });
     }
   };
 
-  const handleEliminarSocio = async (socioId: string) => {
-    const socio = socios.find(s => s.id === socioId);
-    if (socio) {
-      const success = await deleteSocioInDb(socioId);
-      if (success) {
-        toast({ title: 'Socio Eliminado', description: `Socio ${socio.nombre} ${socio.apellido} ha sido eliminado.`, variant: 'destructive' });
-      } else {
-        toast({ title: "Error", description: "No se pudo eliminar el socio.", variant: "destructive" });
-      }
-    }
+  const handleEliminarSocio = (socioId: string) => {
+    deleteSocioMutation(socioId);
   };
 
   const handleNuevoMiembro = () => {
@@ -129,7 +123,7 @@ export function GestionSociosDashboard() {
     setIsRevisionDialogOpen(true);
   };
 
-
+  // --- Memos & Filters ---
   const filteredSocios = useMemo(() => {
     const normalizedSearch = normalizeText(searchTerm);
     return socios.filter(socio => {
@@ -185,6 +179,15 @@ export function GestionSociosDashboard() {
       </div>
     );
   }
+  
+  if (isError) {
+      return (
+          <div className="text-center py-10 text-destructive">
+              <p>Error al cargar los datos de los socios. Por favor, intente recargar la página.</p>
+          </div>
+      );
+  }
+
 
   const statCards = [
     { title: "Total Socios", value: stats.total, icon: Users, color: "text-blue-500" },
@@ -388,7 +391,7 @@ export function GestionSociosDashboard() {
           socio={selectedSocioForAdherentes}
           open={isAdherentesDialogOpen}
           onOpenChange={setIsAdherentesDialogOpen}
-          onAdherentesUpdated={loadSocios}
+          onAdherentesUpdated={() => queryClient.invalidateQueries({ queryKey: ['socios'] })}
         />
       )}
       {selectedSocioForRevision && (
@@ -396,10 +399,9 @@ export function GestionSociosDashboard() {
             socio={selectedSocioForRevision}
             open={isRevisionDialogOpen}
             onOpenChange={setIsRevisionDialogOpen}
-            onRevisionUpdated={loadSocios}
+            onRevisionUpdated={() => queryClient.invalidateQueries({ queryKey: ['socios'] })}
         />
       )}
     </div>
   );
 }
-
