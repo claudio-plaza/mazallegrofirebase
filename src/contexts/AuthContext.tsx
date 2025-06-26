@@ -1,8 +1,8 @@
 'use client';
 
 import type { UserRole } from '@/types';
-import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getAuthStatus as getLocalStorageAuthStatus, logoutUser as performLogout } from '@/lib/auth';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { getAuthStatus, logoutUser as performLogout } from '@/lib/auth';
 
 export interface AuthContextType {
   isLoggedIn: boolean;
@@ -27,13 +27,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loggedInUserNumeroSocio, setLoggedInUserNumeroSocio] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const updateAuthState = useCallback(() => {
+  // On initial app load, synchronize the state from localStorage.
+  useEffect(() => {
     const { 
       isLoggedIn: loggedInStatus, 
       userRole: roleFromStorage, 
       userName: nameFromStorage,
       loggedInUserNumeroSocio: numeroSocioFromStorage 
-    } = getLocalStorageAuthStatus();
+    } = getAuthStatus();
     
     setIsLoggedIn(loggedInStatus);
     setUserRole(roleFromStorage);
@@ -42,29 +43,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    updateAuthState(); // Initial check
-
-    const handleAuthChange = () => {
-      updateAuthState();
-    };
-
-    window.addEventListener('authChange', handleAuthChange);
-    return () => {
-      window.removeEventListener('authChange', handleAuthChange);
-    };
-  }, [updateAuthState]);
-
+  // Called from LoginForm to update the app's state after a successful login.
   const login = (role: UserRole, name: string, numeroSocio?: string) => {
-    // This function is called by LoginForm after it sets localStorage
-    // It primarily triggers a re-render of consumers via state update
-    // The actual localStorage setting is done in lib/auth.ts's loginUser
-    updateAuthState(); 
+    setIsLoggedIn(true);
+    setUserRole(role);
+    setUserName(name);
+    if (role === 'socio' && numeroSocio) {
+      setLoggedInUserNumeroSocio(numeroSocio);
+    } else {
+      setLoggedInUserNumeroSocio(null);
+    }
   };
 
+  // Called from Header to log the user out.
   const logout = () => {
-    performLogout(); // This clears localStorage and dispatches 'authChange'
-    updateAuthState(); // Re-read from storage to ensure consistency
+    performLogout(); // Clears localStorage
+    // Immediately update the context state to reflect the logout.
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setUserName(null);
+    setLoggedInUserNumeroSocio(null);
   };
 
   return (

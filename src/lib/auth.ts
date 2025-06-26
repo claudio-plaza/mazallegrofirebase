@@ -59,8 +59,8 @@ export const loginUser = (email: string, passwordInput: string): UserDetails | n
     } else {
       localStorage.removeItem('loggedInUserNumeroSocio');
     }
-    // Database initialization is now handled by the Providers component.
-    window.dispatchEvent(new Event('authChange'));
+    // Database initialization is handled by the Providers component.
+    // No longer dispatching 'authChange' event.
     return user;
   }
   return null;
@@ -72,7 +72,7 @@ export const logoutUser = () => {
   localStorage.removeItem('userName');
   localStorage.removeItem('userEmail');
   localStorage.removeItem('loggedInUserNumeroSocio');
-  window.dispatchEvent(new Event('authChange'));
+  // No longer dispatching 'authChange' event.
 };
 
 export const getAuthStatus = (): { isLoggedIn: boolean; userRole: UserRole | null; userName: string | null; loggedInUserNumeroSocio: string | null } => {
