@@ -27,10 +27,13 @@ type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
 
 
 const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
-    if (fieldValue instanceof FileList && fieldValue.length > 0) {
+    if (typeof window !== 'undefined' && fieldValue instanceof FileList && fieldValue.length > 0) {
         const timestamp = Date.now();
         const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
         return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
+    }
+    if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
+        return fieldValue;
     }
     return null;
 };
@@ -206,9 +209,10 @@ export function AdminNuevoSocioForm() {
     );
   };
 
-  const fotoTitularActual = form.watch('fotoPerfil') instanceof FileList
+  const fotoTitularActual = (form.watch('fotoPerfil') instanceof FileList
                              ? getFileUrl(form.watch('fotoPerfil') as FileList)
-                             : form.watch('fotoPerfil') as string || `https://placehold.co/128x128.png?text=N S`;
+                             : form.watch('fotoPerfil') as string)
+                             || `https://placehold.co/128x128.png?text=N S`;
 
 
   return (
@@ -358,7 +362,7 @@ export function AdminNuevoSocioForm() {
                                 )}/>
                                  <div className="md:col-span-1 flex flex-col items-center">
                                       <Avatar className="h-16 w-16 border">
-                                          <AvatarImage src={fotoPerfilFamiliarActual} alt={form.watch(`grupoFamiliar.${index}.nombre`)} data-ai-hint="family member photo placeholder"/>
+                                          <AvatarImage src={fotoPerfilFamiliarActual || undefined} alt={form.watch(`grupoFamiliar.${index}.nombre`)} data-ai-hint="family member photo placeholder"/>
                                           <AvatarFallback>{form.watch(`grupoFamiliar.${index}.nombre`)?.[0]}{form.watch(`grupoFamiliar.${index}.apellido`)?.[0]}</AvatarFallback>
                                       </Avatar>
                                       <p className="text-xs mt-1 text-center p-1 rounded bg-yellow-100 text-yellow-700">Apto: Pendiente</p>
