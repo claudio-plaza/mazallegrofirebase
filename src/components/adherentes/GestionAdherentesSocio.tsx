@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
+import type { Socio, Adherente } from '@/types';
 import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
 import { format, parseISO, subYears } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
 
 const renderFilePreview = (
   fileList: FileList | null | undefined | string,
@@ -62,11 +64,23 @@ const renderFilePreview = (
 
 
 export function GestionAdherentesSocio() {
-  const [socioData, setSocioData] = useState<Socio | null>(null);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+  const queryClient = useQueryClient();
+
+  const { data: socioData, isLoading: loading } = useQuery({
+    queryKey: ['socio', loggedInUserNumeroSocio],
+    queryFn: () => getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio!),
+    enabled: !!loggedInUserNumeroSocio && !authLoading,
+  });
+
+  const { mutate: updateSocioMutation, isPending: isSubmitting } = useMutation({
+    mutationFn: (updatedSocio: Socio) => updateSocio(updatedSocio),
+    onError: (error) => {
+      toast({ title: "Error", description: `No se pudo completar la operación: ${error.message}`, variant: "destructive" });
+    },
+  });
 
   useEffect(() => {
     const today = new Date();
@@ -93,24 +107,6 @@ export function GestionAdherentesSocio() {
     },
   });
 
-  const fetchSocioData = useCallback(async () => {
-    if (authLoading || !loggedInUserNumeroSocio) {
-      if (!authLoading) setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const data = await getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio);
-    setSocioData(data);
-    setLoading(false);
-  }, [loggedInUserNumeroSocio, authLoading]);
-
-  useEffect(() => {
-    fetchSocioData();
-    window.addEventListener('sociosDBUpdated', fetchSocioData);
-    return () => {
-      window.removeEventListener('sociosDBUpdated', fetchSocioData);
-    };
-  }, [fetchSocioData]);
 
   const onSubmit = async (data: AdherenteFormData) => {
     if (!socioData) {
@@ -125,9 +121,8 @@ export function GestionAdherentesSocio() {
             const filename = fieldValue[0].name.substring(0,10).replace(/[^a-zA-Z0-9]/g, '');
             return `https://placehold.co/150x150.png?text=${fieldNameHint}_${filename}_${timestamp}`;
         }
-        // Si ya es una URL (aunque no debería serlo para un nuevo adherente), se mantiene.
         if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; 
-        return null; // Si no hay archivo o es inválido
+        return null;
     };
 
     const nuevoAdherente: Adherente = {
@@ -151,14 +146,16 @@ export function GestionAdherentesSocio() {
 
     const updatedAdherentes = [...(socioData.adherentes || []), nuevoAdherente];
 
-    try {
-      await updateSocio({ ...socioData, adherentes: updatedAdherentes });
-      toast({ title: 'Solicitud Enviada', description: `La solicitud para agregar a ${data.nombre} ${data.apellido} como adherente ha sido enviada.` });
-      form.reset();
-    } catch (error) {
-      console.error("Error al proponer adherente:", error);
-      toast({ title: "Error", description: "No se pudo enviar la solicitud para el adherente.", variant: "destructive" });
-    }
+    updateSocioMutation({ ...socioData, adherentes: updatedAdherentes }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['socio', loggedInUserNumeroSocio] });
+        toast({ title: 'Solicitud Enviada', description: `La solicitud para agregar a ${data.nombre} ${data.apellido} como adherente ha sido enviada.` });
+        form.reset();
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: `No se pudo enviar la solicitud para el adherente: ${error.message}`, variant: "destructive" });
+      }
+    });
   };
 
   const handleSolicitarEliminacion = async (adherenteId?: string) => {
@@ -173,12 +170,15 @@ export function GestionAdherentesSocio() {
       : a
     );
 
-    try {
-      await updateSocio({ ...socioData, adherentes: updatedAdherentes });
-      toast({ title: 'Solicitud de Eliminación Enviada', description: `Se ha solicitado la eliminación de ${adherenteAEliminar.nombre}. Un administrador revisará la solicitud.` });
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudo enviar la solicitud de eliminación.", variant: "destructive" });
-    }
+    updateSocioMutation({ ...socioData, adherentes: updatedAdherentes }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['socio', loggedInUserNumeroSocio] });
+        toast({ title: 'Solicitud de Eliminación Enviada', description: `Se ha solicitado la eliminación de ${adherenteAEliminar.nombre}. Un administrador revisará la solicitud.` });
+      },
+      onError: (error) => {
+         toast({ title: "Error", description: `No se pudo enviar la solicitud de eliminación: ${error.message}`, variant: "destructive" });
+      }
+    });
   };
 
 
@@ -335,8 +335,8 @@ export function GestionAdherentesSocio() {
                   })}
               </div>
 
-              <Button type="submit" className="mt-6 w-full sm:w-auto" disabled={form.formState.isSubmitting}>
-                <PlusCircle className="mr-2 h-4 w-4" /> {form.formState.isSubmitting ? 'Enviando...' : 'Enviar Solicitud de Adherente'}
+              <Button type="submit" className="mt-6 w-full sm:w-auto" disabled={isSubmitting}>
+                <PlusCircle className="mr-2 h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar Solicitud de Adherente'}
               </Button>
             </form>
           </FormProvider>
@@ -392,5 +392,3 @@ export function GestionAdherentesSocio() {
     </div>
   );
 }
-
-    
