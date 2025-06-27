@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Socio, MiembroFamiliar } from '@/types';
+import type { Socio, MiembroFamiliar, AptoMedicoInfo } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,7 +20,14 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
 import { cn } from '@/lib/utils';
 
-type DisplayablePerson = Pick<Socio, 'id' | 'nombre' | 'apellido' | 'dni' | 'aptoMedico' | 'fotoUrl' | 'fechaNacimiento'> & {
+type DisplayablePerson = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  aptoMedico?: AptoMedicoInfo;
+  fotoUrl?: string | null;
+  fechaNacimiento: Date;
   relacion?: string;
   numeroSocio?: string;
   miembroDesde?: Date;
