@@ -37,36 +37,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (firebaseUser) {
         setUser(firebaseUser);
 
-        // Fetch socio or admin data to determine role and name
-        // This is a simplified role system. A real app might use custom claims.
-        let socioProfile: Socio | null = null;
-        try {
-            // Fetch by UID, which is the document ID in 'socios' collection
-            socioProfile = await getSocioById(firebaseUser.uid);
-        } catch (e) {
-             console.warn("Could not find socio profile for user, checking for admin profile.");
-        }
-
+        // 1. Check if the user is a regular 'socio'
+        const socioProfile = await getSocioById(firebaseUser.uid);
 
         if (socioProfile) {
           setUserRole(socioProfile.role);
           setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
           setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
         } else {
-           // If not a socio, check if they are a pre-defined admin/medico/portero
+          // 2. If not a socio, check if they are a privileged user (admin, medico, etc.)
           const adminUser = await getAdminUserByEmail(firebaseUser.email!);
           if (adminUser) {
             setUserRole(adminUser.role);
             setUserName(adminUser.name);
-            setLoggedInUserNumeroSocio(null);
+            setLoggedInUserNumeroSocio(null); // Privileged users are not socios
           } else {
-             // Fallback if no profile is found but user is authenticated
+            // 3. User is authenticated but has no profile in Firestore.
+            console.warn(
+              `User with email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
+            );
             setUserRole(null);
             setUserName(firebaseUser.displayName || firebaseUser.email);
             setLoggedInUserNumeroSocio(null);
           }
         }
       } else {
+        // No user is logged in
         setUser(null);
         setUserRole(null);
         setUserName(null);
