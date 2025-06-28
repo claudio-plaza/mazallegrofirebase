@@ -10,12 +10,12 @@ import { getFirestore } from "firebase/firestore";
 // Go to your Firebase project console -> Project settings (gear icon) -> General
 // Under "Your apps", find your web app and copy the configuration object.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Replace with your actual API key
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Replace with your actual auth domain
-  projectId: "YOUR_PROJECT_ID", // Replace with your actual project ID
-  storageBucket: "YOUR_PROJECT_ID.appspot.com", // Replace with your actual storage bucket
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Replace with your actual sender ID
-  appId: "YOUR_APP_ID", // Replace with your actual app ID
+  apiKey: "AIzaSyB_OqHXIjYCXkRMGLjxwXVTxDCA2HN-eRk",
+  authDomain: "clubzenith.firebaseapp.com",
+  projectId: "clubzenith",
+  storageBucket: "clubzenith.appspot.com",
+  messagingSenderId: "720998936376",
+  appId: "YOUR_APP_ID", // You can find this in your Firebase project settings
 };
 // =================================================================
 
