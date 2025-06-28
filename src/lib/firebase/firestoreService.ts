@@ -16,6 +16,7 @@ import {
   Timestamp,
   CollectionReference,
   DocumentData,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './config';
 import type {
@@ -116,7 +117,7 @@ export const getAdminUserByEmail = async (email: string) => {
     return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio'> & { uid: string }, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role'>, isTitularSignup: boolean = false): Promise<Socio> => {
   const sociosRef = collection(db, 'socios');
   // Get the last socio number to generate a new one
   const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
@@ -131,11 +132,15 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
     miembroDesde: new Date(),
     aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' },
   };
+  
+  // The document ID for a socio should be their UID from Firebase Auth.
+  const socioUid = (socioData as any).uid;
+  if (!socioUid) throw new Error("UID is missing from socio data for creation.");
 
-  const docRef = doc(sociosCollection, socioData.uid).withConverter(socioConverter);
-  await updateDoc(docRef, nuevoSocio, { merge: true });
+  const docRef = doc(sociosCollection, socioUid).withConverter(socioConverter);
+  await setDoc(docRef, nuevoSocio); // Use setDoc for creating a new document with a specific ID.
 
-  return { ...nuevoSocio, id: socioData.uid };
+  return { ...nuevoSocio, id: socioUid };
 };
 
 export const updateSocio = async (socioToUpdate: Partial<Socio> & { id: string }): Promise<void> => {

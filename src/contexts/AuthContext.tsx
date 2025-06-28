@@ -5,7 +5,7 @@ import type { UserRole, Socio } from '@/types';
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { getSocioByEmail, getAdminUserByEmail } from '@/lib/firebase/firestoreService';
+import { getSocioById, getAdminUserByEmail } from '@/lib/firebase/firestoreService';
 import { logoutUser as performLogout } from '@/lib/auth';
 
 export interface AuthContextType {
@@ -41,7 +41,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // This is a simplified role system. A real app might use custom claims.
         let socioProfile: Socio | null = null;
         try {
-            socioProfile = await getSocioByEmail(firebaseUser.email!);
+            // Fetch by UID, which is the document ID in 'socios' collection
+            socioProfile = await getSocioById(firebaseUser.uid);
         } catch (e) {
              console.warn("Could not find socio profile for user, checking for admin profile.");
         }

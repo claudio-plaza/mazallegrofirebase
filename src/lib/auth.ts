@@ -10,6 +10,7 @@ import {
 import { auth } from './firebase/config';
 import type { SignupTitularData } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { addSocio } from './firebase/firestoreService';
 
 export const loginUser = async (email: string, passwordInput: string) => {
   try {
