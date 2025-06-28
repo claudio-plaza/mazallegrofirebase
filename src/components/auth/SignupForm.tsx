@@ -390,10 +390,9 @@ export function SignupForm() {
               <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => {
-                      const isOptional = docType === 'fotoCarnet';
-                      const labelText = docType === 'fotoDniFrente' ? 'DNI Frente' :
-                                        docType === 'fotoDniDorso' ? 'DNI Dorso' :
-                                        docType === 'fotoPerfil' ? 'Foto Perfil' :
+                      const labelText = docType === 'fotoDniFrente' ? 'DNI Frente (Opcional)' :
+                                        docType === 'fotoDniDorso' ? 'DNI Dorso (Opcional)' :
+                                        docType === 'fotoPerfil' ? 'Foto Perfil (Opcional)' :
                                         'Foto Carnet (Opcional)';
                       const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
 
@@ -411,7 +410,7 @@ export function SignupForm() {
                                         <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
                                             <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
                                             <span className="text-sm text-muted-foreground text-center">
-                                              {!hasFileSelected && !isOptional ? placeholderText : (hasFileSelected ? '' : (isOptional ? placeholderText + " (Opcional)" : placeholderText))}
+                                              {hasFileSelected ? '' : placeholderText + " (Opcional)"}
                                             </span>
                                             <Input
                                               type="file"

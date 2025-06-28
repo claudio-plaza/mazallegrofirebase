@@ -301,9 +301,9 @@ export const signupTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
   confirmPassword: z.string(),
-  fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
-  fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
-  fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig),
+  fotoDniDorso: optionalFileField(dniFileSchemaConfig),
+  fotoPerfil: optionalFileField(profileFileSchemaConfig),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
   aceptaTerminos: z.boolean().refine(value => value === true, {
     message: "Debe aceptar el reglamento interno para registrarse.",
