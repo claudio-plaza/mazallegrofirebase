@@ -33,8 +33,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth(); 
-
+  
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -43,23 +42,18 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(data: LoginFormValues) {
-    const user = loginUser(data.email, data.password);
+  async function onSubmit(data: LoginFormValues) {
+    const user = await loginUser(data.email, data.password);
 
     if (user) {
-      auth.login(user.role, user.name, user.numeroSocio); 
       toast({
         title: 'Inicio de Sesión Exitoso',
-        description: `Bienvenido de nuevo, ${user.name}!`,
+        description: `¡Bienvenido de nuevo!`,
       });
       router.push('/dashboard');
-    } else {
-      toast({
-        title: 'Error de Inicio de Sesión',
-        description: 'Email o contraseña incorrectos. Por favor, intente de nuevo.',
-        variant: 'destructive',
-      });
-    }
+      router.refresh(); // Force a refresh to ensure layout updates
+    } 
+    // The loginUser function now handles showing the error toast.
   }
 
   return (

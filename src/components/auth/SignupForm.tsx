@@ -38,45 +38,6 @@ import { useState, useEffect } from 'react';
 import { signupUser } from '@/lib/auth';
 import { addSocio } from '@/lib/firebase/firestoreService';
 
-const renderFilePreview = (
-  fileList: FileList | null | undefined | string,
-  fieldName: keyof SignupTitularData,
-  formInstance: ReturnType<typeof useForm<SignupTitularData>>
-) => {
-  let fileNamePreview: string | null = null;
-  let isExistingFile = typeof fileList === 'string' && fileList.startsWith('http');
-
-  if (isExistingFile) {
-    fileNamePreview = "Archivo cargado";
-  } else if (typeof window !== 'undefined' && fileList instanceof FileList && fileList.length > 0) {
-    fileNamePreview = fileList[0].name;
-  }
-
-  if (fileNamePreview) {
-    return (
-      <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
-        <BadgeCheck className="h-4 w-4 text-green-500" />
-        <span className="text-muted-foreground truncate max-w-[120px] sm:max-w-[150px]">
-          {fileNamePreview}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => {
-            formInstance.setValue(fieldName, null, { shouldValidate: true });
-            formInstance.trigger(fieldName);
-          }}
-        >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-        </Button>
-      </div>
-    );
-  }
-  return null;
-};
-
 const reglamentoInternoTexto = `Aceptación del Reglamento y Política de Privacidad:
 Al registrarse y utilizar la aplicación de Allegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
 
@@ -143,10 +104,52 @@ Modificaciones del Reglamento y Horarios: El presente reglamento podrá ser modi
 Fuerza Mayor: Allegro no será responsable por el incumplimiento o retraso en la prestación de sus servicios debido a causas de fuerza mayor o caso fortuito, incluyendo pero no limitándose a desastres naturales, eventos climáticos extremos, actos de autoridad gubernamental, cortes de energía prolongados o cualquier otra circunstancia imprevisible e incontrolable que impida el normal funcionamiento de las instalaciones. En tales casos, la administración informará a los socios sobre las medidas adoptadas.
 `;
 
+const renderFilePreview = (
+  fileList: FileList | null | undefined | string,
+  fieldName: keyof SignupTitularData,
+  formInstance: ReturnType<typeof useForm<SignupTitularData>>
+) => {
+  let fileNamePreview: string | null = null;
+  let isExistingFile = typeof fileList === 'string' && fileList.startsWith('http');
+
+  if (isExistingFile) {
+    fileNamePreview = "Archivo cargado";
+  } else if (typeof window !== 'undefined' && fileList instanceof FileList && fileList.length > 0) {
+    fileNamePreview = fileList[0].name;
+  }
+
+  if (fileNamePreview) {
+    return (
+      <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
+        <BadgeCheck className="h-4 w-4 text-green-500" />
+        <span className="text-muted-foreground truncate max-w-[120px] sm:max-w-[150px]">
+          {fileNamePreview}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => {
+            formInstance.setValue(fieldName, null, { shouldValidate: true });
+            formInstance.trigger(fieldName);
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+        </Button>
+      </div>
+    );
+  }
+  return null;
+};
+
+// This function is now just a placeholder for the real logic which would involve Firebase Storage
 const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
   if (typeof window !== 'undefined' && fieldValue instanceof FileList && fieldValue.length > 0) {
       const timestamp = Date.now();
       const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
+      // In a real app, this would return a Firebase Storage URL after upload.
+      // For now, we return a placeholder.
       return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
   }
   if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
@@ -189,15 +192,19 @@ export function SignupForm() {
 
   async function onSubmit(data: SignupTitularData) {
     try {
-      // 1. Create the authentication user
+      // 1. Create the authentication user in Firebase Auth
       const authUser = await signupUser(data);
       if (!authUser) {
         // signupUser already shows a toast on error
         return;
       }
       
-      // 2. Create the socio profile data, passing the auth user details
+      // 2. Create the socio profile data in Firestore, linked by UID.
+      // Note: Real file uploads to Firebase Storage would happen here.
+      // We are using placeholders for URLs for now.
       await addSocio({
+        uid: authUser.uid,
+        email: data.email,
         nombre: data.nombre,
         apellido: data.apellido,
         fechaNacimiento: data.fechaNacimiento,
@@ -205,7 +212,6 @@ export function SignupForm() {
         empresa: data.empresa,
         telefono: data.telefono,
         direccion: data.direccion,
-        email: data.email,
         fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil),
         fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil),
         fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente),

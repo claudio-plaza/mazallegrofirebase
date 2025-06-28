@@ -13,9 +13,10 @@ const Header = () => {
   const { isLoggedIn, userRole, userName, logout } = useAuth();
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
+    router.refresh(); // Force a refresh to ensure layout updates
   };
 
   return (
