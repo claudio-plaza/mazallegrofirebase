@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -117,7 +118,7 @@ export const getAdminUserByEmail = async (email: string) => {
     return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   const sociosRef = collection(db, 'socios');
   // Get the last socio number to generate a new one
   const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
@@ -128,7 +129,7 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
     ...(socioData as Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>),
     numeroSocio: `S${(lastNumero + 1).toString()}`,
     role: 'socio',
-    estadoSocio: isTitularSignup ? 'Pendiente Validacion' : (socioData as any).estadoSocio || 'Activo',
+    estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
     miembroDesde: new Date(),
     aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' },
   };
@@ -225,9 +226,10 @@ export const getNovedades = async (): Promise<Novedad[]> => {
   return querySnapshot.docs.map(doc => doc.data());
 };
 
-export const addNovedad = async (novedadData: Omit<Novedad, 'id'>): Promise<Novedad> => {
-  const docRef = await addDoc(novedadesCollection.withConverter(novedadConverter), novedadData as Novedad);
-  return { ...novedadData, id: docRef.id };
+export const addNovedad = async (novedadData: Omit<Novedad, 'id' | 'fechaCreacion'>): Promise<Novedad> => {
+  const dataToSave = { ...novedadData, fechaCreacion: new Date() };
+  const docRef = await addDoc(novedadesCollection.withConverter(novedadConverter), dataToSave as Novedad);
+  return { ...dataToSave, id: docRef.id };
 };
 
 export const updateNovedad = async (updatedNovedad: Novedad): Promise<Novedad> => {

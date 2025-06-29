@@ -81,7 +81,7 @@ export function GestionNovedadesDashboard() {
         toast({ title: "Novedad Actualizada", description: `La novedad "${savedNovedad?.titulo}" ha sido actualizada.` });
       } else {
         const { id, fechaCreacion, ...dataToAdd } = processedData; // Excluir campos autogenerados o que no deben enviarse
-        savedNovedad = await addNovedad(dataToAdd as Omit<Novedad, 'id' | 'fechaCreacion'>);
+        savedNovedad = await addNovedad(dataToAdd);
         toast({ title: "Novedad Creada", description: `La novedad "${savedNovedad?.titulo}" ha sido creada.` });
       }
       loadNovedades();
@@ -280,4 +280,3 @@ export function GestionNovedadesDashboard() {
     </Card>
   );
 }
-
