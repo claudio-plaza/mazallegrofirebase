@@ -117,7 +117,7 @@ export const getAdminUserByEmail = async (email: string) => {
     return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role'>, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   const sociosRef = collection(db, 'socios');
   // Get the last socio number to generate a new one
   const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
@@ -128,7 +128,7 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
     ...socioData,
     numeroSocio: `S${(lastNumero + 1).toString()}`,
     role: 'socio',
-    estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
+    estadoSocio: isTitularSignup ? 'Pendiente Validacion' : (socioData as any).estadoSocio || 'Activo',
     miembroDesde: new Date(),
     aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' },
   };
@@ -194,7 +194,7 @@ export const addOrUpdateSolicitudInvitadosDiarios = async (solicitud: SolicitudI
   const docId = existingDoc ? existingDoc.id : solicitud.id;
 
   const docRef = doc(db, 'solicitudesInvitadosDiarios', docId).withConverter(solicitudConverter);
-  await updateDoc(docRef, solicitud, { merge: true });
+  await setDoc(docRef, solicitud, { merge: true });
 
   return { ...solicitud, id: docId };
 };
@@ -215,7 +215,7 @@ export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => 
 
 export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Promise<void> => {
   const docRef = doc(db, 'config', 'preciosInvitados');
-  await updateDoc(docRef, config, { merge: true });
+  await setDoc(docRef, config, { merge: true });
 };
 
 // --- Novedades Service ---

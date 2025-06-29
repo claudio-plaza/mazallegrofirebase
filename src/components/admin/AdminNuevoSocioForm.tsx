@@ -89,7 +89,7 @@ export function AdminNuevoSocioForm() {
 
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
-    const socioParaCrear: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'adherentes' | 'aptoMedico' | 'miembroDesde'> & { aptoMedico?: Partial<Socio['aptoMedico']> } = {
+    const socioParaCrear = {
       nombre: data.nombre,
       apellido: data.apellido,
       fechaNacimiento: data.fechaNacimiento as Date,
@@ -126,7 +126,8 @@ export function AdminNuevoSocioForm() {
     };
 
     try {
-      await addSocio(socioParaCrear, false); 
+      // The `addSocio` function now infers that socioParaCrear lacks `miembroDesde` and `aptoMedico` from its signature
+      await addSocio(socioParaCrear as any, false); 
       toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
       router.push('/admin/gestion-socios');
     } catch (error) {
@@ -222,7 +223,7 @@ export function AdminNuevoSocioForm() {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center gap-4">
                 <Avatar className="h-20 w-20 border">
-                    <AvatarImage src={fotoTitularActual} alt={`${form.watch('nombre') || 'Nuevo'} ${form.watch('apellido') || 'Socio'}`} data-ai-hint="profile photo placeholder"/>
+                    <AvatarImage src={fotoTitularActual || undefined} alt={`${form.watch('nombre') || 'Nuevo'} ${form.watch('apellido') || 'Socio'}`} data-ai-hint="profile photo placeholder"/>
                     <AvatarFallback>{(form.watch('nombre') || 'N')?.[0]}{(form.watch('apellido') || 'S')?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>
