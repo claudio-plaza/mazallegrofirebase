@@ -5,8 +5,8 @@ import {
   collection,
   doc,
   addDoc,
-  getDocFromServer,
-  getDocsFromServer,
+  getDoc,
+  getDocs,
   updateDoc,
   deleteDoc,
   query,
@@ -80,7 +80,7 @@ const novedadConverter = createConverter<Novedad>();
 export const getSocios = async (): Promise<Socio[]> => {
   try {
     const q = query(sociosCollection).withConverter(socioConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch (error) {
     logFirestoreError(error, 'getSocios');
@@ -92,7 +92,7 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
   if (!id) return null;
   try {
     const docRef = doc(db, 'socios', id).withConverter(socioConverter);
-    const docSnap = await getDocFromServer(docRef);
+    const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
     logFirestoreError(error, `getSocioById for id: ${id}`);
@@ -103,7 +103,7 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
 export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
   try {
     const q = query(sociosCollection, where("email", "==", email), limit(1)).withConverter(socioConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
         return null;
     }
@@ -121,12 +121,12 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
     
     // Try by DNI first
     let q = query(sociosCollection, where('dni', '==', normalizedSearchTerm), limit(1)).withConverter(socioConverter);
-    let querySnapshot = await getDocsFromServer(q);
+    let querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) return querySnapshot.docs[0].data();
     
     // Try by NumeroSocio
     q = query(sociosCollection, where('numeroSocio', '==', searchTerm.toUpperCase()), limit(1)).withConverter(socioConverter);
-    querySnapshot = await getDocsFromServer(q);
+    querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) return querySnapshot.docs[0].data();
 
     // Fallback to searching all and filtering (less efficient)
@@ -146,7 +146,7 @@ export const getAdminUserByEmail = async (email: string) => {
     if (!email) return null;
     try {
       const q = query(adminUsersCollection, where("email", "==", email), limit(1));
-      const snapshot = await getDocsFromServer(q);
+      const snapshot = await getDocs(q);
       if (snapshot.empty) return null;
       return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
     } catch(error) {
@@ -155,15 +155,15 @@ export const getAdminUserByEmail = async (email: string) => {
     }
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   try {
     const sociosRef = collection(db, 'socios');
     const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
-    const lastSocioSnap = await getDocsFromServer(lastSocioQuery);
+    const lastSocioSnap = await getDocs(lastSocioQuery);
     const lastNumero = lastSocioSnap.empty ? 1000 : parseInt(lastSocioSnap.docs[0].data().numeroSocio.substring(1));
 
     const nuevoSocio: Omit<Socio, 'id'> = {
-      ...(socioData as Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>),
+      ...(socioData),
       numeroSocio: `S${(lastNumero + 1).toString()}`,
       role: 'socio',
       estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
@@ -171,15 +171,15 @@ export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'ro
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de presentación' },
     };
     
-    const socioUid = (socioData as any).uid;
-    if (!socioUid) throw new Error("UID is missing from socio data for creation.");
+    const socioUid = uid;
+    if (!socioUid) throw new Error("UID is missing for socio creation.");
 
     const docRef = doc(sociosCollection, socioUid).withConverter(socioConverter);
     await setDoc(docRef, nuevoSocio);
 
     return { ...nuevoSocio, id: socioUid };
   } catch(error) {
-    logFirestoreError(error, `addSocio for user UID: ${(socioData as any).uid}`);
+    logFirestoreError(error, `addSocio for user UID: ${uid}`);
     throw error;
   }
 };
@@ -209,7 +209,7 @@ export const deleteSocio = async (socioId: string): Promise<boolean> => {
 export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
   try {
     const q = query(revisionesCollection, orderBy("fechaRevision", "desc"), limit(20)).withConverter(revisionConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch(error) {
     logFirestoreError(error, 'getRevisionesMedicas');
@@ -231,7 +231,7 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
 export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvitadosDiarios[]> => {
   try {
     const q = query(solicitudesCollection).withConverter(solicitudConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch(error) {
     logFirestoreError(error, 'getAllSolicitudesInvitadosDiarios');
@@ -247,7 +247,7 @@ export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fecha
       where("fecha", "==", fechaISO), 
       limit(1)
     ).withConverter(solicitudConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     return querySnapshot.empty ? null : querySnapshot.docs[0].data();
   } catch(error) {
     logFirestoreError(error, `getSolicitudInvitadosDiarios for socio: ${idSocioTitular} on date: ${fechaISO}`);
@@ -278,7 +278,7 @@ export const updateSolicitudInvitadosDiarios = async (updatedSolicitud: Solicitu
 export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => {
   try {
     const docRef = doc(db, 'config', 'preciosInvitados');
-    const docSnap = await getDocFromServer(docRef);
+    const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data() as PreciosInvitadosConfig;
     }
@@ -303,7 +303,7 @@ export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Pr
 export const getNovedades = async (): Promise<Novedad[]> => {
   try {
     const q = query(novedadesCollection, orderBy("fechaCreacion", "desc")).withConverter(novedadConverter);
-    const querySnapshot = await getDocsFromServer(q);
+    const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch(error) {
     logFirestoreError(error, 'getNovedades');

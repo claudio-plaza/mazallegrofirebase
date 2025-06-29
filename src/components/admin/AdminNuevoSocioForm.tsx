@@ -89,7 +89,7 @@ export function AdminNuevoSocioForm() {
 
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
-    const socioParaCrear = {
+    const socioDataForCreation = {
       nombre: data.nombre,
       apellido: data.apellido,
       fechaNacimiento: data.fechaNacimiento as Date,
@@ -126,8 +126,9 @@ export function AdminNuevoSocioForm() {
     };
 
     try {
-      // The `addSocio` function now infers that socioParaCrear lacks `miembroDesde` and `aptoMedico` from its signature
-      await addSocio(socioParaCrear as any, false); 
+      // The `addSocio` function now infers that socioDataForCreation lacks `miembroDesde` and `aptoMedico` from its signature
+      // We generate a random ID for the socio document since no auth user is being created here.
+      await addSocio(generateId(), socioDataForCreation, false); 
       toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
       router.push('/admin/gestion-socios');
     } catch (error) {

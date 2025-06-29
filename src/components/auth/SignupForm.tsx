@@ -202,8 +202,7 @@ export function SignupForm() {
       // 2. Create the socio profile data in Firestore, linked by UID.
       // Note: Real file uploads to Firebase Storage would happen here.
       // We are using placeholders for URLs for now.
-      await addSocio({
-        uid: authUser.uid,
+      const socioData = {
         email: data.email,
         nombre: data.nombre,
         apellido: data.apellido,
@@ -218,7 +217,9 @@ export function SignupForm() {
         fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso),
         fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet),
         grupoFamiliar: [],
-      }, true); // `isTitularSignup = true` sets estado to 'Pendiente Validacion'
+      };
+      
+      await addSocio(authUser.uid, socioData, true); // `isTitularSignup = true` sets estado to 'Pendiente Validacion'
 
       toast({
         title: 'Cuenta Creada Exitosamente',
