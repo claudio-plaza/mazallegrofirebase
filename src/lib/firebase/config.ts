@@ -15,7 +15,7 @@ const firebaseConfig = {
   projectId: "clubzenith",
   storageBucket: "clubzenith.appspot.com",
   messagingSenderId: "720998936376",
-  appId: "YOUR_APP_ID", // You can find this in your Firebase project settings
+  appId: "1:720998936376:web:27ae05972dbed021795bcd", // You can find this in your Firebase project settings
 };
 // =================================================================
 
