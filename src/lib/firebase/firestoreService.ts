@@ -1,12 +1,11 @@
-
 'use client';
 
 import {
   collection,
   doc,
   addDoc,
-  getDoc,
-  getDocs,
+  getDocFromServer,
+  getDocsFromServer,
   updateDoc,
   deleteDoc,
   query,
@@ -67,19 +66,20 @@ const novedadConverter = createConverter<Novedad>();
 // --- Socios Service ---
 export const getSocios = async (): Promise<Socio[]> => {
   const q = query(sociosCollection).withConverter(socioConverter);
-  const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocsFromServer(q);
   return querySnapshot.docs.map(doc => doc.data());
 };
 
 export const getSocioById = async (id: string): Promise<Socio | null> => {
+  if (!id) return null;
   const docRef = doc(db, 'socios', id).withConverter(socioConverter);
-  const docSnap = await getDoc(docRef);
+  const docSnap = await getDocFromServer(docRef);
   return docSnap.exists() ? docSnap.data() : null;
 };
 
 export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
     const q = query(sociosCollection, where("email", "==", email), limit(1)).withConverter(socioConverter);
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocsFromServer(q);
     if (querySnapshot.empty) {
         return null;
     }
@@ -92,12 +92,12 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
   
   // Try by DNI first
   let q = query(sociosCollection, where('dni', '==', normalizedSearchTerm), limit(1)).withConverter(socioConverter);
-  let querySnapshot = await getDocs(q);
+  let querySnapshot = await getDocsFromServer(q);
   if (!querySnapshot.empty) return querySnapshot.docs[0].data();
   
   // Try by NumeroSocio
   q = query(sociosCollection, where('numeroSocio', '==', searchTerm.toUpperCase()), limit(1)).withConverter(socioConverter);
-  querySnapshot = await getDocs(q);
+  querySnapshot = await getDocsFromServer(q);
   if (!querySnapshot.empty) return querySnapshot.docs[0].data();
 
   // Fallback to searching all and filtering (less efficient)
@@ -112,20 +112,20 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
 export const getAdminUserByEmail = async (email: string) => {
     if (!email) return null;
     const q = query(adminUsersCollection, where("email", "==", email), limit(1));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocsFromServer(q);
     if (snapshot.empty) return null;
     return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
 };
 
-export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
+export const addSocio = async (socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   const sociosRef = collection(db, 'socios');
   // Get the last socio number to generate a new one
   const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
-  const lastSocioSnap = await getDocs(lastSocioQuery);
+  const lastSocioSnap = await getDocsFromServer(lastSocioQuery);
   const lastNumero = lastSocioSnap.empty ? 1000 : parseInt(lastSocioSnap.docs[0].data().numeroSocio.substring(1));
 
   const nuevoSocio: Omit<Socio, 'id'> = {
-    ...socioData,
+    ...(socioData as Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>),
     numeroSocio: `S${(lastNumero + 1).toString()}`,
     role: 'socio',
     estadoSocio: isTitularSignup ? 'Pendiente Validacion' : (socioData as any).estadoSocio || 'Activo',
@@ -162,7 +162,7 @@ export const deleteSocio = async (socioId: string): Promise<boolean> => {
 // --- Revisiones Medicas Service ---
 export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
   const q = query(revisionesCollection, orderBy("fechaRevision", "desc"), limit(20)).withConverter(revisionConverter);
-  const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocsFromServer(q);
   return querySnapshot.docs.map(doc => doc.data());
 };
 
@@ -174,7 +174,7 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
 // --- Solicitudes Invitados Diarios Service ---
 export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvitadosDiarios[]> => {
   const q = query(solicitudesCollection).withConverter(solicitudConverter);
-  const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocsFromServer(q);
   return querySnapshot.docs.map(doc => doc.data());
 };
 
@@ -185,7 +185,7 @@ export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fecha
     where("fecha", "==", fechaISO), 
     limit(1)
   ).withConverter(solicitudConverter);
-  const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocsFromServer(q);
   return querySnapshot.empty ? null : querySnapshot.docs[0].data();
 };
 
@@ -206,7 +206,7 @@ export const updateSolicitudInvitadosDiarios = async (updatedSolicitud: Solicitu
 // --- Precios Invitados Service ---
 export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => {
   const docRef = doc(db, 'config', 'preciosInvitados');
-  const docSnap = await getDoc(docRef);
+  const docSnap = await getDocFromServer(docRef);
   if (docSnap.exists()) {
     return docSnap.data() as PreciosInvitadosConfig;
   }
@@ -221,7 +221,7 @@ export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Pr
 // --- Novedades Service ---
 export const getNovedades = async (): Promise<Novedad[]> => {
   const q = query(novedadesCollection, orderBy("fechaCreacion", "desc")).withConverter(novedadConverter);
-  const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocsFromServer(q);
   return querySnapshot.docs.map(doc => doc.data());
 };
 
