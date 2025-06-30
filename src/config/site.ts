@@ -1,21 +1,29 @@
 
-import type { QuickAccessFeature, UserRole } from '@/types';
-import { Home, Users, ShieldCheck, Stethoscope, FileText, BarChart3, UserCircle, UserPlus, ListFilter, Handshake, DollarSign, Megaphone } from 'lucide-react'; 
+import type { QuickAccessFeature } from '@/types';
+import { 
+    Users, 
+    FileText, 
+    UserPlus, 
+    Handshake, 
+    UserCircle,
+    // Admin Icons
+    Users as UsersAdmin, // Alias for clarity
+    Stethoscope,
+    ShieldCheck,
+    ListFilter,
+    DollarSign,
+    Megaphone
+} from 'lucide-react'; 
 
 export const siteConfig = {
   name: 'MazAllegro',
   description: 'Sistema de gestión integral para un club deportivo y social.',
 };
 
+// Features primarily for the SOCIO role dashboard.
+// Non-socio roles are redirected directly to their specific pages from the main dashboard gatekeeper.
 export const allFeatures: QuickAccessFeature[] = [
-  {
-    id: 'dashboard-general',
-    title: 'Panel Principal',
-    description: 'Vista general y accesos rápidos.',
-    icon: Home,
-    href: '/dashboard',
-    roles: ['portero', 'medico'], 
-  },
+  // --- Socio Features ---
   {
     id: 'mi-perfil-vista',
     title: 'Mi Perfil',
@@ -56,11 +64,13 @@ export const allFeatures: QuickAccessFeature[] = [
     href: '/mis-adherentes',
     roles: ['socio'],
   },
+
+  // --- Admin Features (Not displayed on socio dashboard, but defined for consistency) ---
   {
-    id: 'gestion-socios', // Movido aquí
+    id: 'gestion-socios',
     title: 'Gestión de Socios',
     description: 'Administra la base de datos de socios.',
-    icon: Users,
+    icon: UsersAdmin,
     href: '/admin/gestion-socios',
     roles: ['administrador'],
   },

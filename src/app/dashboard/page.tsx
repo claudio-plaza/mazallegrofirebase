@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
-import { allFeatures, siteConfig } from '@/config/site';
-import type { QuickAccessFeature, Novedad } from '@/types';
+import { allFeatures } from '@/config/site';
+import type { Novedad } from '@/types';
 import { TipoNovedad } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getSocioByNumeroSocioOrDNI, getNovedades } from '@/lib/firebase/firestoreService';
@@ -18,48 +18,24 @@ import { Badge } from '@/components/ui/badge';
 import { Info, AlertTriangle as AlertTriangleIcon, CalendarDays as CalendarIconLucide, Megaphone, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-// This is the component that will be shown for non-socio roles while redirecting
-function RedirectingLoader({ role }: { role: string | null }) {
+// Componente dedicado para mostrar mientras se carga o redirige.
+function DashboardLoader() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
             <Card className="w-full max-w-md p-8 text-center">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                <CardTitle className="mt-4">Redireccionando...</CardTitle>
+                <CardTitle className="mt-4">Cargando Panel...</CardTitle>
                 <CardDescription className="mt-2">
-                    Ha iniciado sesión como {role || 'usuario'}.<br />
-                    Será redirigido a su panel de control en un momento.
+                    Verificando su sesión y permisos. Por favor, espere.
                 </CardDescription>
             </Card>
         </div>
     );
 }
 
-
-export default function DashboardPage() {
-  const { isLoggedIn, userRole, userName, isLoading: isAuthLoading, loggedInUserNumeroSocio } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isAuthLoading) {
-      return; // Do nothing while auth is loading
-    }
-
-    if (!isLoggedIn) {
-      router.replace('/login');
-      return;
-    }
-    
-    // This is the core redirection logic
-    if (userRole && userRole !== 'socio') {
-      if (userRole === 'administrador') {
-        router.replace('/admin/gestion-socios');
-      } else if (userRole === 'portero') {
-        router.replace('/control-acceso');
-      } else if (userRole === 'medico') {
-        router.replace('/medico/panel');
-      }
-    }
-  }, [isLoggedIn, isAuthLoading, userRole, router]);
+// Componente dedicado que contiene la UI exclusiva para el rol 'socio'.
+function SocioDashboard() {
+  const { userName, userRole, loggedInUserNumeroSocio } = useAuth();
 
   const { data: socio, isLoading: isSocioDataLoading } = useQuery({
     queryKey: ['socioStatus', loggedInUserNumeroSocio],
@@ -78,10 +54,10 @@ export default function DashboardPage() {
         (!novedad.fechaVencimiento || new Date(novedad.fechaVencimiento) >= ahora)
       );
     },
-    enabled: isLoggedIn && userRole === 'socio', // Only fetch for socios
+    enabled: userRole === 'socio',
     staleTime: 10 * 60 * 1000,
   });
-
+  
   const currentSocioEstado = socio?.estadoSocio;
 
   const accessibleFeatures = useMemo(() => {
@@ -116,36 +92,7 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Start of Rendering Logic ---
-
-  if (isAuthLoading) {
-    return <RedirectingLoader role={null} />;
-  }
-
-  // Handle case where user is logged in but has no role (error state)
-  if (isLoggedIn && !userRole) {
-    return (
-        <div className="container mx-auto py-10">
-            <Alert variant="destructive" className="max-w-xl mx-auto">
-                <AlertTriangleIcon className="h-4 w-4" />
-                <AlertTitle>Error al Cargar Perfil de Usuario</AlertTitle>
-                <AlertDescription>
-                    No pudimos cargar la información de tu rol desde la base de datos.
-                    Esto puede deberse a un problema de conexión o a que tu cuenta no tiene un perfil asignado correctamente.
-                    <br/><br/>
-                    Por favor, verifica que tu base de datos de Firestore esté creada y que las reglas de seguridad permitan la lectura a usuarios autenticados. Si el problema persiste, contacta a soporte.
-                </AlertDescription>
-            </Alert>
-        </div>
-    );
-  }
-  
-  // If user is a non-socio role, show the loader while useEffect redirects them.
-  if (isLoggedIn && userRole !== 'socio') {
-    return <RedirectingLoader role={userRole} />; 
-  }
-  
-  // By this point, the user must be a 'socio'. Render the socio dashboard.
+  // Renderizar la UI para el socio
   return (
     <div className="space-y-8">
       <header>
@@ -222,4 +169,69 @@ export default function DashboardPage() {
         </Card>
     </div>
   );
+}
+
+// Componente principal que actúa como "gatekeeper" o enrutador.
+export default function DashboardPage() {
+  const { isLoggedIn, userRole, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // No hacer nada hasta que la autenticación haya terminado de cargar.
+    if (isAuthLoading) {
+      return; 
+    }
+
+    // Si el usuario no está logueado, redirigir a la página de login.
+    if (!isLoggedIn) {
+      router.replace('/login');
+      return;
+    }
+    
+    // Si el usuario tiene un rol especial (no es socio), redirigir a su panel correspondiente.
+    if (userRole && userRole !== 'socio') {
+      if (userRole === 'administrador') {
+        router.replace('/admin/gestion-socios');
+      } else if (userRole === 'portero') {
+        router.replace('/control-acceso');
+      } else if (userRole === 'medico') {
+        router.replace('/medico/panel');
+      }
+    }
+  }, [isLoggedIn, isAuthLoading, userRole, router]);
+
+  // 1. Mientras la autenticación se está resolviendo, mostrar el cargador.
+  if (isAuthLoading) {
+    return <DashboardLoader />;
+  }
+
+  // 2. Si el usuario es un rol especial, mostrar el cargador mientras se redirige.
+  if (isLoggedIn && userRole && userRole !== 'socio') {
+    return <DashboardLoader />;
+  }
+
+  // 3. Si el usuario es un socio, mostrar el panel del socio.
+  if (isLoggedIn && userRole === 'socio') {
+    return <SocioDashboard />;
+  }
+  
+  // 4. Si el usuario está logueado pero no tiene un rol asignado, mostrar un error.
+  if (isLoggedIn && !userRole) {
+    return (
+       <div className="container mx-auto py-10">
+            <Alert variant="destructive" className="max-w-xl mx-auto">
+                <AlertTriangleIcon className="h-4 w-4" />
+                <AlertTitle>Error al Cargar Perfil de Usuario</AlertTitle>
+                <AlertDescription>
+                    No pudimos cargar la información de tu rol. Esto puede ser un problema de conexión o tu cuenta no tiene un perfil asignado.
+                    Por favor, contacta a soporte si el problema persiste.
+                </AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
+
+  // 5. Como fallback final, si ninguna condición se cumple (ej. no logueado después de cargar),
+  // el useEffect ya habrá redirigido a /login, pero por si acaso mostramos el cargador.
+  return <DashboardLoader />;
 }
