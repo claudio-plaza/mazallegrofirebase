@@ -2,7 +2,7 @@
 // src/lib/firebase/config.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 
 // =================================================================
 // IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIGURATION
@@ -22,8 +22,13 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized yet
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Get Firestore and Auth instances
-const db = getFirestore(app);
+// Initialize Firestore with in-memory cache instead of IndexedDB.
+// This can resolve certain "client is offline" errors by avoiding
+// potential issues with browser storage persistence.
+const db = initializeFirestore(app, {
+  localCache: memoryLocalCache(),
+});
+
 const auth = getAuth(app);
 
 export { app, db, auth };
