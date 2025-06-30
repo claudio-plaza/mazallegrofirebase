@@ -97,31 +97,29 @@ export default function DashboardPage() {
     }
   };
 
-  if (isAuthLoading || (isLoggedIn && userRole && userRole !== 'socio')) {
-    // If we are loading auth, or we are logged in with a role that will be redirected, show a skeleton.
+  // --- Start of Diagnostic Rendering Logic ---
+
+  if (isAuthLoading) {
     return (
-      <div className="space-y-8">
-        <Skeleton className="h-10 w-1/2" />
-        <Skeleton className="h-6 w-1/3" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-10 w-1/3 mt-4" />
-              </CardContent>
-            </Card>
-          ))}
+        <div className="container mx-auto py-10 text-center">
+            <h1 className="text-2xl font-semibold">Cargando Autenticación...</h1>
+            <p className="text-muted-foreground">Verificando su sesión.</p>
         </div>
-        <Card className="mt-8 bg-secondary/30">
-            <CardHeader><Skeleton className="h-8 w-1/4" /></CardHeader>
-            <CardContent><Skeleton className="h-24 w-full" /></CardContent>
-        </Card>
-      </div>
+    );
+  }
+
+  if (isLoggedIn && userRole && userRole !== 'socio') {
+    return (
+        <div className="container mx-auto py-10 text-center">
+            <h1 className="text-2xl font-semibold text-primary">Redireccionando...</h1>
+            <p className="text-muted-foreground mt-2">
+                Usuario detectado: <span className="font-bold">{userName}</span>
+            </p>
+            <p className="text-muted-foreground">
+                Rol detectado: <span className="font-bold">{userRole}</span>
+            </p>
+            <p className="mt-4">Si no es redirigido automáticamente, por favor, contacte a soporte.</p>
+        </div>
     );
   }
 
@@ -143,6 +141,8 @@ export default function DashboardPage() {
       </Alert>
     );
   }
+
+  // --- End of Diagnostic Logic, Start of Socio Dashboard UI ---
   
   // This part of the UI is now only for socios. Others are redirected.
   return (
