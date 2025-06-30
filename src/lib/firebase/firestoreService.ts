@@ -46,7 +46,7 @@ const sociosCollection = collection(db, 'socios') as CollectionReference<Socio, 
 const revisionesCollection = collection(db, 'revisionesMedicas') as CollectionReference<RevisionMedica, DocumentData>;
 const solicitudesCollection = collection(db, 'solicitudesInvitadosDiarios') as CollectionReference<SolicitudInvitadosDiarios, DocumentData>;
 const novedadesCollection = collection(db, 'novedades') as CollectionReference<Novedad, DocumentData>;
-const adminUsersCollection = collection(db, 'adminuser');
+const adminUsersCollection = collection(db, 'adminUsers');
 
 // --- Data Converters (handle Date <-> Timestamp) ---
 const createConverter = <T extends { [key: string]: any }>() => ({
@@ -142,18 +142,21 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
 };
 
 // Data for admin, medico, portero roles. Stored separately from socios.
-export const getAdminUserByEmail = async (email: string) => {
-    if (!email) return null;
-    try {
-      const q = query(adminUsersCollection, where("email", "==", email), limit(1));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      return snapshot.docs[0].data() as { email: string, name: string, role: UserRole };
-    } catch(error) {
-      logFirestoreError(error, `getAdminUserByEmail for email: ${email}`);
-      throw error;
+export const getAdminUserById = async (uid: string): Promise<{ email: string; name: string; role: UserRole } | null> => {
+  if (!uid) return null;
+  try {
+    const docRef = doc(db, 'adminUsers', uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as { email: string; name: string; role: UserRole };
     }
+    return null;
+  } catch (error) {
+    logFirestoreError(error, `getAdminUserById for uid: ${uid}`);
+    throw error;
+  }
 };
+
 
 export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   try {
@@ -343,5 +346,3 @@ export const deleteNovedad = async (novedadId: string): Promise<boolean> => {
     return false;
   }
 };
-
-    

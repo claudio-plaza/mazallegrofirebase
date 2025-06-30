@@ -5,7 +5,7 @@ import type { UserRole, Socio } from '@/types';
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { getSocioById, getAdminUserByEmail } from '@/lib/firebase/firestoreService';
+import { getSocioById, getAdminUserById } from '@/lib/firebase/firestoreService';
 import { logoutUser as performLogout } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -46,8 +46,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
             setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
           } else {
-            // 2. If not a socio, check if they are a privileged user (admin, medico, etc.)
-            const adminUser = await getAdminUserByEmail(firebaseUser.email!);
+            // 2. If not a socio, check if they are a privileged user (admin, medico, etc.) by UID
+            const adminUser = await getAdminUserById(firebaseUser.uid);
             if (adminUser) {
               setUserRole(adminUser.role);
               setUserName(adminUser.name);
