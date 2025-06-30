@@ -15,27 +15,24 @@ import { getSocioByNumeroSocioOrDNI, getNovedades } from '@/lib/firebase/firesto
 import { formatDate } from '@/lib/helpers';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Info, AlertTriangleIcon, CalendarDays as CalendarIconLucide, Megaphone } from 'lucide-react';
+import { Info, AlertTriangle as AlertTriangleIcon, CalendarDays as CalendarIconLucide, Megaphone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 export default function DashboardPage() {
   const { isLoggedIn, userRole, userName, isLoading: isAuthLoading, loggedInUserNumeroSocio } = useAuth();
   const router = useRouter();
 
-  // --- Effects for redirection and initial auth check ---
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
       router.push('/login');
     }
   }, [isLoggedIn, isAuthLoading, router]);
 
-  // --- Data Fetching with React Query ---
-
   const { data: socio, isLoading: isSocioDataLoading } = useQuery({
     queryKey: ['socioStatus', loggedInUserNumeroSocio],
     queryFn: () => getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio!),
     enabled: !!loggedInUserNumeroSocio && userRole === 'socio',
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: novedadesClub = [], isLoading: loadingNovedades } = useQuery({
@@ -49,18 +46,14 @@ export default function DashboardPage() {
       );
     },
     enabled: isLoggedIn,
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    staleTime: 10 * 60 * 1000,
   });
-
-  // --- Derived State and Side Effects ---
 
   const currentSocioEstado = socio?.estadoSocio;
 
   const accessibleFeatures = useMemo(() => {
     if (!userRole) return [];
     
-    // Redirect logic now encapsulated in useMemo, which runs after data fetching.
-    // We check router.isReady if needed, but in App Router this is less of an issue.
     if (userRole === 'portero') {
       router.push('/control-acceso');
       return [];
@@ -77,7 +70,6 @@ export default function DashboardPage() {
     return features;
   }, [userRole, currentSocioEstado, router]);
 
-  // --- Helper Functions ---
   const getNovedadIcon = (tipo: TipoNovedad) => {
     switch (tipo) {
       case TipoNovedad.ALERTA: return <AlertTriangleIcon className="h-5 w-5 text-destructive" />;
@@ -100,13 +92,7 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Render Logic ---
-
-  const showSkeleton = isAuthLoading || 
-                       (isLoggedIn && userRole === 'socio' && isSocioDataLoading) || 
-                       (isLoggedIn && (userRole === 'portero' || userRole === 'medico'));
-
-  if (showSkeleton) {
+  if (isAuthLoading) {
     return (
       <div className="space-y-8">
         <Skeleton className="h-10 w-1/2" />
@@ -133,8 +119,27 @@ export default function DashboardPage() {
     );
   }
 
-  if (!isLoggedIn || userRole === 'portero' || userRole === 'medico') {
-    return null; // Don't render anything for these roles as they are being redirected.
+  if (!isLoggedIn) {
+    return null; // Redirecting...
+  }
+  
+  if (!userRole) {
+    return (
+      <Alert variant="destructive" className="max-w-xl mx-auto">
+          <AlertTriangleIcon className="h-4 w-4" />
+          <AlertTitle>Error al Cargar Perfil de Usuario</AlertTitle>
+          <AlertDescription>
+              No pudimos cargar la información de tu rol desde la base de datos.
+              Esto puede deberse a un problema de conexión o a que tu cuenta no tiene un perfil asignado correctamente.
+              <br/><br/>
+              Por favor, verifica que tu base de datos de Firestore esté creada y que las reglas de seguridad permitan la lectura a usuarios autenticados. Si el problema persiste, contacta a soporte.
+          </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (userRole === 'portero' || userRole === 'medico') {
+    return null; // Redirecting...
   }
   
   return (
