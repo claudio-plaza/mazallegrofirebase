@@ -30,16 +30,15 @@ export default function DashboardPage() {
       return;
     }
 
-    // Redirect based on role
-    if (userRole === 'administrador') {
-      router.push('/admin/gestion-socios');
-    } else if (userRole === 'portero') {
-      router.push('/control-acceso');
-    } else if (userRole === 'medico') {
-      router.push('/medico/panel');
+    if (userRole) {
+        if (userRole === 'administrador') {
+          router.push('/admin/gestion-socios');
+        } else if (userRole === 'portero') {
+          router.push('/control-acceso');
+        } else if (userRole === 'medico') {
+          router.push('/medico/panel');
+        }
     }
-    // No redirection for 'socio', they stay on the dashboard.
-
   }, [isLoggedIn, isAuthLoading, userRole, router]);
 
   const { data: socio, isLoading: isSocioDataLoading } = useQuery({
@@ -59,14 +58,14 @@ export default function DashboardPage() {
         (!novedad.fechaVencimiento || new Date(novedad.fechaVencimiento) >= ahora)
       );
     },
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && userRole === 'socio', // Only fetch for socios
     staleTime: 10 * 60 * 1000,
   });
 
   const currentSocioEstado = socio?.estadoSocio;
 
   const accessibleFeatures = useMemo(() => {
-    if (userRole !== 'socio') return []; // Only socios see features on dashboard
+    if (userRole !== 'socio') return [];
     
     let features = allFeatures.filter(feature => feature.roles.includes(userRole));
     if (currentSocioEstado !== 'Activo') {
@@ -99,14 +98,20 @@ export default function DashboardPage() {
 
   // --- Start of Rendering Logic ---
 
-  // Show a loading screen while auth is resolving or if a non-socio user is being redirected
-  if (isAuthLoading || (isLoggedIn && userRole !== 'socio')) {
+  // While authentication is resolving, show a loader.
+  if (isAuthLoading) {
     return (
         <div className="container mx-auto py-10 text-center">
             <h1 className="text-2xl font-semibold text-primary">Cargando...</h1>
             <p className="text-muted-foreground mt-2">Verificando su sesión y preparando su panel de control.</p>
         </div>
     );
+  }
+
+  // If user is not a 'socio', they will be redirected by the useEffect.
+  // Render nothing (or a minimal loader) while the redirect happens.
+  if (isLoggedIn && userRole !== 'socio') {
+    return null; 
   }
 
   // Handle case where user is logged in but has no role (error state)
@@ -124,15 +129,8 @@ export default function DashboardPage() {
       </Alert>
     );
   }
-
-  // Redirecting...
-  if (!isLoggedIn) {
-    return null;
-  }
   
-  // --- End of Non-Socio Logic, Start of Socio Dashboard UI ---
-  
-  // This part of the UI is now only for socios. Others are redirected.
+  // By this point, the user must be a 'socio'.
   return (
     <div className="space-y-8">
       <header>
