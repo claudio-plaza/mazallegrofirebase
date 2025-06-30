@@ -97,37 +97,20 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Start of Diagnostic Rendering Logic ---
+  // --- Start of Rendering Logic ---
 
-  if (isAuthLoading) {
+  // Show a loading screen while auth is resolving or if a non-socio user is being redirected
+  if (isAuthLoading || (isLoggedIn && userRole !== 'socio')) {
     return (
         <div className="container mx-auto py-10 text-center">
-            <h1 className="text-2xl font-semibold">Cargando Autenticación...</h1>
-            <p className="text-muted-foreground">Verificando su sesión.</p>
+            <h1 className="text-2xl font-semibold text-primary">Cargando...</h1>
+            <p className="text-muted-foreground mt-2">Verificando su sesión y preparando su panel de control.</p>
         </div>
     );
   }
 
-  if (isLoggedIn && userRole && userRole !== 'socio') {
-    return (
-        <div className="container mx-auto py-10 text-center">
-            <h1 className="text-2xl font-semibold text-primary">Redireccionando...</h1>
-            <p className="text-muted-foreground mt-2">
-                Usuario detectado: <span className="font-bold">{userName}</span>
-            </p>
-            <p className="text-muted-foreground">
-                Rol detectado: <span className="font-bold">{userRole}</span>
-            </p>
-            <p className="mt-4">Si no es redirigido automáticamente, por favor, contacte a soporte.</p>
-        </div>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return null; // Redirecting...
-  }
-  
-  if (!userRole) {
+  // Handle case where user is logged in but has no role (error state)
+  if (isLoggedIn && !userRole) {
     return (
       <Alert variant="destructive" className="max-w-xl mx-auto">
           <AlertTriangleIcon className="h-4 w-4" />
@@ -142,7 +125,12 @@ export default function DashboardPage() {
     );
   }
 
-  // --- End of Diagnostic Logic, Start of Socio Dashboard UI ---
+  // Redirecting...
+  if (!isLoggedIn) {
+    return null;
+  }
+  
+  // --- End of Non-Socio Logic, Start of Socio Dashboard UI ---
   
   // This part of the UI is now only for socios. Others are redirected.
   return (
