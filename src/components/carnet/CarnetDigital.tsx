@@ -198,7 +198,7 @@ export function CarnetDigital() {
         <div className="flex items-center justify-between">
             <UserSquare2 className="h-8 w-8 opacity-80" />
             <CardTitle className="text-2xl font-bold">{siteConfig.name}</CardTitle>
-            <Image src="/logo-placeholder-white.png" alt={`${siteConfig.name} Logo`} width={40} height={40} data-ai-hint="club logo white" className="rounded-sm opacity-90"/>
+            <Image src="https://placehold.co/40x40.png" alt={`${siteConfig.name} Logo`} width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
         </div>
       </CardHeader>
       

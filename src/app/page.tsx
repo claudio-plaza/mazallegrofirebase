@@ -20,8 +20,9 @@ export default function HomePage() {
             data-ai-hint="club logo"
           />
           <Image
-            src="/logo-mazallegro.png" 
+            src="https://placehold.co/153x76.png" 
             alt={`${siteConfig.name} Logo`}
+            data-ai-hint="company logo"
             width={153} // Using original image dimensions
             height={76}
             className="mx-auto"
