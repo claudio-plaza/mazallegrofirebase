@@ -46,7 +46,7 @@ const sociosCollection = collection(db, 'socios') as CollectionReference<Socio, 
 const revisionesCollection = collection(db, 'revisionesMedicas') as CollectionReference<RevisionMedica, DocumentData>;
 const solicitudesCollection = collection(db, 'solicitudesInvitadosDiarios') as CollectionReference<SolicitudInvitadosDiarios, DocumentData>;
 const novedadesCollection = collection(db, 'novedades') as CollectionReference<Novedad, DocumentData>;
-const adminUsersCollection = collection(db, 'adminUsers');
+const adminUsersCollection = collection(db, 'adminuser');
 
 // --- Data Converters (handle Date <-> Timestamp) ---
 const createConverter = <T extends { [key: string]: any }>() => ({
