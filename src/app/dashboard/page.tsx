@@ -54,6 +54,10 @@ export default function DashboardPage() {
   const accessibleFeatures = useMemo(() => {
     if (!userRole) return [];
     
+    if (userRole === 'administrador') {
+      router.push('/admin/gestion-socios');
+      return [];
+    }
     if (userRole === 'portero') {
       router.push('/control-acceso');
       return [];
@@ -138,7 +142,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (userRole === 'portero' || userRole === 'medico') {
+  if (userRole === 'portero' || userRole === 'medico' || userRole === 'administrador') {
     return null; // Redirecting...
   }
   
