@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 import { allFeatures } from '@/config/site';
 import type { Novedad } from '@/types';
@@ -174,64 +173,39 @@ function SocioDashboard() {
 // Componente principal que actúa como "gatekeeper" o enrutador.
 export default function DashboardPage() {
   const { isLoggedIn, userRole, isLoading: isAuthLoading } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
-    // No hacer nada hasta que la autenticación haya terminado de cargar.
+    // Wait until we know the user's auth state
     if (isAuthLoading) {
-      return; 
+      return;
     }
 
-    // Si el usuario no está logueado, redirigir a la página de login.
+    // Redirect to login if not authenticated
     if (!isLoggedIn) {
-      router.replace('/login');
+      window.location.replace('/login');
       return;
     }
     
-    // Si el usuario tiene un rol especial (no es socio), redirigir a su panel correspondiente.
+    // Redirect non-socio users to their specific panels
     if (userRole && userRole !== 'socio') {
-      if (userRole === 'administrador') {
-        router.replace('/admin/gestion-socios');
-      } else if (userRole === 'portero') {
-        router.replace('/control-acceso');
-      } else if (userRole === 'medico') {
-        router.replace('/medico/panel');
+      const targetPath = {
+        administrador: '/admin/gestion-socios',
+        portero: '/control-acceso',
+        medico: '/medico/panel',
+      }[userRole];
+
+      if (targetPath) {
+        window.location.replace(targetPath);
       }
     }
-  }, [isLoggedIn, isAuthLoading, userRole, router]);
+  }, [isLoggedIn, isAuthLoading, userRole]);
 
-  // 1. Mientras la autenticación se está resolviendo, mostrar el cargador.
-  if (isAuthLoading) {
-    return <DashboardLoader />;
-  }
-
-  // 2. Si el usuario es un rol especial, mostrar el cargador mientras se redirige.
-  if (isLoggedIn && userRole && userRole !== 'socio') {
-    return <DashboardLoader />;
-  }
-
-  // 3. Si el usuario es un socio, mostrar el panel del socio.
-  if (isLoggedIn && userRole === 'socio') {
+  // If the user's role is 'socio', render their dashboard.
+  if (userRole === 'socio') {
     return <SocioDashboard />;
   }
-  
-  // 4. Si el usuario está logueado pero no tiene un rol asignado, mostrar un error.
-  if (isLoggedIn && !userRole) {
-    return (
-       <div className="container mx-auto py-10">
-            <Alert variant="destructive" className="max-w-xl mx-auto">
-                <AlertTriangleIcon className="h-4 w-4" />
-                <AlertTitle>Error al Cargar Perfil de Usuario</AlertTitle>
-                <AlertDescription>
-                    No pudimos cargar la información de tu rol. Esto puede ser un problema de conexión o tu cuenta no tiene un perfil asignado.
-                    Por favor, contacta a soporte si el problema persiste.
-                </AlertDescription>
-            </Alert>
-        </div>
-    );
-  }
 
-  // 5. Como fallback final, si ninguna condición se cumple (ej. no logueado después de cargar),
-  // el useEffect ya habrá redirigido a /login, pero por si acaso mostramos el cargador.
+  // For any other state (loading, redirecting, error), show the loader.
+  // This provides consistent feedback and prevents blank screens.
   return <DashboardLoader />;
 }
