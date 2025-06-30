@@ -23,10 +23,24 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthLoading && !isLoggedIn) {
+    if (isAuthLoading) return; // Wait until authentication check is complete
+
+    if (!isLoggedIn) {
       router.push('/login');
+      return;
     }
-  }, [isLoggedIn, isAuthLoading, router]);
+
+    // Redirect based on role
+    if (userRole === 'administrador') {
+      router.push('/admin/gestion-socios');
+    } else if (userRole === 'portero') {
+      router.push('/control-acceso');
+    } else if (userRole === 'medico') {
+      router.push('/medico/panel');
+    }
+    // No redirection for 'socio', they stay on the dashboard.
+
+  }, [isLoggedIn, isAuthLoading, userRole, router]);
 
   const { data: socio, isLoading: isSocioDataLoading } = useQuery({
     queryKey: ['socioStatus', loggedInUserNumeroSocio],
@@ -52,27 +66,14 @@ export default function DashboardPage() {
   const currentSocioEstado = socio?.estadoSocio;
 
   const accessibleFeatures = useMemo(() => {
-    if (!userRole) return [];
-    
-    if (userRole === 'administrador') {
-      router.push('/admin/gestion-socios');
-      return [];
-    }
-    if (userRole === 'portero') {
-      router.push('/control-acceso');
-      return [];
-    }
-    if (userRole === 'medico') {
-      router.push('/medico/panel');
-      return [];
-    }
+    if (userRole !== 'socio') return []; // Only socios see features on dashboard
     
     let features = allFeatures.filter(feature => feature.roles.includes(userRole));
-    if (userRole === 'socio' && currentSocioEstado !== 'Activo') {
+    if (currentSocioEstado !== 'Activo') {
       features = features.filter(feature => feature.id !== 'mis-adherentes');
     }
     return features;
-  }, [userRole, currentSocioEstado, router]);
+  }, [userRole, currentSocioEstado]);
 
   const getNovedadIcon = (tipo: TipoNovedad) => {
     switch (tipo) {
@@ -96,7 +97,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (isAuthLoading) {
+  if (isAuthLoading || (isLoggedIn && userRole && userRole !== 'socio')) {
+    // If we are loading auth, or we are logged in with a role that will be redirected, show a skeleton.
     return (
       <div className="space-y-8">
         <Skeleton className="h-10 w-1/2" />
@@ -141,11 +143,8 @@ export default function DashboardPage() {
       </Alert>
     );
   }
-
-  if (userRole === 'portero' || userRole === 'medico' || userRole === 'administrador') {
-    return null; // Redirecting...
-  }
   
+  // This part of the UI is now only for socios. Others are redirected.
   return (
     <div className="space-y-8">
       <header>
