@@ -22,12 +22,11 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized yet
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with in-memory cache instead of IndexedDB.
-// This can resolve certain "client is offline" errors by avoiding
-// potential issues with browser storage persistence.
+// Initialize Firestore with in-memory cache and point to the correct DB.
+// This resolves the "client is offline" errors by connecting to the named 'allegro-db' database.
 const db = initializeFirestore(app, {
   localCache: memoryLocalCache(),
-});
+}, "allegro-db");
 
 const auth = getAuth(app);
 
