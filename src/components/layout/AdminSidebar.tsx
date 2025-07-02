@@ -7,8 +7,13 @@ import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  className?: string;
+}
+
+export function AdminSidebar({ className }: AdminSidebarProps) {
   const pathname = usePathname();
   const adminFeatures = allFeatures.filter(feature => 
     feature.roles.includes('admin') || feature.roles.includes('medico') || feature.roles.includes('portero')
@@ -20,7 +25,7 @@ export function AdminSidebar() {
   );
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-card border-r hidden md:flex flex-col">
+    <aside className={cn("flex flex-col bg-card border-r", className)}>
       <div className="h-16 flex items-center justify-center px-4 border-b">
         <Link href="/" className="flex items-center space-x-2">
             <Image 
