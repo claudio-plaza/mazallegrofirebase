@@ -34,8 +34,8 @@ const Header = () => {
           {/* Site name text is now part of the image, or can be added if needed with text-secondary-foreground */}
           <span className="text-2xl font-bold text-secondary-foreground sr-only">{siteConfig.name}</span>
         </Link>
-        <nav className="flex items-center space-x-2 sm:space-x-4">
-          {isLoggedIn ? (
+        {isLoggedIn && (
+          <nav className="flex items-center space-x-2 sm:space-x-4">
             <>
               <span className="text-sm text-secondary-foreground/80 hidden sm:inline"> {/* Adjusted for contrast */}
                 Hola, {userName || 'Usuario'} ({userRole})
@@ -82,18 +82,8 @@ const Header = () => {
                 <span className="hidden sm:inline">Salir</span>
               </Button>
             </>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="text-secondary-foreground hover:bg-secondary/80">Iniciar Sesión</Button> {/* Adjusted for contrast */}
-              </Link>
-              <Link href="/signup">
-                {/* Default button will be primary (orange) */}
-                <Button size="sm">Crear Cuenta</Button>
-              </Link>
-            </>
-          )}
-        </nav>
+          </nav>
+        )}
       </div>
     </header>
   );
