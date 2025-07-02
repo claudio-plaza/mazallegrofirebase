@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
@@ -407,7 +406,13 @@ export function GestionSociosDashboard() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleToggleEstadoSocio(socio.id)}>
+                              <DropdownMenuItem
+                                onClick={() => handleToggleEstadoSocio(socio.id)}
+                                className={cn(
+                                  socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50",
+                                  socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                                )}
+                              >
                                 {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                                 {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}
                               </DropdownMenuItem>
