@@ -169,7 +169,7 @@ export interface Socio {
   role: Extract<UserRole, 'socio'>;
   cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliar | null;
   estadoCambioGrupoFamiliar?: EstadoCambioGrupoFamiliar;
-  motivoRechazoCambioGrupoFamiliar?: string;
+  motivoRechazoCambioGrupoFamiliar?: string | null;
 }
 
 

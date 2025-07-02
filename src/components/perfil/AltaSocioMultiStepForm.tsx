@@ -176,7 +176,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -215,7 +215,7 @@ export function AltaSocioMultiStepForm() {
       ...socioData,
       cambiosPendientesGrupoFamiliar: cambiosPropuestos,
       estadoCambioGrupoFamiliar: EstadoCambioGrupoFamiliar.PENDIENTE,
-      motivoRechazoCambioGrupoFamiliar: undefined,
+      motivoRechazoCambioGrupoFamiliar: null,
     };
 
     try {
