@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'; 
 
 export const siteConfig = {
-  name: 'MazAllegro',
+  name: 'Allegro',
   description: 'Sistema de gestión integral para un club deportivo y social.',
 };
 
