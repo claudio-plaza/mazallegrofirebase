@@ -400,6 +400,7 @@ export function GestionSociosDashboard() {
         <RevisarCambiosGrupoFamiliarDialog
             socio={selectedSocioForRevision}
             open={isRevisionDialogOpen}
+            onOpenChange={setIsRevisionDialogOpen}
             onRevisionUpdated={() => queryClient.invalidateQueries({ queryKey: ['socios'] })}
         />
       )}
