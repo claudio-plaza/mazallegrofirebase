@@ -215,22 +215,25 @@ export function NuevaRevisionDialog({
 
     const fechaRevisionSeleccionada = data.fechaRevision;
 
-    let fechaDeVencimientoFinal: Date | undefined;
-    if (data.resultado === 'Apto') {
-      fechaDeVencimientoFinal = addDays(fechaRevisionSeleccionada, 14);
-    }
+    const fechaDeVencimientoFinal: Date | undefined = data.resultado === 'Apto' 
+        ? addDays(fechaRevisionSeleccionada, 14) 
+        : undefined;
 
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: fechaRevisionSeleccionada,
       socioId: searchedPerson.id, 
       socioNombre: searchedPerson.nombreCompleto,
       tipoPersona: searchedPerson.tipo,
-      idSocioAnfitrion: searchedPerson.tipo === 'Invitado Diario' ? searchedPerson.socioTitularId : undefined,
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
       fechaVencimientoApto: fechaDeVencimientoFinal,
     };
+    
+    // Conditionally add idSocioAnfitrion to avoid sending 'undefined'
+    if (searchedPerson.socioTitularId) {
+        (nuevaRevision as RevisionMedica).idSocioAnfitrion = searchedPerson.socioTitularId;
+    }
 
     try {
         await addRevisionMedica(nuevaRevision);
