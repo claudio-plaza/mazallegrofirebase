@@ -186,7 +186,7 @@ export function NuevaRevisionDialog({
                     tipo: 'Invitado Diario',
                     socioTitularId: solicitud.idSocioTitular,
                     aptoMedicoActual: invitadoFound.aptoMedico || undefined,
-                    fechaVisitaInvitado: new Date(solicitud.fecha),
+                    fechaVisitaInvitado: parseISO(solicitud.fecha),
                 };
                 break;
             }
