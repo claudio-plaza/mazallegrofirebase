@@ -16,9 +16,16 @@ import { cn } from '@/lib/utils';
 
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, userRole, isLoading } = useAuth();
   const isAdminRoute = pathname.startsWith('/admin');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+
+  // When routing through the main dashboard, if the user is still loading OR they have a role that
+  // will be redirected away from the user dashboard, show a layout-less page.
+  // This avoids flashing the user-specific sidebar for an admin/medico/portero who is about to be redirected.
+  if (pathname === '/dashboard' && (isLoading || (userRole && userRole !== 'socio'))) {
+    return <>{children}</>;
+  }
 
   // Admin routes have their own layout
   if (isAdminRoute) {
