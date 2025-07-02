@@ -11,12 +11,15 @@ import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isLoggedIn } = useAuth();
   const isAdminRoute = pathname.startsWith('/admin');
-  
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+
   // Admin routes have their own layout
   if (isAdminRoute) {
     return <>{children}</>;
@@ -41,9 +44,19 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   // Logged-in 'socio' routes get the new sidebar layout
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <UserSidebar className="hidden md:flex md:fixed md:h-full md:w-64 md:z-10" />
+      <UserSidebar 
+        isExpanded={isSidebarExpanded}
+        onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
+        className={cn(
+          'hidden md:flex md:fixed md:h-full md:z-10 transition-[width] duration-300 ease-in-out',
+          isSidebarExpanded ? 'md:w-64' : 'md:w-20'
+        )} 
+      />
       
-      <div className="flex flex-col md:pl-64">
+      <div className={cn(
+        "flex flex-col transition-[padding-left] duration-300 ease-in-out",
+        isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
+      )}>
         {/* Mobile Header */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
           <Sheet>
@@ -54,10 +67,10 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64 bg-secondary">
-              <UserSidebar className="flex h-full w-full" />
+              <UserSidebar isExpanded={true} className="flex h-full w-full" />
             </SheetContent>
           </Sheet>
-          <Link href="/" className="flex items-center">
+          <Link href="/dashboard" className="flex items-center">
              <Image 
                 src="https://placehold.co/153x76.png" 
                 alt={`${siteConfig.name} Logo`}
