@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -63,7 +62,7 @@ const Header = () => {
                   </Button>
                 </Link>
               )}
-              {userRole === 'administrador' && (
+              {userRole === 'admin' && (
                  <Link href="/admin/gestion-socios">
                    <Button 
                      size="sm" 

@@ -14,7 +14,7 @@ const safeDate = z.preprocess((arg) => {
 }, z.date({ invalid_type_error: "Fecha inválida." }));
 
 
-export type UserRole = 'socio' | 'portero' | 'medico' | 'administrador';
+export type UserRole = 'socio' | 'portero' | 'medico' | 'admin';
 
 export const MAX_HIJOS = 12;
 export const MAX_PADRES = 2;

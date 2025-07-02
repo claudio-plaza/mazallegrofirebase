@@ -72,7 +72,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Administra la base de datos de socios.',
     icon: UsersAdmin,
     href: '/admin/gestion-socios',
-    roles: ['administrador'],
+    roles: ['admin'],
   },
   {
     id: 'panel-medico',
@@ -80,7 +80,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Gestiona revisiones médicas y aptos físicos.',
     icon: Stethoscope,
     href: '/medico/panel',
-    roles: ['medico', 'administrador'],
+    roles: ['medico', 'admin'],
   },
   {
     id: 'control-acceso',
@@ -88,7 +88,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Verifica el estado de socios para el ingreso.',
     icon: ShieldCheck,
     href: '/control-acceso',
-    roles: ['portero', 'administrador'],
+    roles: ['portero', 'admin'],
   },
   {
     id: 'gestion-invitados-diarios-admin',
@@ -96,7 +96,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Revisa y descarga listas de invitados diarios.',
     icon: ListFilter,
     href: '/admin/gestion-invitados-diarios',
-    roles: ['administrador'],
+    roles: ['admin'],
   },
   {
     id: 'configuracion-precios',
@@ -104,7 +104,7 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Establece los precios de las entradas para invitados.',
     icon: DollarSign,
     href: '/admin/configuracion-precios',
-    roles: ['administrador'],
+    roles: ['admin'],
   },
   { 
     id: 'gestion-novedades',
@@ -112,6 +112,6 @@ export const allFeatures: QuickAccessFeature[] = [
     description: 'Crea y administra novedades y alertas.',
     icon: Megaphone,
     href: '/admin/gestion-novedades',
-    roles: ['administrador'],
+    roles: ['admin'],
   }
 ];
