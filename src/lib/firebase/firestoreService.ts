@@ -49,25 +49,40 @@ const novedadesCollection = collection(db, 'novedades') as CollectionReference<N
 const adminUsersCollection = collection(db, 'adminUsers');
 
 // --- Data Converters (handle Date <-> Timestamp) ---
-const createConverter = <T extends { [key: string]: any }>() => ({
-  toFirestore: (data: T): DocumentData => {
-    const firestoreData: DocumentData = { ...data };
-    for (const key in firestoreData) {
-      if (firestoreData[key] instanceof Date) {
-        firestoreData[key] = Timestamp.fromDate(firestoreData[key]);
+const deepConvertTimestampsAndDates = (data: any, to: 'timestamp' | 'date'): any => {
+  if (to === 'timestamp' && data instanceof Date) {
+    return Timestamp.fromDate(data);
+  }
+  if (to === 'date' && data instanceof Timestamp) {
+    return data.toDate();
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => deepConvertTimestampsAndDates(item, to));
+  }
+  // Check for plain object to avoid trying to convert class instances or special objects
+  if (data && typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
+    const res: { [key: string]: any } = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        res[key] = deepConvertTimestampsAndDates(data[key], to);
       }
     }
-    return firestoreData;
+    return res;
+  }
+  return data;
+};
+
+const createConverter = <T extends { [key: string]: any }>() => ({
+  toFirestore: (data: Partial<T>): DocumentData => {
+    // When writing, `data` can be a partial or full object.
+    // We only convert dates to timestamps recursively.
+    return deepConvertTimestampsAndDates(data, 'timestamp');
   },
   fromFirestore: (snapshot: any, options: any): T => {
     const data = snapshot.data(options);
-    const appData: { [key: string]: any } = { ...data, id: snapshot.id };
-    for (const key in appData) {
-      if (appData[key] instanceof Timestamp) {
-        appData[key] = appData[key].toDate();
-      }
-    }
-    return appData as T;
+    // When reading, we convert timestamps back to dates recursively.
+    const convertedData = deepConvertTimestampsAndDates(data, 'date');
+    return { ...convertedData, id: snapshot.id } as T;
   },
 });
 
