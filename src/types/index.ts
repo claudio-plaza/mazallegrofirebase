@@ -137,7 +137,7 @@ export interface Adherente {
   fotoCarnet?: string | null;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
-  motivoRechazo?: string;
+  motivoRechazo?: string | null;
   aptoMedico: AptoMedicoInfo;
 }
 
@@ -501,7 +501,7 @@ export const adherenteSchema = adherenteFormSchema.extend({
   id: z.string().optional(),
   estadoAdherente: z.nativeEnum(EstadoAdherente),
   estadoSolicitud: z.nativeEnum(EstadoSolicitudAdherente),
-  motivoRechazo: z.string().optional(),
+  motivoRechazo: z.string().optional().nullable(),
   aptoMedico: z.custom<AptoMedicoInfo>(),
 });
 export type AdherenteData = z.infer<typeof adherenteSchema>;

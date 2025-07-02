@@ -88,7 +88,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
       ...adherente,
       estadoSolicitud: EstadoSolicitudAdherente.APROBADO,
       estadoAdherente: EstadoAdherente.ACTIVO, // Activar por defecto al aprobar
-      motivoRechazo: undefined,
+      motivoRechazo: null,
       aptoMedico: adherente.aptoMedico || initialAptoMedico,
     });
     if (success) {
@@ -145,7 +145,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     const success = await handleUpdateAdherente({
       ...adherente,
       estadoSolicitud: EstadoSolicitudAdherente.APROBADO, 
-      motivoRechazo: undefined,
+      motivoRechazo: null,
     });
     if (success) {
       toast({ title: "Solicitud Revertida", description: `La solicitud de eliminación para ${adherente.nombre} ha sido cancelada.` });
