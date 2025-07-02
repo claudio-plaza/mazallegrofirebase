@@ -3,9 +3,8 @@ import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google'; // Changed from Inter to Roboto
 import './globals.css';
 import { Providers } from '@/components/Providers';
-import Header from '@/components/layout/Header';
 import { siteConfig } from '@/config/site';
-import { WhatsAppBubble } from '@/components/layout/WhatsAppBubble'; // Import the new component
+import { MainLayoutWrapper } from '@/components/layout/MainLayoutWrapper';
 
 const roboto = Roboto({ // Changed from inter to roboto
   subsets: ['latin'],
@@ -25,18 +24,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${roboto.variable} font-sans antialiased`}> {/* Use roboto.variable */}
+      <body className={`${roboto.variable} font-sans antialiased`}>
         <Providers>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <footer className="bg-muted text-muted-foreground py-4 text-center text-sm">
-              © {new Date().getFullYear()} {siteConfig.name}. Todos los derechos reservados.
-            </footer>
-            <WhatsAppBubble /> {/* Add the WhatsApp bubble here */}
-          </div>
+          <MainLayoutWrapper>
+            {children}
+          </MainLayoutWrapper>
         </Providers>
       </body>
     </html>

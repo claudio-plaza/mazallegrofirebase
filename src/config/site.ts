@@ -65,7 +65,7 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['socio'],
   },
 
-  // --- Admin Features (Not displayed on socio dashboard, but defined for consistency) ---
+  // --- Admin, Medico, Portero Features (accessible from Admin sidebar) ---
   {
     id: 'gestion-socios',
     title: 'Gestión de Socios',
@@ -79,7 +79,7 @@ export const allFeatures: QuickAccessFeature[] = [
     title: 'Panel Médico',
     description: 'Gestiona revisiones médicas y aptos físicos.',
     icon: Stethoscope,
-    href: '/medico/panel',
+    href: '/admin/panel-medico', // Updated path
     roles: ['medico', 'admin'],
   },
   {
@@ -87,12 +87,12 @@ export const allFeatures: QuickAccessFeature[] = [
     title: 'Control de Acceso',
     description: 'Verifica el estado de socios para el ingreso.',
     icon: ShieldCheck,
-    href: '/control-acceso',
+    href: '/admin/control-acceso', // Updated path
     roles: ['portero', 'admin'],
   },
   {
     id: 'gestion-invitados-diarios-admin',
-    title: 'Gestión de Invitados Diarios',
+    title: 'Listas de Invitados',
     description: 'Revisa y descarga listas de invitados diarios.',
     icon: ListFilter,
     href: '/admin/gestion-invitados-diarios',
@@ -100,7 +100,7 @@ export const allFeatures: QuickAccessFeature[] = [
   },
   {
     id: 'configuracion-precios',
-    title: 'Configurar Precios Invitados',
+    title: 'Configurar Precios',
     description: 'Establece los precios de las entradas para invitados.',
     icon: DollarSign,
     href: '/admin/configuracion-precios',

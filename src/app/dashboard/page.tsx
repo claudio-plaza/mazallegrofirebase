@@ -7,14 +7,14 @@ import { SocioDashboard } from '@/components/dashboard/SocioDashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const Redirecting = () => (
+const RedirectingScreen = ({ role }: { role: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
     <Card className="w-full max-w-sm p-6">
       <CardHeader>
         <CardTitle>Redireccionando...</CardTitle>
       </CardHeader>
       <CardContent>
-        <p>Serás redirigido a tu panel de control en un momento.</p>
+        <p>Tu rol es '{role}'. Serás redirigido a tu panel de control.</p>
         <Skeleton className="h-4 w-full mt-4" />
       </CardContent>
     </Card>
@@ -42,16 +42,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isAuthLoading) {
-      return; // Do nothing while loading
+      return; 
     }
     
     if (userRole) {
       if (userRole === 'admin') {
         router.replace('/admin/gestion-socios');
       } else if (userRole === 'medico') {
-        router.replace('/medico/panel');
+        router.replace('/admin/panel-medico');
       } else if (userRole === 'portero') {
-        router.replace('/control-acceso');
+        router.replace('/admin/control-acceso');
       }
     }
   }, [userRole, isAuthLoading, router]);
@@ -62,7 +62,7 @@ export default function DashboardPage() {
 
   // If user has a role but is not a 'socio', they are being redirected. Show a message.
   if (userRole && userRole !== 'socio') {
-    return <Redirecting />;
+    return <RedirectingScreen role={userRole} />;
   }
 
   // If user is a 'socio', show their dashboard.
