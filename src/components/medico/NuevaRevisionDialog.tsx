@@ -217,13 +217,17 @@ export function NuevaRevisionDialog({
     const esApto = data.resultado === 'Apto';
 
     // 1. Define the new AptoMedicoInfo object to be saved in the person's profile
-    const nuevoAptoMedico: AptoMedicoInfo = {
+    const nuevoAptoMedico: Partial<AptoMedicoInfo> = {
         valido: esApto,
         fechaEmision: fechaRevisionSeleccionada,
-        fechaVencimiento: esApto ? addDays(fechaRevisionSeleccionada, 14) : undefined,
-        razonInvalidez: !esApto ? 'No Apto según revisión médica.' : undefined,
         observaciones: data.observaciones,
     };
+
+    if (esApto) {
+        nuevoAptoMedico.fechaVencimiento = addDays(fechaRevisionSeleccionada, 14);
+    } else {
+        nuevoAptoMedico.razonInvalidez = 'No Apto según revisión médica.';
+    }
 
     // 2. Define the historical RevisionMedica record
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
@@ -234,8 +238,10 @@ export function NuevaRevisionDialog({
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
-      fechaVencimientoApto: nuevoAptoMedico.fechaVencimiento,
     };
+    if (esApto && nuevoAptoMedico.fechaVencimiento) {
+        (nuevaRevision as RevisionMedica).fechaVencimientoApto = nuevoAptoMedico.fechaVencimiento;
+    }
     if (searchedPerson.socioTitularId) {
         (nuevaRevision as RevisionMedica).idSocioAnfitrion = searchedPerson.socioTitularId;
     }
@@ -250,7 +256,7 @@ export function NuevaRevisionDialog({
             case 'Socio Titular': {
                 const socioToUpdate = await getSocioByNumeroSocioOrDNI(searchedPerson.id);
                 if (socioToUpdate) {
-                    socioToUpdate.aptoMedico = nuevoAptoMedico;
+                    socioToUpdate.aptoMedico = nuevoAptoMedico as AptoMedicoInfo;
                     socioToUpdate.ultimaRevisionMedica = fechaRevisionSeleccionada;
                     await updateSocio(socioToUpdate);
                 }
@@ -262,7 +268,7 @@ export function NuevaRevisionDialog({
                 if (socioAnfitrion && socioAnfitrion.grupoFamiliar) {
                     const familiarIndex = socioAnfitrion.grupoFamiliar.findIndex(f => f.dni === searchedPerson.id);
                     if (familiarIndex !== -1) {
-                        socioAnfitrion.grupoFamiliar[familiarIndex].aptoMedico = nuevoAptoMedico;
+                        socioAnfitrion.grupoFamiliar[familiarIndex].aptoMedico = nuevoAptoMedico as AptoMedicoInfo;
                         await updateSocio(socioAnfitrion);
                     }
                 }
@@ -274,7 +280,7 @@ export function NuevaRevisionDialog({
                 if (socioAnfitrion && socioAnfitrion.adherentes) {
                     const adherenteIndex = socioAnfitrion.adherentes.findIndex(a => a.dni === searchedPerson.id);
                     if (adherenteIndex !== -1) {
-                        socioAnfitrion.adherentes[adherenteIndex].aptoMedico = nuevoAptoMedico;
+                        socioAnfitrion.adherentes[adherenteIndex].aptoMedico = nuevoAptoMedico as AptoMedicoInfo;
                         await updateSocio(socioAnfitrion);
                     }
                 }
@@ -287,7 +293,7 @@ export function NuevaRevisionDialog({
                 if (solicitud) {
                     const invitadoIndex = solicitud.listaInvitadosDiarios.findIndex(i => i.dni === searchedPerson.id);
                     if (invitadoIndex !== -1) {
-                        solicitud.listaInvitadosDiarios[invitadoIndex].aptoMedico = nuevoAptoMedico;
+                        solicitud.listaInvitadosDiarios[invitadoIndex].aptoMedico = nuevoAptoMedico as AptoMedicoInfo;
                         await addOrUpdateSolicitudInvitadosDiarios(solicitud);
                     }
                 }
