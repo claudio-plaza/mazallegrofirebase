@@ -32,8 +32,12 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Public routes (not logged in) have a simple layout with a header
-  if (!isLoggedIn) {
+  // Define public routes that should never show the user sidebar
+  const publicPaths = ['/', '/login', '/signup'];
+  const isPublicRoute = publicPaths.includes(pathname);
+
+  // Public routes (not logged in OR explicitly public paths) have a simple layout with a header
+  if (!isLoggedIn || isPublicRoute) {
     return (
        <div className="flex flex-col min-h-screen">
         <Header />
@@ -49,6 +53,7 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   }
 
   // Logged-in 'socio' routes get the new sidebar layout
+  // If we've reached this point, user is logged in and not on a public route.
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <UserSidebar 
