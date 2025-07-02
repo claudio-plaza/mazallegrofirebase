@@ -262,7 +262,7 @@ export function GestionSociosDashboard() {
                   <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead className="hidden md:table-cell">N° Socio</TableHead>
-                  <TableHead className="hidden lg:table-cell">Adherentes (Pend.)</TableHead>
+                  <TableHead className="hidden lg:table-cell">Adherentes (Act./Pend.)</TableHead>
                   <TableHead>Estado Club</TableHead>
                   <TableHead className="hidden lg:table-cell">Cambio GF</TableHead>
                   <TableHead>Apto Médico</TableHead>
@@ -273,7 +273,9 @@ export function GestionSociosDashboard() {
                 {filteredSocios.map(socio => {
                   const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
                   const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+                  const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
                   const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
+                  
                   return (
                     <TableRow key={socio.id}>
                       <TableCell className="hidden sm:table-cell">
@@ -285,9 +287,9 @@ export function GestionSociosDashboard() {
                       <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
                       <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
                       <TableCell className="hidden lg:table-cell text-center">
-                        {socio.adherentes?.length || 0}
+                        {activeAdherentsCount}
                         {adherentesPendientesCount > 0 && (
-                          <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5">
+                          <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5" title={`${adherentesPendientesCount} solicitudes pendientes`}>
                             {adherentesPendientesCount}P
                           </Badge>
                         )}
@@ -398,7 +400,6 @@ export function GestionSociosDashboard() {
         <RevisarCambiosGrupoFamiliarDialog
             socio={selectedSocioForRevision}
             open={isRevisionDialogOpen}
-            onOpenChange={setIsRevisionDialogOpen}
             onRevisionUpdated={() => queryClient.invalidateQueries({ queryKey: ['socios'] })}
         />
       )}
