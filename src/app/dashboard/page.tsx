@@ -2,55 +2,28 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
-import { SocioDashboard } from '@/components/dashboard/SocioDashboard';
-import { Loader2 } from 'lucide-react';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card';
-
-function DashboardLoader() {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-            <Card className="w-full max-w-md p-8 text-center">
-                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                <CardTitle className="mt-4">Cargando Panel...</CardTitle>
-                <CardDescription className="mt-2">
-                    Verificando su sesión y permisos. Por favor, espere.
-                </CardDescription>
-            </Card>
-        </div>
-    );
-}
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function DashboardPage() {
-  const { isLoggedIn, userRole, isLoading: isAuthLoading } = useAuth();
+  const { isLoggedIn, userRole, userName, loggedInUserNumeroSocio, isLoading: isAuthLoading } = useAuth();
 
-  useEffect(() => {
-    if (isAuthLoading) {
-      return; // Esperar a que la autenticación se complete
-    }
-    if (!isLoggedIn) {
-      window.location.replace('/login');
-      return;
-    }
-    
-    if (userRole && userRole !== 'socio') {
-      const targetPath = {
-        administrador: '/admin/gestion-socios',
-        portero: '/control-acceso',
-        medico: '/medico/panel',
-      }[userRole];
-
-      if (targetPath) {
-        window.location.replace(targetPath);
-      }
-    }
-  }, [isLoggedIn, isAuthLoading, userRole]);
-  
-  // Si el usuario es socio, muestra su panel dedicado.
-  if (userRole === 'socio') {
-    return <SocioDashboard />;
-  }
-
-  // En cualquier otro caso (cargando, esperando la redirección para admin, etc.), muestra el loader.
-  return <DashboardLoader />;
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+      <Card className="w-full max-w-lg p-6">
+        <CardHeader>
+          <CardTitle>Estado de Autenticación (Diagnóstico)</CardTitle>
+          <CardDescription>
+            Esta es una pantalla de diagnóstico. Por favor, comparta esta información.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm font-mono">
+          <p><strong>isLoading:</strong> {JSON.stringify(isAuthLoading)}</p>
+          <p><strong>isLoggedIn:</strong> {JSON.stringify(isLoggedIn)}</p>
+          <p><strong>userRole:</strong> {JSON.stringify(userRole)}</p>
+          <p><strong>userName:</strong> {JSON.stringify(userName)}</p>
+          <p><strong>loggedInUserNumeroSocio:</strong> {JSON.stringify(loggedInUserNumeroSocio)}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
