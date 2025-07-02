@@ -95,8 +95,10 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
+    // A permissions error on getDoc often doesn't throw but results in a non-existent snapshot.
+    // If it *does* throw (e.g., offline), we log it but still return null to allow auth flow to continue.
     logFirestoreError(error, `getSocioById for id: ${id}`);
-    throw error;
+    return null;
   }
 };
 
@@ -153,7 +155,7 @@ export const getAdminUserById = async (uid: string): Promise<{ email: string; na
     return null;
   } catch (error) {
     logFirestoreError(error, `getAdminUserById for uid: ${uid}`);
-    throw error;
+    return null;
   }
 };
 

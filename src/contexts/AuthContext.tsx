@@ -37,6 +37,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
+        // --- DIAGNOSTIC LOG ---
+        // This will show the exact UID in the browser console.
+        // Compare this UID with the Document ID in your Firestore 'adminUsers' collection.
+        console.log("Firebase Auth UID for logged-in user:", firebaseUser.uid);
+        // --- END DIAGNOSTIC LOG ---
         try {
           // 1. Check if the user is a regular 'socio'
           const socioProfile = await getSocioById(firebaseUser.uid);
@@ -55,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } else {
               // 3. User is authenticated but has no profile in Firestore.
               console.warn(
-                `User with email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
+                `User with UID ${firebaseUser.uid} and email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
               );
               setUserRole(null);
               setUserName(firebaseUser.displayName || firebaseUser.email);
@@ -65,12 +70,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (error) {
           console.error("AuthContext: Failed to fetch user profile from Firestore.", error);
           toast({
-              title: "Error de Conexión con la Base de Datos",
-              description: "No se pudo cargar tu perfil. Es posible que el servicio esté experimentando problemas o que tu cuenta no esté configurada correctamente.",
+              title: "Error de Permisos o Conexión",
+              description: "No se pudo cargar tu perfil. Esto puede deberse a un problema de conexión o a que las reglas de seguridad de Firestore no permiten el acceso. Contacte al administrador.",
               variant: "destructive",
               duration: 10000,
           });
-          // Set a logged-in state but without a role, which UI should handle
           setUserRole(null);
           setUserName(firebaseUser.displayName || firebaseUser.email);
           setLoggedInUserNumeroSocio(null);
