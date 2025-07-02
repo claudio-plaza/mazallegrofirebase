@@ -20,6 +20,8 @@ import { CalendarDays, UserPlus, Save, X, Info, Users, ShieldCheck, ShieldAlert,
 import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Image from 'next/image';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
 type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
@@ -42,6 +44,7 @@ const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
 export function AdminNuevoSocioForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [maxBirthDate, setMaxBirthDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [maxBirthDateTitular, setMaxBirthDateTitular] = useState<string>(() => format(subYears(new Date(), 18), 'yyyy-MM-dd'));
 
@@ -88,7 +91,21 @@ export function AdminNuevoSocioForm() {
   }, [form, replaceFamiliares, appendFamiliar]);
 
 
-  const onSubmit = async (data: AdminEditSocioTitularData) => {
+  const { mutate: addSocioMutation, isPending } = useMutation({
+    mutationFn: (socioData: any) => addSocio(generateId(), socioData, false),
+    onSuccess: (data) => {
+        toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
+        queryClient.invalidateQueries({ queryKey: ['socios'] });
+        router.push('/admin/gestion-socios');
+    },
+    onError: (error) => {
+      console.error("Error al crear socio:", error);
+      toast({ title: "Error", description: "No se pudo crear el socio.", variant: "destructive" });
+    }
+  });
+
+
+  const onSubmit = (data: AdminEditSocioTitularData) => {
     const socioDataForCreation = {
       nombre: data.nombre,
       apellido: data.apellido,
@@ -125,16 +142,7 @@ export function AdminNuevoSocioForm() {
         }) as MiembroFamiliar[],
     };
 
-    try {
-      // The `addSocio` function now infers that socioDataForCreation lacks `miembroDesde` and `aptoMedico` from its signature
-      // We generate a random ID for the socio document since no auth user is being created here.
-      await addSocio(generateId(), socioDataForCreation, false); 
-      toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
-      router.push('/admin/gestion-socios');
-    } catch (error) {
-      console.error("Error al crear socio:", error);
-      toast({ title: "Error", description: "No se pudo crear el socio.", variant: "destructive" });
-    }
+    addSocioMutation(socioDataForCreation);
   };
 
 
@@ -395,8 +403,8 @@ export function AdminNuevoSocioForm() {
             <Button type="button" variant="outline" onClick={() => router.push('/admin/gestion-socios')}>
               <X className="mr-2 h-4 w-4" /> Cancelar
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              <Save className="mr-2 h-4 w-4" /> {form.formState.isSubmitting ? 'Creando Socio...' : 'Crear Socio'}
+            <Button type="submit" disabled={isPending}>
+              <Save className="mr-2 h-4 w-4" /> {isPending ? 'Creando Socio...' : 'Crear Socio'}
             </Button>
           </CardFooter>
         </Card>

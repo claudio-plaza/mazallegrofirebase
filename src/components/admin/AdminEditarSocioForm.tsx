@@ -23,6 +23,7 @@ import { Separator } from '../ui/separator';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
 type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
@@ -54,6 +55,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [maxBirthDate, setMaxBirthDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [maxBirthDateTitular, setMaxBirthDateTitular] = useState<string>(() => format(subYears(new Date(), 18), 'yyyy-MM-dd'));
 
@@ -143,12 +145,25 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   }, [form, replaceFamiliares, appendFamiliar]);
 
 
-  const onSubmit = async (data: AdminEditSocioTitularData) => {
+  const { mutate: updateSocioMutation, isPending } = useMutation({
+    mutationFn: (payload: Partial<Socio> & { id: string }) => updateSocio(payload),
+    onSuccess: (_, variables) => {
+        toast({ title: 'Socio Actualizado', description: `Los datos del socio han sido actualizados.` });
+        queryClient.invalidateQueries({ queryKey: ['socios'] });
+        router.push('/admin/gestion-socios');
+    },
+    onError: (error) => {
+        console.error("Error al actualizar socio:", error);
+        toast({ title: "Error", description: "No se pudo actualizar el socio.", variant: "destructive" });
+    }
+  });
+
+
+  const onSubmit = (data: AdminEditSocioTitularData) => {
     if (!socio) return;
 
-    // Construct the payload for Firestore, only including fields from the form
-    // This is a partial update, so we don't need to copy the original socio object
-    const updatePayload: Partial<Socio> = {
+    const updatePayload: Partial<Socio> & { id: string } = {
+        id: socio.id,
         nombre: data.nombre,
         apellido: data.apellido,
         fechaNacimiento: data.fechaNacimiento,
@@ -159,14 +174,12 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         email: data.email,
         estadoSocio: data.estadoSocio,
         
-        // Process and update photos
         fotoPerfil: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoPerfil),
-        fotoUrl: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoUrl), // Keep fotoUrl in sync
+        fotoUrl: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoUrl),
         fotoDniFrente: processPhotoFieldForUpdate(data.fotoDniFrente, socio.fotoDniFrente),
         fotoDniDorso: processPhotoFieldForUpdate(data.fotoDniDorso, socio.fotoDniDorso),
         fotoCarnet: processPhotoFieldForUpdate(data.fotoCarnet, socio.fotoCarnet),
 
-        // Process and update the entire grupoFamiliar array
         grupoFamiliar: data.grupoFamiliar ? data.grupoFamiliar.map((familiarFormData) => {
             const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
             return {
@@ -180,16 +193,8 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             };
         }) : [],
     };
-    // By building the payload explicitly, we ensure `tipoGrupoFamiliar` is never included.
 
-    try {
-        await updateSocio({ id: socio.id, ...updatePayload });
-        toast({ title: 'Socio Actualizado', description: `Los datos de ${data.nombre} ${data.apellido} han sido actualizados.` });
-        router.push('/admin/gestion-socios');
-    } catch (error) {
-        console.error("Error al actualizar socio:", error);
-        toast({ title: "Error", description: "No se pudo actualizar el socio.", variant: "destructive" });
-    }
+    updateSocioMutation(updatePayload);
   };
 
 
@@ -507,8 +512,8 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
             <Button type="button" variant="outline" onClick={() => router.push('/admin/gestion-socios')}>
               <X className="mr-2 h-4 w-4" /> Cancelar
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              <Save className="mr-2 h-4 w-4" /> {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            <Button type="submit" disabled={isPending}>
+              <Save className="mr-2 h-4 w-4" /> {isPending ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </CardFooter>
         </Card>
