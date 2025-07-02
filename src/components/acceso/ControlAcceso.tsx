@@ -127,16 +127,14 @@ export function ControlAcceso() {
       return;
     }
 
-    const anyMemberOfGroupHasSessionIncome = displayablePeople.some(
-      p => (
-            (p.isTitular && p.dni === socioEncontrado.dni) ||
-            (p.isFamiliar && socioEncontrado.grupoFamiliar?.some(fam => fam.dni === p.dni))
-          ) && ingresosSesion[p.dni]
+    // Now checks if any member (titular, familiar, OR adherente) has registered their income.
+    const anyMemberHasSessionIncome = displayablePeople.some(
+      p => (p.isTitular || p.isFamiliar || p.isAdherente) && ingresosSesion[p.dni]
     );
     
-    setEventoHabilitadoPorIngresoFamiliar(anyMemberOfGroupHasSessionIncome);
+    setEventoHabilitadoPorIngresoFamiliar(anyMemberHasSessionIncome);
 
-    if (anyMemberOfGroupHasSessionIncome) {
+    if (anyMemberHasSessionIncome) {
       try {
         if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
           const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
@@ -381,7 +379,7 @@ export function ControlAcceso() {
     }
 
     if (!eventoHabilitadoPorIngresoFamiliar) {
-        toast({ title: 'Acceso Denegado', description: 'Un miembro del grupo familiar del socio titular debe registrar su ingreso primero.', variant: 'destructive' });
+        toast({ title: 'Acceso Denegado', description: 'Un miembro responsable (titular, familiar o adherente) debe registrar su ingreso primero.', variant: 'destructive' });
         return;
     }
     
@@ -703,12 +701,12 @@ export function ControlAcceso() {
                       )}
                       {!eventoHabilitadoPorIngresoFamiliar && (
                           <p className="text-sm text-orange-600 bg-orange-100 p-2 rounded-md mb-3">
-                              <ShieldAlert className="inline mr-1 h-4 w-4" /> Un miembro del grupo ({socioEncontrado.nombre} {socioEncontrado.apellido} o familiar) debe registrar su ingreso primero para habilitar el registro de invitados diarios.
+                              <ShieldAlert className="inline mr-1 h-4 w-4" /> Un miembro responsable (titular, familiar o adherente) debe registrar su ingreso primero para habilitar el registro de invitados diarios.
                           </p>
                       )}
                        {eventoHabilitadoPorIngresoFamiliar && (
                           <p className="text-sm text-green-600 bg-green-100 p-2 rounded-md mb-3">
-                              <UserCheck className="inline mr-1 h-4 w-4" /> Un miembro del grupo ya registró su ingreso. Puede proceder con los invitados diarios.
+                              <UserCheck className="inline mr-1 h-4 w-4" /> Un miembro responsable ya registró su ingreso. Puede proceder con los invitados diarios.
                           </p>
                       )}
                       <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
