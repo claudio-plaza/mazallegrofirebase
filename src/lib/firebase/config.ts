@@ -1,8 +1,8 @@
-
 // src/lib/firebase/config.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // =================================================================
 // IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIGURATION
@@ -29,5 +29,6 @@ const db = initializeFirestore(app, {
 }, "allegro-db");
 
 const auth = getAuth(app);
+const storage = getStorage(app);
 
-export { app, db, auth };
+export { app, db, auth, storage };

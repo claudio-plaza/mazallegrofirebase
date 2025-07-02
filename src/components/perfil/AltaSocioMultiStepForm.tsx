@@ -18,7 +18,7 @@ import {
   RelacionFamiliar, MAX_HIJOS, MAX_PADRES, type Socio, EstadoCambioGrupoFamiliar, MiembroFamiliar
 } from '@/types';
 import { getFileUrl, generateId } from '@/lib/helpers';
-import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
+import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const totalSteps = 3;
@@ -189,25 +189,41 @@ export function AltaSocioMultiStepForm() {
       toast({ title: "Solicitud en Curso", description: "Ya tiene una solicitud pendiente de aprobación.", variant: "default" });
       return;
     }
+    
+    const processFamiliarFile = async (file: any, familiarId: string, docType: string): Promise<string|null> => {
+        if (file instanceof FileList && file.length > 0) {
+            return uploadFile(file[0], `socios/${socioData.id}/familiares/${familiarId}_${docType}.jpg`);
+        }
+        if (typeof file === 'string') return file;
+        return null;
+    };
+    
+    const processFamiliarData = async (familiarData: any) => {
+        if (!familiarData) return null;
+        const familiarId = familiarData.id || generateId();
+        const [fotoPerfil, fotoDniFrente, fotoDniDorso, fotoCarnet] = await Promise.all([
+            processFamiliarFile(familiarData.fotoPerfil, familiarId, 'perfil'),
+            processFamiliarFile(familiarData.fotoDniFrente, familiarId, 'dniFrente'),
+            processFamiliarFile(familiarData.fotoDniDorso, familiarId, 'dniDorso'),
+            processFamiliarFile(familiarData.fotoCarnet, familiarId, 'carnet'),
+        ]);
+        return {
+            ...familiarData,
+            id: familiarId,
+            fechaNacimiento: familiarData.fechaNacimiento,
+            fotoPerfil,
+            fotoDniFrente,
+            fotoDniDorso,
+            fotoCarnet
+        };
+    };
 
     const cambiosPropuestos: Required<Socio>['cambiosPendientesGrupoFamiliar'] = {
       tipoGrupoFamiliar: data.tipoGrupoFamiliar,
       familiares: {
-        conyuge: data.familiares.conyuge ? {
-          ...data.familiares.conyuge,
-          id: data.familiares.conyuge.id || generateId(),
-          fechaNacimiento: data.familiares.conyuge.fechaNacimiento,
-        } : null,
-        hijos: data.familiares.hijos?.map(h => ({
-          ...h,
-          id: h.id || generateId(),
-          fechaNacimiento: h.fechaNacimiento,
-        })) || [],
-        padres: data.familiares.padres?.map(p => ({
-          ...p,
-          id: p.id || generateId(),
-          fechaNacimiento: p.fechaNacimiento,
-        })) || [],
+        conyuge: await processFamiliarData(data.familiares.conyuge),
+        hijos: await Promise.all((data.familiares.hijos || []).map(processFamiliarData)),
+        padres: await Promise.all((data.familiares.padres || []).map(processFamiliarData)),
       }
     };
 

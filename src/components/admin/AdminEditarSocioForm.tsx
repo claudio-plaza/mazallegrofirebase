@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getSocioById, updateSocio } from '@/lib/firebase/firestoreService';
+import { getSocioById, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,22 +33,6 @@ type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
 interface AdminEditarSocioFormProps {
   socioId: string;
 }
-
-const processPhotoFieldForUpdate = (formValue: any, originalUrl: string | null | undefined): string | null => {
-    if (formValue instanceof FileList && formValue.length > 0) {
-        // Simula la subida de un nuevo archivo y devuelve una URL de marcador de posición
-        const timestamp = Date.now();
-        const filename = formValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
-        return `https://placehold.co/150x150.png?text=UPD_${filename}_${timestamp}`;
-    }
-    if (formValue === null) {
-        // La foto fue eliminada explícitamente en el formulario
-        return null;
-    }
-    // Si no es un FileList y no es null, es la URL original o no se tocó
-    return originalUrl || null;
-};
-
 
 export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const [socio, setSocio] = useState<Socio | null>(null);
@@ -159,39 +143,47 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   });
 
 
-  const onSubmit = (data: AdminEditSocioTitularData) => {
+  const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
+    
+    const processPhotoField = async (formValue: any, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
+        if (formValue instanceof FileList && formValue.length > 0) {
+            return uploadFile(formValue[0], `socios/${socio.id}/${path}`);
+        }
+        if (typeof formValue === 'string') {
+            return formValue;
+        }
+        return null; 
+    };
 
+    const dataWithUrls = { ...data };
+
+    dataWithUrls.fotoPerfil = await processPhotoField(data.fotoPerfil, socio.fotoPerfil, 'fotoPerfil.jpg');
+    dataWithUrls.fotoUrl = dataWithUrls.fotoPerfil;
+    dataWithUrls.fotoDniFrente = await processPhotoField(data.fotoDniFrente, socio.fotoDniFrente, 'fotoDniFrente.jpg');
+    dataWithUrls.fotoDniDorso = await processPhotoField(data.fotoDniDorso, socio.fotoDniDorso, 'fotoDniDorso.jpg');
+    dataWithUrls.fotoCarnet = await processPhotoField(data.fotoCarnet, socio.fotoCarnet, 'fotoCarnet.jpg');
+
+    if (dataWithUrls.grupoFamiliar) {
+        dataWithUrls.grupoFamiliar = await Promise.all(
+            dataWithUrls.grupoFamiliar.map(async (familiarFormData) => {
+                const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
+                const familiarId = familiarFormData.id || generateId();
+                const processedFamiliar = { ...familiarFormData, id: familiarId };
+
+                processedFamiliar.fotoPerfil = await processPhotoField(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil, `familiares/${familiarId}_perfil.jpg`);
+                processedFamiliar.fotoDniFrente = await processPhotoField(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`);
+                processedFamiliar.fotoDniDorso = await processPhotoField(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`);
+                processedFamiliar.fotoCarnet = await processPhotoField(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet, `familiares/${familiarId}_carnet.jpg`);
+                
+                return processedFamiliar;
+            })
+        );
+    }
+    
     const updatePayload: Partial<Socio> & { id: string } = {
         id: socio.id,
-        nombre: data.nombre,
-        apellido: data.apellido,
-        fechaNacimiento: data.fechaNacimiento,
-        dni: data.dni,
-        empresa: data.empresa,
-        telefono: data.telefono,
-        direccion: data.direccion,
-        email: data.email,
-        estadoSocio: data.estadoSocio,
-        
-        fotoPerfil: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoPerfil),
-        fotoUrl: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoUrl),
-        fotoDniFrente: processPhotoFieldForUpdate(data.fotoDniFrente, socio.fotoDniFrente),
-        fotoDniDorso: processPhotoFieldForUpdate(data.fotoDniDorso, socio.fotoDniDorso),
-        fotoCarnet: processPhotoFieldForUpdate(data.fotoCarnet, socio.fotoCarnet),
-
-        grupoFamiliar: data.grupoFamiliar ? data.grupoFamiliar.map((familiarFormData) => {
-            const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
-            return {
-                ...familiarFormData,
-                id: familiarFormData.id || generateId(),
-                fechaNacimiento: familiarFormData.fechaNacimiento,
-                fotoPerfil: processPhotoFieldForUpdate(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil),
-                fotoDniFrente: processPhotoFieldForUpdate(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente),
-                fotoDniDorso: processPhotoFieldForUpdate(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso),
-                fotoCarnet: processPhotoFieldForUpdate(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet),
-            };
-        }) : [],
+        ...dataWithUrls,
     };
 
     updateSocioMutation(updatePayload);

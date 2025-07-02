@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { addSocio } from '@/lib/firebase/firestoreService';
+import { addSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { getFileUrl, generateId } from '@/lib/helpers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserPlus, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
@@ -26,19 +26,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
 type FotoFieldNameFamiliar = `grupoFamiliar.${number}.fotoPerfil` | `grupoFamiliar.${number}.fotoDniFrente` | `grupoFamiliar.${number}.fotoDniDorso` | `grupoFamiliar.${number}.fotoCarnet`;
 type FotoFieldName = FotoFieldNameTitular | FotoFieldNameFamiliar;
-
-
-const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
-    if (typeof window !== 'undefined' && fieldValue instanceof FileList && fieldValue.length > 0) {
-        const timestamp = Date.now();
-        const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
-        return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
-    }
-    if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
-        return fieldValue;
-    }
-    return null;
-};
 
 
 export function AdminNuevoSocioForm() {
@@ -105,41 +92,46 @@ export function AdminNuevoSocioForm() {
   });
 
 
-  const onSubmit = (data: AdminEditSocioTitularData) => {
-    const socioDataForCreation = {
-      nombre: data.nombre,
-      apellido: data.apellido,
-      fechaNacimiento: data.fechaNacimiento as Date,
-      dni: data.dni,
-      empresa: data.empresa,
-      telefono: data.telefono,
-      direccion: data.direccion,
-      email: data.email,
-      estadoSocio: data.estadoSocio,
-      fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil), 
-      fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil),
-      fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente),
-      fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso),
-      fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet),
-      grupoFamiliar: data.grupoFamiliar?.filter(Boolean).map((formFamiliar) => {
-            let relacionCorrecta = formFamiliar.relacion;
-            if (data.tipoGrupoFamiliar === 'conyugeEHijos' && formFamiliar.relacion === RelacionFamiliar.PADRE_MADRE) {
-                relacionCorrecta = RelacionFamiliar.HIJO_A;
-            } else if (data.tipoGrupoFamiliar === 'padresMadres' && (formFamiliar.relacion === RelacionFamiliar.CONYUGE || formFamiliar.relacion === RelacionFamiliar.HIJO_A)) {
-                relacionCorrecta = RelacionFamiliar.PADRE_MADRE;
-            }
+  const onSubmit = async (data: AdminEditSocioTitularData) => {
+    const tempId = generateId(); // Use a temp ID for paths if no auth user
+
+    const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
+        if (fileInput instanceof FileList && fileInput.length > 0) {
+            return uploadFile(fileInput[0], `socios/${tempId}/${pathSuffix}`);
+        }
+        return null;
+    };
+
+    const fotoPerfilUrl = await uploadAndGetUrl(data.fotoPerfil, 'fotoPerfil.jpg');
+
+    const grupoFamiliarConUrls = await Promise.all(
+        (data.grupoFamiliar || []).map(async (familiar) => {
+            const familiarId = familiar.id || generateId();
+            const [perfil, frente, dorso, carnet] = await Promise.all([
+                uploadAndGetUrl(familiar.fotoPerfil, `familiares/${familiarId}_perfil.jpg`),
+                uploadAndGetUrl(familiar.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`),
+                uploadAndGetUrl(familiar.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`),
+                uploadAndGetUrl(familiar.fotoCarnet, `familiares/${familiarId}_carnet.jpg`),
+            ]);
             return {
-                ...formFamiliar,
-                id: formFamiliar.id || generateId(),
-                relacion: relacionCorrecta,
-                fechaNacimiento: formFamiliar.fechaNacimiento,
-                fotoPerfil: processPhotoFieldForSubmit(formFamiliar.fotoPerfil),
-                fotoDniFrente: processPhotoFieldForSubmit(formFamiliar.fotoDniFrente),
-                fotoDniDorso: processPhotoFieldForSubmit(formFamiliar.fotoDniDorso),
-                fotoCarnet: processPhotoFieldForSubmit(formFamiliar.fotoCarnet),
-                aptoMedico: formFamiliar.aptoMedico || { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial'},
-            }
-        }) as MiembroFamiliar[],
+                ...familiar,
+                id: familiarId,
+                fotoPerfil: perfil,
+                fotoDniFrente: frente,
+                fotoDniDorso: dorso,
+                fotoCarnet: carnet,
+            };
+        })
+    );
+
+    const socioDataForCreation = {
+        ...data,
+        fotoUrl: fotoPerfilUrl,
+        fotoPerfil: fotoPerfilUrl,
+        fotoDniFrente: await uploadAndGetUrl(data.fotoDniFrente, 'fotoDniFrente.jpg'),
+        fotoDniDorso: await uploadAndGetUrl(data.fotoDniDorso, 'fotoDniDorso.jpg'),
+        fotoCarnet: await uploadAndGetUrl(data.fotoCarnet, 'fotoCarnet.jpg'),
+        grupoFamiliar: grupoFamiliarConUrls,
     };
 
     addSocioMutation(socioDataForCreation);

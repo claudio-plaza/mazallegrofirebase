@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getSocioByNumeroSocioOrDNI, updateSocio } from '@/lib/firebase/firestoreService';
+import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { format, parseISO, subYears } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -114,19 +114,17 @@ export function GestionAdherentesSocio() {
       return;
     }
 
-    const processPhotoFieldForSubmit = (fieldValue: FileList | string | null | undefined, fieldNameHint: string): string | null => {
-        if (fieldValue === null) return null;
-        if (fieldValue instanceof FileList && fieldValue.length > 0) {
-            const timestamp = Date.now();
-            const filename = fieldValue[0].name.substring(0,10).replace(/[^a-zA-Z0-9]/g, '');
-            return `https://placehold.co/150x150.png?text=${fieldNameHint}_${filename}_${timestamp}`;
+    const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
+        if (fileInput instanceof FileList && fileInput.length > 0) {
+            return uploadFile(fileInput[0], `socios/${socioData.id}/${pathSuffix}`);
         }
-        if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) return fieldValue; 
         return null;
     };
 
+    const adherenteId = generateId();
+
     const nuevoAdherente: Adherente = {
-      id: generateId(),
+      id: adherenteId,
       nombre: data.nombre,
       apellido: data.apellido,
       dni: data.dni,
@@ -135,10 +133,10 @@ export function GestionAdherentesSocio() {
       direccion: data.direccion,
       email: data.email,
       fechaNacimiento: format(data.fechaNacimiento, "yyyy-MM-dd") as unknown as Date,
-      fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente, "DNI_FRENTE"),
-      fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso, "DNI_DORSO"),
-      fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil, "PERFIL"),
-      fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet, "CARNET"),
+      fotoDniFrente: await uploadAndGetUrl(data.fotoDniFrente, `adherentes/${adherenteId}_dniFrente.jpg`),
+      fotoDniDorso: await uploadAndGetUrl(data.fotoDniDorso, `adherentes/${adherenteId}_dniDorso.jpg`),
+      fotoPerfil: await uploadAndGetUrl(data.fotoPerfil, `adherentes/${adherenteId}_perfil.jpg`),
+      fotoCarnet: await uploadAndGetUrl(data.fotoCarnet, `adherentes/${adherenteId}_carnet.jpg`),
       estadoAdherente: EstadoAdherente.INACTIVO,
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },

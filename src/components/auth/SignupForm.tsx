@@ -143,21 +143,6 @@ const renderFilePreview = (
   return null;
 };
 
-// This function is now just a placeholder for the real logic which would involve Firebase Storage
-const processPhotoFieldForSubmit = (fieldValue: any): string | null => {
-  if (typeof window !== 'undefined' && fieldValue instanceof FileList && fieldValue.length > 0) {
-      const timestamp = Date.now();
-      const filename = fieldValue[0].name.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
-      // In a real app, this would return a Firebase Storage URL after upload.
-      // For now, we return a placeholder.
-      return `https://placehold.co/150x150.png?text=FOTO_${filename}_${timestamp}`;
-  }
-  if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
-      return fieldValue;
-  }
-  return null;
-};
-
 export function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
@@ -192,40 +177,14 @@ export function SignupForm() {
 
   async function onSubmit(data: SignupTitularData) {
     try {
-      // 1. Create the authentication user in Firebase Auth
       const authUser = await signupUser(data);
-      if (!authUser) {
-        // signupUser already shows a toast on error
-        return;
+      if (authUser) {
+        toast({
+          title: 'Cuenta Creada Exitosamente',
+          description: 'Tu cuenta de titular ha sido creada y está pendiente de validación. Ya puedes iniciar sesión.',
+        });
+        router.push('/login');
       }
-      
-      // 2. Create the socio profile data in Firestore, linked by UID.
-      // Note: Real file uploads to Firebase Storage would happen here.
-      // We are using placeholders for URLs for now.
-      const socioData = {
-        email: data.email,
-        nombre: data.nombre,
-        apellido: data.apellido,
-        fechaNacimiento: data.fechaNacimiento,
-        dni: data.dni,
-        empresa: data.empresa,
-        telefono: data.telefono,
-        direccion: data.direccion,
-        fotoUrl: processPhotoFieldForSubmit(data.fotoPerfil),
-        fotoPerfil: processPhotoFieldForSubmit(data.fotoPerfil),
-        fotoDniFrente: processPhotoFieldForSubmit(data.fotoDniFrente),
-        fotoDniDorso: processPhotoFieldForSubmit(data.fotoDniDorso),
-        fotoCarnet: processPhotoFieldForSubmit(data.fotoCarnet),
-        grupoFamiliar: [],
-      };
-      
-      await addSocio(authUser.uid, socioData, true); // `isTitularSignup = true` sets estado to 'Pendiente Validacion'
-
-      toast({
-        title: 'Cuenta Creada Exitosamente',
-        description: 'Tu cuenta de titular ha sido creada y está pendiente de validación. Ya puedes iniciar sesión.',
-      });
-      router.push('/login');
     } catch (error) {
       console.error('Error in signup process:', error);
       toast({

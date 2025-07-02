@@ -10,7 +10,7 @@ import {
 import { auth } from './firebase/config';
 import type { SignupTitularData } from '@/types';
 import { toast } from '@/hooks/use-toast';
-import { addSocio } from './firebase/firestoreService';
+import { addSocio, uploadFile } from './firebase/firestoreService';
 
 export const loginUser = async (email: string, passwordInput: string) => {
   try {
@@ -30,11 +30,45 @@ export const loginUser = async (email: string, passwordInput: string) => {
 export const signupUser = async (data: SignupTitularData) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    // Update Firebase Auth user's display name
-    await updateProfile(userCredential.user, {
+    const user = userCredential.user;
+    await updateProfile(user, {
         displayName: `${data.nombre} ${data.apellido}`
     });
-    return userCredential.user;
+
+    const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
+        if (fileInput instanceof FileList && fileInput.length > 0) {
+            return uploadFile(fileInput[0], `socios/${user.uid}/${pathSuffix}`);
+        }
+        return null;
+    };
+
+    const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
+        uploadAndGetUrl(data.fotoPerfil, 'fotoPerfil.jpg'),
+        uploadAndGetUrl(data.fotoDniFrente, 'fotoDniFrente.jpg'),
+        uploadAndGetUrl(data.fotoDniDorso, 'fotoDniDorso.jpg'),
+        uploadAndGetUrl(data.fotoCarnet, 'fotoCarnet.jpg'),
+    ]);
+
+    const socioData = {
+      email: data.email,
+      nombre: data.nombre,
+      apellido: data.apellido,
+      fechaNacimiento: data.fechaNacimiento,
+      dni: data.dni,
+      empresa: data.empresa,
+      telefono: data.telefono,
+      direccion: data.direccion,
+      fotoUrl: fotoPerfilUrl,
+      fotoPerfil: fotoPerfilUrl,
+      fotoDniFrente: fotoDniFrenteUrl,
+      fotoDniDorso: fotoDniDorsoUrl,
+      fotoCarnet: fotoCarnetUrl,
+      grupoFamiliar: [],
+    };
+    
+    await addSocio(user.uid, socioData, true);
+
+    return user;
   } catch (error: any) {
     console.error("Firebase signup error:", error);
     let description = 'Ocurrió un error inesperado al crear la cuenta.';

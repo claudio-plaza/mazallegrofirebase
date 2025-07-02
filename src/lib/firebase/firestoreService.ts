@@ -18,7 +18,12 @@ import {
   DocumentData,
   setDoc,
 } from 'firebase/firestore';
-import { db } from './config';
+import { db, storage } from './config';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from 'firebase/storage';
 import type {
   Socio,
   RevisionMedica,
@@ -90,6 +95,14 @@ const socioConverter = createConverter<Socio>();
 const revisionConverter = createConverter<RevisionMedica>();
 const solicitudConverter = createConverter<SolicitudInvitadosDiarios>();
 const novedadConverter = createConverter<Novedad>();
+
+// --- File Upload Service ---
+export const uploadFile = async (file: File, path: string): Promise<string> => {
+  const storageRef = ref(storage, path);
+  const snapshot = await uploadBytes(storageRef, file);
+  return getDownloadURL(snapshot.ref);
+};
+
 
 // --- Socios Service ---
 export const getSocios = async (): Promise<Socio[]> => {
@@ -201,9 +214,6 @@ export const getAdminUserById = async (uid: string): Promise<{ email: string; na
 
 export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   try {
-    // The previous logic to query and auto-increment `numeroSocio` was removed.
-    // It required a Firestore index that may not exist, causing silent failures.
-    // This new simplified logic ensures user creation is robust.
     const nuevoSocio: Omit<Socio, 'id'> = {
       ...socioData,
       numeroSocio: `S${Math.floor(100000 + Math.random() * 900000)}`,
