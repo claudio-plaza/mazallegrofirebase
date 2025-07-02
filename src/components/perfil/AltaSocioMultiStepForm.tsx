@@ -283,9 +283,9 @@ export function AltaSocioMultiStepForm() {
             <FormLabel>{label}</FormLabel>
             <FormControl>
               <div className="relative">
-                <label className={`cursor-pointer w-full min-h-[120px] h-[120px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md transition-colors ${isFormDisabled ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary bg-background hover:bg-muted/50'}`}>
+                <label className={`relative cursor-pointer w-full min-h-[120px] h-[120px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md transition-colors ${isFormDisabled ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary bg-background hover:bg-muted/50'}`}>
                   {previewUrl ? (
-                    <Image src={previewUrl} alt="Vista previa" layout="fill" objectFit="contain" className="rounded-md" />
+                    <Image src={previewUrl} alt="Vista previa" fill className="object-contain rounded-md" />
                   ) : fileName ? (
                     <div className="text-center p-2 text-muted-foreground">
                       <FileIcon className="h-8 w-8 mx-auto mb-2" />
