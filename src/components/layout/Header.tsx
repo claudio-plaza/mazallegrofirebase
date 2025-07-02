@@ -19,69 +19,82 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-secondary shadow-md sticky top-0 z-50"> {/* Changed to bg-secondary */}
+    // Modernized Header: Light background, subtle border, sticky positioning, and high z-index.
+    <header className="bg-background/95 backdrop-blur-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+        {/* Logo linking to home */}
         <Link href="/" className="flex items-center space-x-2">
           <Image 
-            src="https://placehold.co/76x38.png" 
+            src="https://placehold.co/153x76.png" // Placeholder logo
             alt={`${siteConfig.name} Logo`}
-            data-ai-hint="club logo"
-            width={76} 
-            height={38} 
+            data-ai-hint="company logo"
+            width={100} // Slightly smaller for a cleaner look
+            height={50}
             className="h-auto" 
             priority 
           />
-          {/* Site name text is now part of the image, or can be added if needed with text-secondary-foreground */}
-          <span className="text-2xl font-bold text-secondary-foreground sr-only">{siteConfig.name}</span>
         </Link>
+
+        {/* Navigation appears only when the user is logged in */}
         {isLoggedIn && (
           <nav className="flex items-center space-x-2 sm:space-x-4">
-            <>
-              <span className="text-sm text-secondary-foreground/80 hidden sm:inline"> {/* Adjusted for contrast */}
-                Hola, {userName || 'Usuario'} ({userRole})
-              </span>
-              {userRole && (
-                <Link href="/dashboard">
-                  <Button 
+            {/* Welcome message, visible on larger screens */}
+            <span className="text-sm text-muted-foreground hidden sm:inline">
+              Hola, {userName || 'Usuario'}
+            </span>
+
+            {/* Dashboard button for all logged-in roles */}
+            {userRole && (
+              <Link href="/dashboard" passHref>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-foreground/80 hover:text-foreground hover:bg-muted"
+                >
+                  <LayoutDashboard className="h-5 w-5" /> 
+                  <span className="sr-only sm:not-sr-only sm:ml-2">Panel</span>
+                </Button>
+              </Link>
+            )}
+
+            {/* My Profile button for 'socio' role */}
+            {userRole === 'socio' && (
+              <Link href="/mi-perfil" passHref>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-foreground/80 hover:text-foreground hover:bg-muted"
+                >
+                  <UserCircle className="h-5 w-5" /> 
+                  <span className="sr-only sm:not-sr-only sm:ml-2">Mi Perfil</span>
+                </Button>
+              </Link>
+            )}
+            
+            {/* Admin Settings button for 'admin' role */}
+            {userRole === 'admin' && (
+               <Link href="/admin/gestion-socios" passHref>
+                 <Button 
+                    variant="ghost"
                     size="sm" 
-                    className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                  >
-                    <LayoutDashboard className="mr-0 sm:mr-2 h-4 w-4" /> 
-                    <span className="hidden sm:inline">Panel</span>
-                  </Button>
-                </Link>
-              )}
-              {userRole === 'socio' && (
-                <Link href="/mi-perfil">
-                  <Button 
-                    size="sm" 
-                    className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                  >
-                    <UserCircle className="mr-0 sm:mr-2 h-4 w-4" /> 
-                     <span className="hidden sm:inline">Mi Perfil</span>
-                  </Button>
-                </Link>
-              )}
-              {userRole === 'admin' && (
-                 <Link href="/admin/gestion-socios">
-                   <Button 
-                     size="sm" 
-                     className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                   >
-                     <Settings className="mr-0 sm:mr-2 h-4 w-4" /> 
-                     <span className="hidden sm:inline">Gestión de Socios</span>
-                   </Button>
-                 </Link>
-              )}
-              <Button 
-                size="sm" 
-                onClick={handleLogout} 
-                className="bg-secondary text-secondary-foreground border border-secondary-foreground/30 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-              >
-                <LogOut className="mr-0 sm:mr-2 h-4 w-4" /> 
-                <span className="hidden sm:inline">Salir</span>
-              </Button>
-            </>
+                    className="text-foreground/80 hover:text-foreground hover:bg-muted"
+                 >
+                   <Settings className="h-5 w-5" /> 
+                   <span className="sr-only sm:not-sr-only sm:ml-2">Gestión</span>
+                 </Button>
+               </Link>
+            )}
+
+            {/* Logout Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout} 
+              className="text-foreground/80 hover:text-foreground hover:bg-muted"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">Salir</span>
+            </Button>
           </nav>
         )}
       </div>
