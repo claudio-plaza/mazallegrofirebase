@@ -2,11 +2,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { allFeatures } from '@/config/site';
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
-import { Home, ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +20,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { userRole } = useAuth();
+  const router = useRouter();
+  const { userRole, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+    router.refresh();
+  };
 
   const accessibleFeatures = allFeatures.filter(feature => 
     userRole && feature.roles.includes(userRole)
@@ -33,7 +40,7 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
           "h-16 flex items-center border-b transition-all duration-300",
           isExpanded ? "justify-start px-4" : "justify-center px-2"
         )}>
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/dashboard" className="flex items-center space-x-2">
             {isExpanded ? (
               <Image 
                   src="https://placehold.co/153x76.png" 
@@ -85,15 +92,17 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
         <div className="p-2 border-t mt-auto">
            <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/dashboard" passHref>
-                  <Button variant="ghost" className={cn("w-full", !isExpanded && "justify-center p-0")}>
-                    <Home className={cn("h-5 w-5", isExpanded && "mr-2")} />
-                    <span className={cn(!isExpanded && "sr-only")}>Volver al Panel</span>
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  className={cn("w-full text-destructive hover:text-destructive hover:bg-destructive/10", !isExpanded && "justify-center p-0")}
+                  onClick={handleLogout}
+                >
+                  <LogOut className={cn("h-5 w-5", isExpanded && "mr-2")} />
+                  <span className={cn(!isExpanded && "sr-only")}>Cerrar Sesión</span>
+                </Button>
               </TooltipTrigger>
               {!isExpanded && (
-                <TooltipContent side="right"><p>Volver al Panel</p></TooltipContent>
+                <TooltipContent side="right"><p>Cerrar Sesión</p></TooltipContent>
               )}
             </Tooltip>
           {onToggle && (

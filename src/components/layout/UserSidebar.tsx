@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -33,7 +34,7 @@ export function UserSidebar({ className }: UserSidebarProps) {
   return (
     <aside className={cn("flex flex-col bg-secondary text-secondary-foreground", className)}>
       <div className="h-16 flex items-center justify-center px-4 border-b border-secondary-foreground/20">
-        <Link href="/" className="flex items-center space-x-2">
+        <Link href="/dashboard" className="flex items-center space-x-2">
             <Image 
                 src="https://placehold.co/153x76.png" 
                 alt={`${siteConfig.name} Logo`}
