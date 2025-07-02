@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Socio, MiembroFamiliar, AptoMedicoInfo } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -26,12 +26,11 @@ type DisplayablePerson = {
   apellido: string;
   dni: string;
   aptoMedico?: AptoMedicoInfo;
-  fotoUrl?: string | null;
+  fotoFinalUrl: string;
   fechaNacimiento: Date;
   relacion?: string;
   numeroSocio?: string;
   miembroDesde?: Date;
-  fotoPerfil?: string | null;
 };
 
 export function CarnetDigital() {
@@ -119,34 +118,42 @@ export function CarnetDigital() {
     ]
   : [];
 
-  const selectedPersonData: DisplayablePerson | null = titularData && selectedPersonId
-  ? (selectedPersonId === titularData.id 
-      ? {
-          id: titularData.id,
-          nombre: titularData.nombre,
-          apellido: titularData.apellido,
-          dni: titularData.dni,
-          aptoMedico: titularData.aptoMedico,
-          fechaNacimiento: titularData.fechaNacimiento,
-          fotoUrl: titularData.fotoUrl,
-          fotoPerfil: titularData.fotoPerfil,
-          numeroSocio: titularData.numeroSocio,
-          miembroDesde: titularData.miembroDesde,
-          relacion: 'Titular'
-        }
-      : titularData.grupoFamiliar?.find(fam => (fam.id || fam.dni) === selectedPersonId)
-        ? {
-            id: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.id || titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.dni,
-            nombre: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.nombre,
-            apellido: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.apellido,
-            dni: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.dni,
-            aptoMedico: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.aptoMedico,
-            fechaNacimiento: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fechaNacimiento,
-            fotoPerfil: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.fotoPerfil,
-            relacion: titularData.grupoFamiliar.find(fam => (fam.id || fam.dni) === selectedPersonId)!.relacion
-          }
-        : null)
-  : null;
+  const selectedPersonData: DisplayablePerson | null = useMemo(() => {
+    if (!titularData || !selectedPersonId) return null;
+
+    if (selectedPersonId === titularData.id) {
+        const titular = titularData;
+        return {
+            id: titular.id,
+            nombre: titular.nombre,
+            apellido: titular.apellido,
+            dni: titular.dni,
+            aptoMedico: titular.aptoMedico,
+            fechaNacimiento: titular.fechaNacimiento,
+            fotoFinalUrl: titular.fotoUrl || titular.fotoPerfil || `https://placehold.co/150x150.png?text=${titular.nombre[0]}${titular.apellido[0]}`,
+            numeroSocio: titular.numeroSocio,
+            miembroDesde: titular.miembroDesde,
+            relacion: 'Titular'
+        };
+    }
+
+    const familiar = titularData.grupoFamiliar?.find(fam => (fam.id || fam.dni) === selectedPersonId);
+    if (familiar) {
+        return {
+            id: familiar.id || familiar.dni,
+            nombre: familiar.nombre,
+            apellido: familiar.apellido,
+            dni: familiar.dni,
+            aptoMedico: familiar.aptoMedico,
+            fechaNacimiento: familiar.fechaNacimiento,
+            fotoFinalUrl: familiar.fotoPerfil || `https://placehold.co/150x150.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`,
+            relacion: familiar.relacion
+        };
+    }
+    
+    return null;
+  }, [titularData, selectedPersonId]);
+
 
   if (loading || (authLoading && !searchParams.get('titularId'))) {
     return (
@@ -183,7 +190,6 @@ export function CarnetDigital() {
   }
 
   const aptoStatus = getAptoMedicoStatus(selectedPersonData.aptoMedico, selectedPersonData.fechaNacimiento);
-  const fotoToShow = selectedPersonData.fotoUrl || selectedPersonData.fotoPerfil || `https://placehold.co/150x150.png?text=${selectedPersonData.nombre[0]}${selectedPersonData.apellido[0]}`;
   
   const qrData = `Socio N°: ${titularData.numeroSocio}\nTitular: ${titularData.nombre} ${titularData.apellido}\nVerificado por: ${siteConfig.name}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&format=png&bgcolor=ffffff&color=ed771b&qzone=1`; // Updated QR color
@@ -225,7 +231,7 @@ export function CarnetDigital() {
 
         <div className="text-center space-y-3">
           <Avatar className="h-32 w-32 border-4 border-primary-foreground/50 shadow-lg mx-auto bg-background/30">
-            <AvatarImage src={fotoToShow} alt={`${selectedPersonData.nombre} ${selectedPersonData.apellido}`} data-ai-hint="member portrait" />
+            <AvatarImage src={selectedPersonData.fotoFinalUrl} alt={`${selectedPersonData.nombre} ${selectedPersonData.apellido}`} data-ai-hint="member portrait" />
             <AvatarFallback className="text-4xl bg-background/30 text-primary-foreground/70">
               {selectedPersonData.nombre[0]}{selectedPersonData.apellido[0]}
             </AvatarFallback>
