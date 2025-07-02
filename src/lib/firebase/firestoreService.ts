@@ -206,7 +206,7 @@ export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numer
     // This new simplified logic ensures user creation is robust.
     const nuevoSocio: Omit<Socio, 'id'> = {
       ...socioData,
-      numeroSocio: `S${Date.now().toString().slice(-6)}`,
+      numeroSocio: `S${Math.floor(100000 + Math.random() * 900000)}`,
       role: 'socio',
       estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
       miembroDesde: new Date(),
