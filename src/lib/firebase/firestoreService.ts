@@ -135,23 +135,47 @@ export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
 export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<Socio | null> => {
   try {
     const normalizedSearchTerm = normalizeText(searchTerm);
-    
-    // Try by DNI first
-    let q = query(sociosCollection, where('dni', '==', normalizedSearchTerm), limit(1)).withConverter(socioConverter);
+
+    // --- Direct Search (Fastest) ---
+    // 1. By NumeroSocio (exact match, case-insensitive for 'S')
+    let q = query(sociosCollection, where('numeroSocio', '==', searchTerm.toUpperCase()), limit(1)).withConverter(socioConverter);
     let querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) return querySnapshot.docs[0].data();
     
-    // Try by NumeroSocio
-    q = query(sociosCollection, where('numeroSocio', '==', searchTerm.toUpperCase()), limit(1)).withConverter(socioConverter);
+    // 2. By DNI of the Titular (exact match)
+    q = query(sociosCollection, where('dni', '==', normalizedSearchTerm), limit(1)).withConverter(socioConverter);
     querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) return querySnapshot.docs[0].data();
 
-    // Fallback to searching all and filtering (less efficient)
+    // --- Comprehensive Fallback Search (Slower) ---
+    // This part is executed only if the direct searches fail.
     const allSocios = await getSocios();
-    return allSocios.find(s =>
-      normalizeText(s.nombre).includes(normalizedSearchTerm) ||
-      normalizeText(s.apellido).includes(normalizedSearchTerm)
-    ) || null;
+    for (const socio of allSocios) {
+      // Check Titular's name
+      if (normalizeText(`${socio.nombre} ${socio.apellido}`).includes(normalizedSearchTerm)) {
+        return socio;
+      }
+      
+      // Check Grupo Familiar
+      if (socio.grupoFamiliar) {
+        for (const familiar of socio.grupoFamiliar) {
+          if (normalizeText(familiar.dni) === normalizedSearchTerm || normalizeText(`${familiar.nombre} ${familiar.apellido}`).includes(normalizedSearchTerm)) {
+            return socio; // Return the parent socio
+          }
+        }
+      }
+
+      // Check Adherentes
+      if (socio.adherentes) {
+        for (const adherente of socio.adherentes) {
+          if (normalizeText(adherente.dni) === normalizedSearchTerm || normalizeText(`${adherente.nombre} ${adherente.apellido}`).includes(normalizedSearchTerm)) {
+            return socio; // Return the parent socio
+          }
+        }
+      }
+    }
+
+    return null; // Not found anywhere
   } catch(error) {
     logFirestoreError(error, `getSocioByNumeroSocioOrDNI for term: ${searchTerm}`);
     throw error;

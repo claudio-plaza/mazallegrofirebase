@@ -250,7 +250,7 @@ export function ControlAcceso() {
 
 
       } else {
-        setMensajeBusqueda('Socio no encontrado.');
+        setMensajeBusqueda('Persona no encontrada. Verifique los datos e intente nuevamente.');
         setSocioEncontrado(null);
       }
     } catch (error) {
@@ -625,13 +625,13 @@ export function ControlAcceso() {
       <Card className="w-full max-w-3xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><ShieldCheck className="mr-3 h-7 w-7 text-primary" /> Control de Acceso</CardTitle>
-          <CardDescription>Busque un socio titular (por N° Socio, DNI o Nombre).</CardDescription>
+          <CardDescription>Busque cualquier socio, familiar o adherente por su DNI, Nombre, Apellido o N° de Socio (del titular).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex space-x-2">
             <Input
               type="text"
-              placeholder="N° Socio, DNI, Nombre o Apellido del Titular"
+              placeholder="Buscar por DNI, Nombre o N° Socio de cualquier miembro"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -662,7 +662,7 @@ export function ControlAcceso() {
                           {iconoAccesoGeneral}
                           <div>
                               <h3 className={`text-lg font-semibold ${textoColorAccesoGeneral}`}>
-                              {socioEncontrado.nombre} {socioEncontrado.apellido} (N°: {socioEncontrado.numeroSocio})
+                              Socio Titular: {socioEncontrado.nombre} {socioEncontrado.apellido} (N°: {socioEncontrado.numeroSocio})
                               {esCumpleanosHoy(socioEncontrado.fechaNacimiento) && <Badge variant="default" className="ml-2 bg-pink-500 text-white">¡Hoy Cumple!</Badge>}
                               </h3>
                               <div className={`text-sm ${accesoGeneralPermitido ? 'text-green-600' : 'text-red-600'}`}>
