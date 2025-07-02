@@ -59,7 +59,6 @@ export function ControlAcceso() {
 
   const [countCumpleanerosEnGrupo, setCountCumpleanerosEnGrupo] = useState(0);
   const [cupoTotalInvitadosCumple, setCupoTotalInvitadosCumple] = useState(0);
-  const [invitadosCumpleRegistradosHoy, setInvitadosCumpleRegistradosHoy] = useState(0);
 
   const [ingresosSesion, setIngresosSesion] = useState<Record<string, boolean>>({});
 
@@ -175,7 +174,6 @@ export function ControlAcceso() {
       setInvitadosCumpleanosCheckboxState({});
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
-      setInvitadosCumpleRegistradosHoy(0);
       setIngresosSesion({});
       return;
     }
@@ -190,7 +188,6 @@ export function ControlAcceso() {
       setInvitadosCumpleanosCheckboxState({});
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
-      setInvitadosCumpleRegistradosHoy(0);
       setIngresosSesion({});
     }
 
@@ -223,26 +220,20 @@ export function ControlAcceso() {
             sol.estado === EstadoSolicitudInvitados.ENVIADA 
         );
 
-        let currentInvitadosCumpleRegistrados = 0;
         const initialCheckboxState: Record<string,boolean> = {};
 
         if (solicitudHoyDiaria) {
-            const invitadosDiariosProcesados = solicitudHoyDiaria.listaInvitadosDiarios.map(inv => {
-                if (inv.esDeCumpleanos && inv.ingresado) {
-                    currentInvitadosCumpleRegistrados++;
-                }
+            solicitudHoyDiaria.listaInvitadosDiarios.forEach(inv => {
                 initialCheckboxState[inv.dni] = hoyEsFechaRestringida ? false : !!inv.esDeCumpleanos;
-                return { ...inv };
             });
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
-            setInvitadosDiariosSocioBuscado(invitadosDiariosProcesados);
+            setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios);
             setEventoHabilitadoPorIngresoFamiliar(solicitudHoyDiaria.titularIngresadoEvento || false);
         } else {
           setSolicitudInvitadosDiariosHoySocioBuscado(null);
           setInvitadosDiariosSocioBuscado([]);
           setEventoHabilitadoPorIngresoFamiliar(false);
         }
-        setInvitadosCumpleRegistradosHoy(currentInvitadosCumpleRegistrados);
         setInvitadosCumpleanosCheckboxState(initialCheckboxState);
         handleToggleIngresoMiembroGrupo();
 
@@ -274,6 +265,21 @@ export function ControlAcceso() {
     };
   }, [socioEncontrado, handleSearch]); 
 
+  const cupoUtilizado = useMemo(() => {
+    return invitadosDiariosSocioBuscado.reduce((count, inv) => {
+      const isCheckedInState = invitadosCumpleanosCheckboxState[inv.dni];
+      if (isCheckedInState === true) {
+        return count + 1;
+      }
+      if (isCheckedInState === false) {
+        return count;
+      }
+      if (inv.esDeCumpleanos && inv.ingresado) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }, [invitadosDiariosSocioBuscado, invitadosCumpleanosCheckboxState]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -384,12 +390,23 @@ export function ControlAcceso() {
     }
     
     const esDeCumpleanosSeleccionado = !!invitadosCumpleanosCheckboxState[invitadoDni];
-    if (!invitadoOriginal.ingresado) {
-        if (esDeCumpleanosSeleccionado && (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple)) {
+    
+    if (!invitadoOriginal.ingresado && esDeCumpleanosSeleccionado) {
+        const cupoUtilizadoAntesDeEste = invitadosDiariosSocioBuscado.reduce((count, inv) => {
+            const isChecked = invitadosCumpleanosCheckboxState[inv.dni];
+            if (isChecked === true) return count + 1;
+            if (isChecked === false) return count;
+            if (inv.esDeCumpleanos && inv.ingresado) return count + 1;
+            return count;
+        }, 0);
+
+        if (cupoUtilizadoAntesDeEste > cupoTotalInvitadosCumple) {
             toast({ title: "Cupo Excedido", description: "Se ha alcanzado el límite de invitados de cumpleaños para este grupo familiar hoy.", variant: "destructive" });
             return;
         }
+    }
 
+    if (!invitadoOriginal.ingresado) {
         let esMenorDeTresSinCosto = false;
         if (invitadoOriginal.fechaNacimiento && isValid(new Date(invitadoOriginal.fechaNacimiento))) {
             const edad = differenceInYears(new Date(), new Date(invitadoOriginal.fechaNacimiento));
@@ -404,7 +421,6 @@ export function ControlAcceso() {
             return;
         }
     }
-
 
     const nuevoEstadoIngreso = !invitadoOriginal.ingresado;
 
@@ -429,14 +445,6 @@ export function ControlAcceso() {
         await updateSolicitudInvitadosDiarios(updatedSolicitud);
         setInvitadosDiariosSocioBuscado(updatedSolicitud.listaInvitadosDiarios);
         setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud);
-
-        const eraDeCumpleanos = invitadoOriginal.esDeCumpleanos;
-        const esDeCumpleanos = invitadoActualizado.esDeCumpleanos;
-        if (nuevoEstadoIngreso) { // Si está ingresando
-          if(esDeCumpleanos && !eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => prev + 1);
-        } else { // Si se anula el ingreso
-          if(eraDeCumpleanos) setInvitadosCumpleRegistradosHoy(prev => Math.max(0, prev - 1));
-        }
         
         toast({
             title: `Ingreso Invitado ${nuevoEstadoIngreso ? 'Registrado' : 'Anulado'}`,
@@ -692,7 +700,7 @@ export function ControlAcceso() {
                         <p className="text-sm text-pink-600 bg-pink-100 p-2 rounded-md mb-3">
                             <Gift className="inline mr-1 h-4 w-4" /> Este grupo familiar tiene {countCumpleanerosEnGrupo} cumpleañero(s) hoy.
                             Cupo total de invitados de cumpleaños: {cupoTotalInvitadosCumple}.
-                            Registrados hoy: {invitadosCumpleRegistradosHoy}. Disponibles: {Math.max(0, cupoTotalInvitadosCumple - invitadosCumpleRegistradosHoy)}.
+                            Utilizado hoy: {cupoUtilizado}. Disponibles: {Math.max(0, cupoTotalInvitadosCumple - cupoUtilizado)}.
                         </p>
                       ) : (
                          <p className="text-sm text-blue-600 bg-blue-100 p-2 rounded-md mb-3">
@@ -718,8 +726,9 @@ export function ControlAcceso() {
                               esMenorDeTres = true;
                             }
                           }
-                          const esDeCumpleOriginal = !!invitado.esDeCumpleanos;
-                          const checkboxCumpleDisabled = hoyEsFechaRestringida || countCumpleanerosEnGrupo === 0 || (invitadosCumpleRegistradosHoy >= cupoTotalInvitadosCumple && !esDeCumpleOriginal);
+                          const cupoAlcanzado = cupoUtilizado >= cupoTotalInvitadosCumple;
+                          const isCurrentlyChecked = !!invitadosCumpleanosCheckboxState[invitado.dni];
+                          const checkboxCumpleDisabled = hoyEsFechaRestringida || countCumpleanerosEnGrupo === 0 || (cupoAlcanzado && !isCurrentlyChecked);
 
                           return (
                             <Card key={invitado.dni} className={`p-3 ${invitado.ingresado ? 'bg-green-500/10' : 'bg-card'}`}>
