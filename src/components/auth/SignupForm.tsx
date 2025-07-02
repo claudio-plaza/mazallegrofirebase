@@ -411,7 +411,7 @@ export function SignupForm() {
                                         <label className="cursor-pointer w-full min-h-[120px] flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
                                             <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
                                             <span className="text-sm text-muted-foreground text-center">
-                                              {hasFileSelected ? '' : placeholderText + " (Opcional)"}
+                                              {hasFileSelected ? '' : placeholderText}
                                             </span>
                                             <Input
                                               type="file"
