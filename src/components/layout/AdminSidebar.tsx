@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth'; // Import the useAuth hook
 
 interface AdminSidebarProps {
   className?: string;
@@ -15,13 +16,11 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ className }: AdminSidebarProps) {
   const pathname = usePathname();
-  const adminFeatures = allFeatures.filter(feature => 
-    feature.roles.includes('admin') || feature.roles.includes('medico') || feature.roles.includes('portero')
-  );
+  const { userRole } = useAuth(); // Get the current user's role
 
-  // Remove duplicates
-  const uniqueFeatures = adminFeatures.filter((feature, index, self) =>
-    index === self.findIndex((f) => f.id === feature.id)
+  // Filter features based on the current user's role
+  const accessibleFeatures = allFeatures.filter(feature => 
+    userRole && feature.roles.includes(userRole)
   );
 
   return (
@@ -40,7 +39,8 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
         </Link>
       </div>
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {uniqueFeatures.map((feature) => (
+        {/* Map over the filtered features */}
+        {accessibleFeatures.map((feature) => (
           <Link key={feature.id} href={feature.href} passHref>
             <Button
               variant={pathname === feature.href ? 'secondary' : 'ghost'}
