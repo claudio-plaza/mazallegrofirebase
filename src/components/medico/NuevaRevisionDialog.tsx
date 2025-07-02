@@ -214,11 +214,18 @@ export function NuevaRevisionDialog({
     }
 
     const fechaRevisionSeleccionada = data.fechaRevision;
+    const esApto = data.resultado === 'Apto';
 
-    const fechaDeVencimientoFinal: Date | undefined = data.resultado === 'Apto' 
-        ? addDays(fechaRevisionSeleccionada, 14) 
-        : undefined;
+    // 1. Define the new AptoMedicoInfo object to be saved in the person's profile
+    const nuevoAptoMedico: AptoMedicoInfo = {
+        valido: esApto,
+        fechaEmision: fechaRevisionSeleccionada,
+        fechaVencimiento: esApto ? addDays(fechaRevisionSeleccionada, 14) : undefined,
+        razonInvalidez: !esApto ? 'No Apto según revisión médica.' : undefined,
+        observaciones: data.observaciones,
+    };
 
+    // 2. Define the historical RevisionMedica record
     const nuevaRevision: Omit<RevisionMedica, 'id'> = {
       fechaRevision: fechaRevisionSeleccionada,
       socioId: searchedPerson.id, 
@@ -227,18 +234,69 @@ export function NuevaRevisionDialog({
       resultado: data.resultado as 'Apto' | 'No Apto',
       observaciones: data.observaciones,
       medicoResponsable: medicoName || `Médico ${siteConfig.name}`,
-      fechaVencimientoApto: fechaDeVencimientoFinal,
+      fechaVencimientoApto: nuevoAptoMedico.fechaVencimiento,
     };
-    
-    // Conditionally add idSocioAnfitrion to avoid sending 'undefined'
     if (searchedPerson.socioTitularId) {
         (nuevaRevision as RevisionMedica).idSocioAnfitrion = searchedPerson.socioTitularId;
     }
 
+
     try {
+        // 3. Save the historical revision record
         await addRevisionMedica(nuevaRevision);
         
-        toast({ title: 'Revisión Guardada', description: `La revisión para ${searchedPerson.nombreCompleto} ha sido guardada.` });
+        // 4. Update the source-of-truth document with the new apto medico status
+        switch (searchedPerson.tipo) {
+            case 'Socio Titular': {
+                const socioToUpdate = await getSocioByNumeroSocioOrDNI(searchedPerson.id);
+                if (socioToUpdate) {
+                    socioToUpdate.aptoMedico = nuevoAptoMedico;
+                    socioToUpdate.ultimaRevisionMedica = fechaRevisionSeleccionada;
+                    await updateSocio(socioToUpdate);
+                }
+                break;
+            }
+            case 'Familiar': {
+                if (!searchedPerson.socioTitularId) throw new Error("ID de socio titular no encontrado para familiar.");
+                const socioAnfitrion = await getSocioByNumeroSocioOrDNI(searchedPerson.socioTitularId);
+                if (socioAnfitrion && socioAnfitrion.grupoFamiliar) {
+                    const familiarIndex = socioAnfitrion.grupoFamiliar.findIndex(f => f.dni === searchedPerson.id);
+                    if (familiarIndex !== -1) {
+                        socioAnfitrion.grupoFamiliar[familiarIndex].aptoMedico = nuevoAptoMedico;
+                        await updateSocio(socioAnfitrion);
+                    }
+                }
+                break;
+            }
+            case 'Adherente': {
+                if (!searchedPerson.socioTitularId) throw new Error("ID de socio titular no encontrado para adherente.");
+                const socioAnfitrion = await getSocioByNumeroSocioOrDNI(searchedPerson.socioTitularId);
+                if (socioAnfitrion && socioAnfitrion.adherentes) {
+                    const adherenteIndex = socioAnfitrion.adherentes.findIndex(a => a.dni === searchedPerson.id);
+                    if (adherenteIndex !== -1) {
+                        socioAnfitrion.adherentes[adherenteIndex].aptoMedico = nuevoAptoMedico;
+                        await updateSocio(socioAnfitrion);
+                    }
+                }
+                break;
+            }
+            case 'Invitado Diario': {
+                if (!searchedPerson.socioTitularId || !searchedPerson.fechaVisitaInvitado) throw new Error("Faltan datos para actualizar invitado.");
+                const fechaISO = formatISO(searchedPerson.fechaVisitaInvitado, { representation: 'date' });
+                const solicitud = await getSolicitudInvitadosDiarios(searchedPerson.socioTitularId, fechaISO);
+                if (solicitud) {
+                    const invitadoIndex = solicitud.listaInvitadosDiarios.findIndex(i => i.dni === searchedPerson.id);
+                    if (invitadoIndex !== -1) {
+                        solicitud.listaInvitadosDiarios[invitadoIndex].aptoMedico = nuevoAptoMedico;
+                        await addOrUpdateSolicitudInvitadosDiarios(solicitud);
+                    }
+                }
+                break;
+            }
+        }
+        
+        // 5. Success feedback and close
+        toast({ title: 'Revisión Guardada y Estado Actualizado', description: `El estado de apto médico para ${searchedPerson.nombreCompleto} ha sido actualizado.` });
         onRevisionGuardada();
         form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
         setSearchedPerson(null);
