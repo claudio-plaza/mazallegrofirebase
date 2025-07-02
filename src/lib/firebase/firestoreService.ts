@@ -162,14 +162,12 @@ export const getAdminUserById = async (uid: string): Promise<{ email: string; na
 
 export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
   try {
-    const sociosRef = collection(db, 'socios');
-    const lastSocioQuery = query(sociosRef, orderBy("numeroSocio", "desc"), limit(1));
-    const lastSocioSnap = await getDocs(lastSocioQuery);
-    const lastNumero = lastSocioSnap.empty ? 1000 : parseInt(lastSocioSnap.docs[0].data().numeroSocio.substring(1));
-
+    // The previous logic to query and auto-increment `numeroSocio` was removed.
+    // It required a Firestore index that may not exist, causing silent failures.
+    // This new simplified logic ensures user creation is robust.
     const nuevoSocio: Omit<Socio, 'id'> = {
-      ...(socioData),
-      numeroSocio: `S${(lastNumero + 1).toString()}`,
+      ...socioData,
+      numeroSocio: `S${Date.now().toString().slice(-6)}`,
       role: 'socio',
       estadoSocio: isTitularSignup ? 'Pendiente Validacion' : 'Activo',
       miembroDesde: new Date(),
