@@ -1,5 +1,7 @@
+
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { AdminSidebar } from '@/components/layout/AdminSidebar';
 import { Button } from '@/components/ui/button';
@@ -7,18 +9,31 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { PanelLeft } from 'lucide-react';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
+import { cn } from '@/lib/utils';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Desktop Sidebar: Fixed and always visible on medium screens and up */}
-      <AdminSidebar className="hidden md:flex md:fixed md:h-full md:w-64 md:z-10" />
+      {/* Desktop Sidebar: Now collapsible */}
+      <AdminSidebar
+        isExpanded={isSidebarExpanded}
+        onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
+        className={cn(
+          'hidden md:flex md:fixed md:h-full md:z-10 transition-[width] duration-300 ease-in-out',
+          isSidebarExpanded ? 'md:w-64' : 'md:w-20'
+        )}
+      />
       
-      <div className="flex flex-col md:pl-64">
+      <div className={cn(
+        "flex flex-col transition-[padding-left] duration-300 ease-in-out",
+        isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
+      )}>
         {/* Mobile Header: Appears only on small screens */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
           {/* Sheet component for the mobile sidebar */}
@@ -30,8 +45,8 @@ export default function AdminLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
-              {/* The same sidebar content is rendered inside the sheet */}
-              <AdminSidebar className="flex h-full w-full" />
+              {/* The mobile sidebar is not collapsible, it's always expanded inside the sheet */}
+              <AdminSidebar isExpanded={true} className="flex h-full w-full" />
             </SheetContent>
           </Sheet>
           {/* Mobile Header Logo */}
