@@ -145,47 +145,50 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
-    
-    // Create a deep copy to avoid mutating the original socio state object
-    const updatedSocio: Socio = JSON.parse(JSON.stringify(socio));
 
-    // Merge non-nested data
-    Object.assign(updatedSocio, {
-      ...data,
-      grupoFamiliar: [], // Will be rebuilt below
-    });
+    // Construct the payload for Firestore, only including fields from the form
+    // This is a partial update, so we don't need to copy the original socio object
+    const updatePayload: Partial<Socio> = {
+        nombre: data.nombre,
+        apellido: data.apellido,
+        fechaNacimiento: data.fechaNacimiento,
+        dni: data.dni,
+        empresa: data.empresa,
+        telefono: data.telefono,
+        direccion: data.direccion,
+        email: data.email,
+        estadoSocio: data.estadoSocio,
+        
+        // Process and update photos
+        fotoPerfil: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoPerfil),
+        fotoUrl: processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoUrl), // Keep fotoUrl in sync
+        fotoDniFrente: processPhotoFieldForUpdate(data.fotoDniFrente, socio.fotoDniFrente),
+        fotoDniDorso: processPhotoFieldForUpdate(data.fotoDniDorso, socio.fotoDniDorso),
+        fotoCarnet: processPhotoFieldForUpdate(data.fotoCarnet, socio.fotoCarnet),
 
-    // Process titular photos
-    updatedSocio.fotoPerfil = processPhotoFieldForUpdate(data.fotoPerfil, socio.fotoPerfil);
-    updatedSocio.fotoUrl = updatedSocio.fotoPerfil; // fotoUrl is a mirror of fotoPerfil
-    updatedSocio.fotoDniFrente = processPhotoFieldForUpdate(data.fotoDniFrente, socio.fotoDniFrente);
-    updatedSocio.fotoDniDorso = processPhotoFieldForUpdate(data.fotoDniDorso, socio.fotoDniDorso);
-    updatedSocio.fotoCarnet = processPhotoFieldForUpdate(data.fotoCarnet, socio.fotoCarnet);
-
-    // Process grupoFamiliar photos
-    if (data.grupoFamiliar) {
-      updatedSocio.grupoFamiliar = data.grupoFamiliar.map((familiarFormData) => {
-        const originalFamiliar = socio.grupoFamiliar.find(f => f.id === familiarFormData.id);
-        const newFamiliarData: MiembroFamiliar = {
-          ...familiarFormData,
-          id: familiarFormData.id || generateId(),
-          fechaNacimiento: familiarFormData.fechaNacimiento,
-          fotoPerfil: processPhotoFieldForUpdate(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil),
-          fotoDniFrente: processPhotoFieldForUpdate(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente),
-          fotoDniDorso: processPhotoFieldForUpdate(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso),
-          fotoCarnet: processPhotoFieldForUpdate(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet),
-        };
-        return newFamiliarData;
-      });
-    }
+        // Process and update the entire grupoFamiliar array
+        grupoFamiliar: data.grupoFamiliar ? data.grupoFamiliar.map((familiarFormData) => {
+            const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
+            return {
+                ...familiarFormData,
+                id: familiarFormData.id || generateId(),
+                fechaNacimiento: familiarFormData.fechaNacimiento,
+                fotoPerfil: processPhotoFieldForUpdate(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil),
+                fotoDniFrente: processPhotoFieldForUpdate(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente),
+                fotoDniDorso: processPhotoFieldForUpdate(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso),
+                fotoCarnet: processPhotoFieldForUpdate(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet),
+            };
+        }) : [],
+    };
+    // By building the payload explicitly, we ensure `tipoGrupoFamiliar` is never included.
 
     try {
-      await updateSocio(updatedSocio);
-      toast({ title: 'Socio Actualizado', description: `Los datos de ${data.nombre} ${data.apellido} han sido actualizados.` });
-      router.push('/admin/gestion-socios');
+        await updateSocio({ id: socio.id, ...updatePayload });
+        toast({ title: 'Socio Actualizado', description: `Los datos de ${data.nombre} ${data.apellido} han sido actualizados.` });
+        router.push('/admin/gestion-socios');
     } catch (error) {
-      console.error("Error al actualizar socio:", error);
-      toast({ title: "Error", description: "No se pudo actualizar el socio.", variant: "destructive" });
+        console.error("Error al actualizar socio:", error);
+        toast({ title: "Error", description: "No se pudo actualizar el socio.", variant: "destructive" });
     }
   };
 
