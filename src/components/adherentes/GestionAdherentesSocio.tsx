@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Socio, Adherente } from '@/types';
@@ -21,47 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { format, parseISO, subYears } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-
-const renderFilePreview = (
-  fileList: FileList | null | undefined | string,
-  fieldName: keyof AdherenteFormData,
-  formInstance: ReturnType<typeof useForm<AdherenteFormData>>
-) => {
-  let fileNamePreview: string | null = null;
-  let isExistingFile = typeof fileList === 'string' && fileList.startsWith('http');
-
-  if (isExistingFile) {
-    fileNamePreview = "Archivo cargado";
-  } else if (typeof window !== 'undefined' && fileList instanceof FileList && fileList.length > 0) {
-    fileNamePreview = fileList[0].name;
-  }
-
-  if (fileNamePreview) {
-    return (
-      <div className="mt-1 flex items-center space-x-2 p-1 border rounded-md bg-muted/30 text-xs">
-        <BadgeCheck className="h-4 w-4 text-green-500" />
-        <span className="text-muted-foreground truncate max-w-[120px]">
-          {fileNamePreview}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => {
-            formInstance.setValue(fieldName, null, { shouldValidate: true });
-            formInstance.trigger(fieldName);
-          }}
-        >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-        </Button>
-      </div>
-    );
-  }
-  return null;
-};
-
+import Image from 'next/image';
 
 export function GestionAdherentesSocio() {
   const { toast } = useToast();
@@ -299,32 +259,64 @@ export function GestionAdherentesSocio() {
                             name={docType}
                             key={docType}
                             render={({ field }) => {
-                              const hasFileSelected = typeof window !== 'undefined' && field.value instanceof FileList && field.value.length > 0;
+                              const fileValue = field.value;
+                              const previewUrl = useMemo(() => {
+                                if (fileValue instanceof FileList && fileValue.length > 0 && fileValue[0].type.startsWith("image/")) {
+                                  return URL.createObjectURL(fileValue[0]);
+                                }
+                                return null;
+                              }, [fileValue]);
+
+                              const fileName = useMemo(() => {
+                                if (fileValue instanceof FileList && fileValue.length > 0) {
+                                  return fileValue[0].name;
+                                }
+                                return null;
+                              }, [fileValue]);
+
                               return (
                                 <FormItem>
-                                    <FormLabel>{labelText}</FormLabel>
-                                    <FormControl>
-                                        <label className="cursor-pointer w-full min-h-[100px] flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
-                                            <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
-                                            <span className="text-xs text-muted-foreground text-center">
-                                              {!hasFileSelected ? placeholderText : null}
-                                            </span>
-                                            <Input
-                                              type="file"
-                                              className="hidden"
-                                              onChange={e => {
-                                                field.onChange(e.target.files);
-                                                form.trigger(docType);
-                                              }}
-                                              accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
-                                              ref={field.ref}
-                                              name={field.name}
-                                              onBlur={field.onBlur}
-                                            />
-                                        </label>
-                                    </FormControl>
-                                    {renderFilePreview(field.value, docType, form)}
-                                    <FormMessage />
+                                  <FormLabel>{labelText}</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <label className="cursor-pointer w-full min-h-[100px] h-[100px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
+                                        {previewUrl ? (
+                                          <Image src={previewUrl} alt="Vista previa" layout="fill" objectFit="contain" className="rounded-md" />
+                                        ) : fileName ? (
+                                          <div className="text-center p-2 text-muted-foreground">
+                                            <FileText className="h-6 w-6 mx-auto mb-1" />
+                                            <p className="text-xs break-all">{fileName}</p>
+                                          </div>
+                                        ) : (
+                                          <div className="text-center p-2 text-muted-foreground">
+                                            <UploadCloud className="h-6 w-6 mx-auto mb-1" />
+                                            <p className="text-xs">{placeholderText}</p>
+                                          </div>
+                                        )}
+                                        <Input
+                                          type="file"
+                                          className="hidden"
+                                          onChange={e => field.onChange(e.target.files && e.target.files.length > 0 ? e.target.files : null)}
+                                          accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
+                                          ref={field.ref}
+                                          name={field.name}
+                                          onBlur={field.onBlur}
+                                        />
+                                      </label>
+                                      {fileValue && (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="absolute -top-2 -right-2 h-7 w-7 bg-card rounded-full shadow-md hover:bg-destructive/10"
+                                          onClick={() => field.onChange(null)}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
                                 </FormItem>
                               );
                             }}
