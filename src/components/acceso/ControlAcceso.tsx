@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Search, ShieldCheck, ShieldAlert, CheckCircle, XCircle, LogIn, LogOut, Ticket, UserCheck, CalendarDays, Info, Users2, FileText, CreditCard, Banknote, Archive, Baby, Gift, AlertTriangle as AlertTriangleIcon } from 'lucide-react';
-import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText, esFechaRestringidaParaCumpleanos } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText, esFechaRestringidaParaCumpleanos, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -22,7 +22,8 @@ import { format, isToday, parseISO, formatISO, differenceInYears, isValid } from
 import {
   getSocioByNumeroSocioOrDNI,
   getAllSolicitudesInvitadosDiarios,
-  updateSolicitudInvitadosDiarios
+  updateSolicitudInvitadosDiarios,
+  addOrUpdateSolicitudInvitadosDiarios
 } from '@/lib/firebase/firestoreService';
 import { useRouter } from 'next/navigation';
 
@@ -52,7 +53,6 @@ export function ControlAcceso() {
 
   const [solicitudInvitadosDiariosHoySocioBuscado, setSolicitudInvitadosDiariosHoySocioBuscado] = useState<SolicitudInvitadosDiarios | null>(null);
   const [invitadosDiariosSocioBuscado, setInvitadosDiariosSocioBuscado] = useState<InvitadoDiario[]>([]);
-  const [eventoHabilitadoPorIngresoFamiliar, setEventoHabilitadoPorIngresoFamiliar] = useState(false);
 
   const [metodosPagoSeleccionados, setMetodosPagoSeleccionados] = useState<Record<string, MetodoPagoInvitado | null>>({});
   const [invitadosCumpleanosCheckboxState, setInvitadosCumpleanosCheckboxState] = useState<Record<string, boolean>>({});
@@ -60,10 +60,12 @@ export function ControlAcceso() {
   const [countCumpleanerosEnGrupo, setCountCumpleanerosEnGrupo] = useState(0);
   const [cupoTotalInvitadosCumple, setCupoTotalInvitadosCumple] = useState(0);
 
-  const [ingresosSesion, setIngresosSesion] = useState<Record<string, boolean>>({});
-
   const todayISO = formatISO(new Date(), { representation: 'date' });
   const hoyEsFechaRestringida = useMemo(() => esFechaRestringidaParaCumpleanos(new Date()), []);
+
+  const eventoHabilitadoPorIngresoFamiliar = useMemo(() => {
+    return !!(solicitudInvitadosDiariosHoySocioBuscado?.ingresosMiembros && solicitudInvitadosDiariosHoySocioBuscado.ingresosMiembros.length > 0);
+  }, [solicitudInvitadosDiariosHoySocioBuscado]);
 
 
   const displayablePeople = useMemo(() => {
@@ -120,46 +122,6 @@ export function ControlAcceso() {
     return people;
   }, [socioEncontrado]);
 
-  const handleToggleIngresoMiembroGrupo = useCallback(async () => {
-    if (!socioEncontrado) {
-      setEventoHabilitadoPorIngresoFamiliar(false);
-      return;
-    }
-
-    // Now checks if any member (titular, familiar, OR adherente) has registered their income.
-    const anyMemberHasSessionIncome = displayablePeople.some(
-      p => (p.isTitular || p.isFamiliar || p.isAdherente) && ingresosSesion[p.dni]
-    );
-    
-    setEventoHabilitadoPorIngresoFamiliar(anyMemberHasSessionIncome);
-
-    if (anyMemberHasSessionIncome) {
-      try {
-        if (solicitudInvitadosDiariosHoySocioBuscado && !solicitudInvitadosDiariosHoySocioBuscado.titularIngresadoEvento) {
-          const updatedSolicitud = { ...solicitudInvitadosDiariosHoySocioBuscado, titularIngresadoEvento: true };
-          await updateSolicitudInvitadosDiarios(updatedSolicitud);
-          setSolicitudInvitadosDiariosHoySocioBuscado(updatedSolicitud); 
-        }
-      } catch (error) {
-        console.error("Error updating event status in DB:", error);
-        toast({ title: "Error", description: "No se pudo actualizar el estado del evento en la base de datos.", variant: "destructive" });
-      }
-    }
-  }, [
-    socioEncontrado, 
-    displayablePeople, 
-    ingresosSesion, 
-    solicitudInvitadosDiariosHoySocioBuscado, 
-    toast
-  ]);
-
-
-  useEffect(() => {
-    if(socioEncontrado){ 
-        handleToggleIngresoMiembroGrupo();
-    }
-  }, [ingresosSesion, socioEncontrado, handleToggleIngresoMiembroGrupo]);
-
 
   const handleSearch = useCallback(async (isRefresh = false) => {
     const termToSearch = isRefresh && socioEncontrado ? (normalizeText(socioEncontrado.numeroSocio) || normalizeText(socioEncontrado.dni)) : normalizeText(searchTerm);
@@ -168,13 +130,11 @@ export function ControlAcceso() {
       setSocioEncontrado(null);
       setSolicitudInvitadosDiariosHoySocioBuscado(null);
       setInvitadosDiariosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliar(false);
       setAccordionValue(undefined);
       setMetodosPagoSeleccionados({});
       setInvitadosCumpleanosCheckboxState({});
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
-      setIngresosSesion({});
       return;
     }
     setLoading(true);
@@ -182,13 +142,11 @@ export function ControlAcceso() {
       setSocioEncontrado(null);
       setSolicitudInvitadosDiariosHoySocioBuscado(null);
       setInvitadosDiariosSocioBuscado([]);
-      setEventoHabilitadoPorIngresoFamiliar(false);
       setAccordionValue(undefined);
       setMetodosPagoSeleccionados({});
       setInvitadosCumpleanosCheckboxState({});
       setCountCumpleanerosEnGrupo(0);
       setCupoTotalInvitadosCumple(0);
-      setIngresosSesion({});
     }
 
     try {
@@ -217,7 +175,7 @@ export function ControlAcceso() {
         const solicitudHoyDiaria = todasSolicitudesDiarias.find(sol =>
             sol.idSocioTitular === socio.numeroSocio &&
             sol.fecha === todayISO &&
-            sol.estado === EstadoSolicitudInvitados.ENVIADA 
+            (sol.estado === EstadoSolicitudInvitados.ENVIADA || sol.estado === EstadoSolicitudInvitados.PROCESADA)
         );
 
         const initialCheckboxState: Record<string,boolean> = {};
@@ -228,15 +186,11 @@ export function ControlAcceso() {
             });
             setSolicitudInvitadosDiariosHoySocioBuscado(solicitudHoyDiaria);
             setInvitadosDiariosSocioBuscado(solicitudHoyDiaria.listaInvitadosDiarios);
-            setEventoHabilitadoPorIngresoFamiliar(solicitudHoyDiaria.titularIngresadoEvento || false);
         } else {
           setSolicitudInvitadosDiariosHoySocioBuscado(null);
           setInvitadosDiariosSocioBuscado([]);
-          setEventoHabilitadoPorIngresoFamiliar(false);
         }
         setInvitadosCumpleanosCheckboxState(initialCheckboxState);
-        handleToggleIngresoMiembroGrupo();
-
 
       } else {
         setMensajeBusqueda('Persona no encontrada. Verifique los datos e intente nuevamente.');
@@ -249,7 +203,7 @@ export function ControlAcceso() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, todayISO, socioEncontrado, toast, handleToggleIngresoMiembroGrupo, hoyEsFechaRestringida]);
+  }, [searchTerm, todayISO, socioEncontrado, toast, hoyEsFechaRestringida]);
 
   useEffect(() => {
     const refreshData = async () => {
@@ -299,7 +253,7 @@ export function ControlAcceso() {
     router.push(url);
   };
 
-  const handleRegistrarIngreso = (member: DisplayablePerson) => {
+  const handleRegistrarIngreso = async (member: DisplayablePerson) => {
     if (!socioEncontrado) return;
 
     let puedeIngresar = false;
@@ -334,9 +288,39 @@ export function ControlAcceso() {
         mensajeIngreso = `Acceso Denegado. Adherente ${member.nombreCompleto} está ${member.estadoAdherente}.`;
       }
     }
-
+    
     if (puedeIngresar) {
-      setIngresosSesion(prev => ({ ...prev, [member.dni]: true }));
+      const solicitudActual = solicitudInvitadosDiariosHoySocioBuscado;
+      const updatedIngresos = [...new Set([...(solicitudActual?.ingresosMiembros || []), member.dni])];
+      
+      const dataToSave: SolicitudInvitadosDiarios = solicitudActual 
+        ? {
+            ...solicitudActual,
+            ingresosMiembros: updatedIngresos,
+            titularIngresadoEvento: true,
+            fechaUltimaModificacion: new Date()
+          }
+        : {
+            id: generateId(),
+            idSocioTitular: socioEncontrado.numeroSocio,
+            nombreSocioTitular: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
+            fecha: todayISO,
+            listaInvitadosDiarios: [],
+            estado: EstadoSolicitudInvitados.PROCESADA,
+            fechaCreacion: new Date(),
+            fechaUltimaModificacion: new Date(),
+            titularIngresadoEvento: true,
+            ingresosMiembros: [member.dni]
+          };
+      
+      try {
+        const savedSolicitud = await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
+        setSolicitudInvitadosDiariosHoySocioBuscado(savedSolicitud);
+      } catch (error) {
+        console.error("Error updating member entry status:", error);
+        toast({ title: "Error de Base de Datos", description: "No se pudo registrar el ingreso en la base de datos.", variant: "destructive" });
+        return;
+      }
     }
 
     toast({
@@ -347,14 +331,30 @@ export function ControlAcceso() {
     });
   };
 
-  const handleAnularIngreso = (member: DisplayablePerson) => {
-    setIngresosSesion(prev => ({ ...prev, [member.dni]: false }));
-    toast({
-      title: 'Ingreso Anulado',
-      description: `Se anuló el registro de ingreso para ${member.nombreCompleto}.`,
-      variant: 'default',
-    });
+  const handleAnularIngreso = async (member: DisplayablePerson) => {
+    if (!solicitudInvitadosDiariosHoySocioBuscado) return;
+
+    const updatedIngresos = solicitudInvitadosDiariosHoySocioBuscado.ingresosMiembros?.filter(dni => dni !== member.dni) || [];
+    const dataToSave: SolicitudInvitadosDiarios = {
+        ...solicitudInvitadosDiariosHoySocioBuscado,
+        ingresosMiembros: updatedIngresos,
+        fechaUltimaModificacion: new Date()
+    };
+    
+    try {
+        const savedSolicitud = await addOrUpdateSolicitudInvitadosDiarios(dataToSave);
+        setSolicitudInvitadosDiariosHoySocioBuscado(savedSolicitud);
+        toast({
+          title: 'Ingreso Anulado',
+          description: `Se anuló el registro de ingreso para ${member.nombreCompleto}.`,
+          variant: 'default',
+        });
+    } catch (error) {
+        console.error("Error updating member entry status:", error);
+        toast({ title: "Error de Base de Datos", description: "No se pudo anular el ingreso en la base de datos.", variant: "destructive" });
+    }
   };
+
 
   const handleMetodoPagoChange = (invitadoId: string, metodo: MetodoPagoInvitado | null) => {
     setMetodosPagoSeleccionados(prev => ({...prev, [invitadoId]: metodo }));
@@ -366,6 +366,22 @@ export function ControlAcceso() {
       setInvitadosCumpleanosCheckboxState(prev => ({...prev, [invitadoDni]: false })); // Forzar a false
       return;
     }
+    
+    if (checked) {
+      const cupoActual = invitadosDiariosSocioBuscado.reduce((count, inv) => {
+        const isChecked = invitadosCumpleanosCheckboxState[inv.dni];
+        if (isChecked === true) return count + 1;
+        if (isChecked === false) return count;
+        if (inv.esDeCumpleanos && inv.ingresado) return count + 1;
+        return count;
+      }, 0);
+      
+      if(cupoActual >= cupoTotalInvitadosCumple) {
+        toast({ title: "Cupo Excedido", description: "Se ha alcanzado el límite de invitados de cumpleaños para este grupo familiar hoy.", variant: "destructive" });
+        return;
+      }
+    }
+
     setInvitadosCumpleanosCheckboxState(prev => ({...prev, [invitadoDni]: checked}));
      if (!checked) {
       setMetodosPagoSeleccionados(prev => ({...prev, [invitadoDni]: null }));
@@ -400,7 +416,7 @@ export function ControlAcceso() {
             return count;
         }, 0);
 
-        if (cupoUtilizadoAntesDeEste > cupoTotalInvitadosCumple) {
+        if (cupoUtilizadoAntesDeEste >= cupoTotalInvitadosCumple) {
             toast({ title: "Cupo Excedido", description: "Se ha alcanzado el límite de invitados de cumpleaños para este grupo familiar hoy.", variant: "destructive" });
             return;
         }
@@ -519,6 +535,7 @@ export function ControlAcceso() {
     let cardBorderClass = 'border-gray-300';
     let puedeIngresarIndividualmente = false;
     const aptoStatus = getAptoMedicoStatus(person.aptoMedico, person.fechaNacimiento);
+    const yaIngreso = solicitudInvitadosDiariosHoySocioBuscado?.ingresosMiembros?.includes(person.dni);
 
     if (person.isTitular || person.isFamiliar) {
         statusBadge = <Badge variant={socioEncontrado?.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado?.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado?.estadoSocio}</Badge>;
@@ -587,7 +604,7 @@ export function ControlAcceso() {
                    <FileText className="mr-2 h-3 w-3" /> Carnet Adh. (Sim.)
                 </Button>
             )}
-            {ingresosSesion[person.dni] ? (
+            {yaIngreso ? (
                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-3 text-xs sm:text-sm whitespace-nowrap w-full justify-center sm:w-auto">
                       <CheckCircle className="mr-1.5 h-4 w-4" />

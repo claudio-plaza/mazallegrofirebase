@@ -458,12 +458,14 @@ export interface SolicitudInvitadosDiarios {
   fechaCreacion: Date;
   fechaUltimaModificacion: Date;
   titularIngresadoEvento: boolean;
+  ingresosMiembros?: string[];
 }
 
 export interface SolicitudInvitadosDiariosRaw extends Omit<SolicitudInvitadosDiarios, 'listaInvitadosDiarios' | 'fechaCreacion' | 'fechaUltimaModificacion'> {
   listaInvitadosDiarios: InvitadoDiarioRaw[];
   fechaCreacion: string;
   fechaUltimaModificacion: string;
+  ingresosMiembros?: string[];
 }
 
 
@@ -478,6 +480,7 @@ export const solicitudInvitadosDiariosSchema = z.object({
   fechaCreacion: z.date().default(() => new Date()),
   fechaUltimaModificacion: z.date().default(() => new Date()),
   titularIngresadoEvento: z.boolean().default(false),
+  ingresosMiembros: z.array(z.string()).optional(),
 });
 
 
@@ -565,5 +568,3 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
-
-    
