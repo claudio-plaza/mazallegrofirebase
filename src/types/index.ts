@@ -301,9 +301,9 @@ export const signupTitularSchema = z.object({
   email: z.string().email("Email inválido."),
   password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
   confirmPassword: z.string(),
-  fotoDniFrente: optionalFileField(dniFileSchemaConfig),
-  fotoDniDorso: optionalFileField(dniFileSchemaConfig),
-  fotoPerfil: optionalFileField(profileFileSchemaConfig),
+  fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
+  fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
+  fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
   aceptaTerminos: z.boolean().refine(value => value === true, {
     message: "Debe aceptar el reglamento interno para registrarse.",
@@ -360,9 +360,9 @@ export const familiarBaseSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido."),
   fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  fotoDniFrente: optionalFileField(dniFileSchemaConfig),
-  fotoDniDorso: optionalFileField(dniFileSchemaConfig),
-  fotoPerfil: optionalFileField(profileFileSchemaConfig),
+  fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
+  fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
+  fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
@@ -490,9 +490,9 @@ export const adherenteFormSchema = z.object({
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
-    fotoDniFrente: optionalFileField(dniFileSchemaConfig),
-    fotoDniDorso: optionalFileField(dniFileSchemaConfig),
-    fotoPerfil: optionalFileField(profileFileSchemaConfig),
+    fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
+    fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
+    fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
     fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
@@ -565,3 +565,5 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+
+    
