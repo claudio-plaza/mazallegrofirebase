@@ -111,20 +111,23 @@ export function PanelMedicoDashboard() {
       }).filter(Boolean) as SearchedPersonForPanel[];
   }, [invitadosDiariosHoy, mapaSociosAnfitriones]);
 
-  const stats = useMemo(() => {
+  const stats = useMemo((): Stats => {
     const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    const revHoy = revisiones.filter(r => isToday(parseISO(r.fechaRevision as string))).length;
-    
+    today.setHours(0, 0, 0, 0);
+
+    const revHoy = revisiones.filter(r => {
+      if (!r.fechaRevision || !(r.fechaRevision instanceof Date) || !isValid(r.fechaRevision)) return false;
+      return isToday(r.fechaRevision);
+    }).length;
+
     let aptosPendVenc = 0;
     let vencProximos = 0;
 
     const allPeopleForStats = [
-        ...socios.map(s => ({...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento})),
-        ...socios.flatMap(s => s.grupoFamiliar?.map(f => ({...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
-        ...socios.flatMap(s => s.adherentes?.map(a => ({...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
-        ...invitadosDiariosHoy.map(i => ({...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento}))
+      ...socios.map(s => ({ ...s, tipo: 'Socio Titular' as TipoPersona, aptoMedico: s.aptoMedico, fechaNacimiento: s.fechaNacimiento })),
+      ...socios.flatMap(s => s.grupoFamiliar?.map(f => ({ ...f, tipo: 'Familiar' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: f.aptoMedico, fechaNacimiento: f.fechaNacimiento })) || []),
+      ...socios.flatMap(s => s.adherentes?.map(a => ({ ...a, tipo: 'Adherente' as TipoPersona, socioTitularId: s.numeroSocio, aptoMedico: a.aptoMedico, fechaNacimiento: a.fechaNacimiento })) || []),
+      ...invitadosDiariosHoy.map(i => ({ ...i, tipo: 'Invitado Diario' as TipoPersona, aptoMedico: i.aptoMedico, fechaNacimiento: i.fechaNacimiento }))
     ];
 
     allPeopleForStats.forEach(p => {
@@ -139,7 +142,7 @@ export function PanelMedicoDashboard() {
         } else if (typeof p.aptoMedico.fechaVencimiento === 'string' && isValid(parseISO(p.aptoMedico.fechaVencimiento as string))) {
           fechaVenc = parseISO(p.aptoMedico.fechaVencimiento as string);
         } else {
-          return; 
+          return;
         }
         if (!isValid(fechaVenc)) return;
 
@@ -150,7 +153,10 @@ export function PanelMedicoDashboard() {
       }
     });
 
-    const revMes = revisiones.filter(r => isSameMonth(parseISO(r.fechaRevision as string), today)).length;
+    const revMes = revisiones.filter(r => {
+      if (!r.fechaRevision || !(r.fechaRevision instanceof Date) || !isValid(r.fechaRevision)) return false;
+      return isSameMonth(r.fechaRevision, today);
+    }).length;
 
     return {
       revisionesHoy: revHoy,
