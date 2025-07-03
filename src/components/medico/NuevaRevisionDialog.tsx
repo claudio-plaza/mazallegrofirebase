@@ -68,12 +68,11 @@ export function NuevaRevisionDialog({
   const { toast } = useToast();
   const { userName: medicoName } = useAuth();
   const [isUnderThree, setIsUnderThree] = useState(false);
-  const [maxRevisionDate, setMaxRevisionDate] = useState<string>('');
   const [minRevisionDate, setMinRevisionDate] = useState<string>('');
 
   useEffect(() => {
-    setMaxRevisionDate(format(new Date(), 'yyyy-MM-dd'));
-    setMinRevisionDate(format(subYears(new Date(), 1), 'yyyy-MM-dd'));
+    // We only set a minimum date for flexibility, allowing past and future dates.
+    setMinRevisionDate(format(subYears(new Date(), 5), 'yyyy-MM-dd'));
   }, []);
 
   const form = useForm<RevisionFormValues>({
@@ -397,10 +396,9 @@ export function NuevaRevisionDialog({
                           type="date"
                           value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
                           onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
-                          max={maxRevisionDate}
                           min={minRevisionDate}
                           className="w-full pl-10"
-                          disabled={!maxRevisionDate || !minRevisionDate}
+                          disabled={!minRevisionDate}
                         />
                       </div>
                     </FormControl>
