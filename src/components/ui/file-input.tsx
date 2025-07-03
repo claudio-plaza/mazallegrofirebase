@@ -1,18 +1,17 @@
 'use client';
     
 import { useMemo, useEffect } from 'react';
-import { useController, type UseControllerProps } from 'react-hook-form';
+import { useController, type Control } from 'react-hook-form';
 import Image from 'next/image';
 import { UploadCloud, FileText as FileIcon, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FormControl, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 interface FileInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'name' | 'defaultValue' | 'type'> {
   name: string;
   label: string;
-  control: UseControllerProps['control'];
+  control: Control<any>;
   isEditable?: boolean;
   aiHint?: string;
   accept?: string;
