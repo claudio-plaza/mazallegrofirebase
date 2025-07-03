@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -21,6 +20,7 @@ import { getFileUrl, generateId } from '@/lib/helpers';
 import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
+import { FileInput } from '../ui/file-input';
 
 const totalSteps = 3;
 
@@ -249,83 +249,6 @@ export function AltaSocioMultiStepForm() {
     }
   };
 
-  const FileInput = ({
-    name,
-    label,
-    isFormDisabled,
-  }: {
-    name: any;
-    label: string;
-    isFormDisabled: boolean;
-  }) => (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => {
-        const fileValue = field.value;
-        const previewUrl = useMemo(() => {
-          if (fileValue instanceof FileList && fileValue.length > 0 && fileValue[0].type.startsWith("image/")) {
-            return URL.createObjectURL(fileValue[0]);
-          }
-          if (typeof fileValue === 'string') return fileValue;
-          return null;
-        }, [fileValue]);
-
-        const fileName = useMemo(() => {
-          if (fileValue instanceof FileList && fileValue.length > 0) {
-            return fileValue[0].name;
-          }
-          return null;
-        }, [fileValue]);
-
-        return (
-          <FormItem>
-            <FormLabel>{label}</FormLabel>
-            <FormControl>
-              <div className="relative">
-                <label className={`relative cursor-pointer w-full min-h-[120px] h-[120px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md transition-colors ${isFormDisabled ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary bg-background hover:bg-muted/50'}`}>
-                  {previewUrl ? (
-                    <Image src={previewUrl} alt="Vista previa" fill className="object-contain rounded-md" />
-                  ) : fileName ? (
-                    <div className="text-center p-2 text-muted-foreground">
-                      <FileIcon className="h-8 w-8 mx-auto mb-2" />
-                      <p className="text-xs break-all">{fileName}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center p-2 text-muted-foreground">
-                      <UploadCloud className="h-8 w-8 mx-auto mb-2" />
-                      <p className="text-xs">Subir archivo</p>
-                    </div>
-                  )}
-                  <Input
-                    type="file"
-                    className="hidden"
-                    onChange={e => field.onChange(e.target.files && e.target.files.length > 0 ? e.target.files : null)}
-                    disabled={isFormDisabled}
-                    accept="image/png,image/jpeg,application/pdf"
-                  />
-                </label>
-                {fileValue && !isFormDisabled && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute -top-2 -right-2 h-7 w-7 bg-card rounded-full shadow-md hover:bg-destructive/10"
-                    onClick={() => field.onChange(null)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                )}
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        );
-      }}
-    />
-  );
-
-
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
       if (name === 'tipoGrupoFamiliar' && type === 'change') {
@@ -506,9 +429,9 @@ export function AltaSocioMultiStepForm() {
                           </div>
                           <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Cónyuge</h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FileInput name="familiares.conyuge.fotoDniFrente" label="DNI Frente" isFormDisabled={isFormDisabled} />
-                            <FileInput name="familiares.conyuge.fotoDniDorso" label="DNI Dorso" isFormDisabled={isFormDisabled} />
-                            <FileInput name="familiares.conyuge.fotoPerfil" label="Foto Perfil" isFormDisabled={isFormDisabled} />
+                            <FileInput name="familiares.conyuge.fotoDniFrente" label="DNI Frente" control={control} disabled={isFormDisabled} />
+                            <FileInput name="familiares.conyuge.fotoDniDorso" label="DNI Dorso" control={control} disabled={isFormDisabled} />
+                            <FileInput name="familiares.conyuge.fotoPerfil" label="Foto Perfil" control={control} disabled={isFormDisabled} />
                           </div>
                         </>
                        )}
@@ -540,9 +463,9 @@ export function AltaSocioMultiStepForm() {
                             </div>
                             <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FileInput name={`familiares.hijos.${index}.fotoDniFrente`} label="DNI Frente" isFormDisabled={isFormDisabled} />
-                                <FileInput name={`familiares.hijos.${index}.fotoDniDorso`} label="DNI Dorso" isFormDisabled={isFormDisabled} />
-                                <FileInput name={`familiares.hijos.${index}.fotoPerfil`} label="Foto Perfil" isFormDisabled={isFormDisabled} />
+                                <FileInput name={`familiares.hijos.${index}.fotoDniFrente`} label="DNI Frente" control={control} disabled={isFormDisabled} />
+                                <FileInput name={`familiares.hijos.${index}.fotoDniDorso`} label="DNI Dorso" control={control} disabled={isFormDisabled} />
+                                <FileInput name={`familiares.hijos.${index}.fotoPerfil`} label="Foto Perfil" control={control} disabled={isFormDisabled} />
                             </div>
                         </div>
                         ))}
@@ -583,9 +506,9 @@ export function AltaSocioMultiStepForm() {
                             </div>
                             <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FileInput name={`familiares.padres.${index}.fotoDniFrente`} label="DNI Frente" isFormDisabled={isFormDisabled} />
-                                <FileInput name={`familiares.padres.${index}.fotoDniDorso`} label="DNI Dorso" isFormDisabled={isFormDisabled} />
-                                <FileInput name={`familiares.padres.${index}.fotoPerfil`} label="Foto Perfil" isFormDisabled={isFormDisabled} />
+                                <FileInput name={`familiares.padres.${index}.fotoDniFrente`} label="DNI Frente" control={control} disabled={isFormDisabled} />
+                                <FileInput name={`familiares.padres.${index}.fotoDniDorso`} label="DNI Dorso" control={control} disabled={isFormDisabled} />
+                                <FileInput name={`familiares.padres.${index}.fotoPerfil`} label="Foto Perfil" control={control} disabled={isFormDisabled} />
                             </div>
                         </div>
                         ))}

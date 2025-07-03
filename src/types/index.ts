@@ -112,10 +112,10 @@ export interface MiembroFamiliar {
   direccion?: string;
   telefono?: string;
   email?: string;
-  fotoPerfil?: string | null;
-  fotoDniFrente?: string | null;
-  fotoDniDorso?: string | null;
-  fotoCarnet?: string | null;
+  fotoPerfil?: string | FileList | null;
+  fotoDniFrente?: string | FileList | null;
+  fotoDniDorso?: string | FileList | null;
+  fotoCarnet?: string | FileList | null;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
 }
@@ -130,10 +130,10 @@ export interface Adherente {
   telefono?: string;
   direccion?: string;
   email?: string;
-  fotoDniFrente?: string | null;
-  fotoDniDorso?: string | null;
-  fotoPerfil?: string | null;
-  fotoCarnet?: string | null;
+  fotoDniFrente?: string | FileList | null;
+  fotoDniDorso?: string | FileList | null;
+  fotoPerfil?: string | FileList | null;
+  fotoCarnet?: string | FileList | null;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string | null;
@@ -152,10 +152,10 @@ export interface Socio {
   direccion: string;
   email: string;
   fotoUrl?: string | null;
-  fotoPerfil?: string | null;
-  fotoDniFrente?: string | null;
-  fotoDniDorso?: string | null;
-  fotoCarnet?: string | null;
+  fotoPerfil?: string | FileList | null;
+  fotoDniFrente?: string | FileList | null;
+  fotoDniDorso?: string | FileList | null;
+  fotoCarnet?: string | FileList | null;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
   miembroDesde: Date;

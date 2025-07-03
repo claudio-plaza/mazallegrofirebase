@@ -420,7 +420,7 @@ export function GestionSociosDashboard() {
                                   onClick={() => openRevisionDialog(socio)}
                                   disabled={socio.estadoCambioGrupoFamiliar !== 'Pendiente'}
                                 >
-                                  <Edit className="mr-2 h-4 w-4" /> Revisar Cambios GF
+                                  <MailQuestion className="mr-2 h-4 w-4" /> Revisar Cambios GF
                                 </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}>

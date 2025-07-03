@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import type { Socio, AdminEditSocioTitularData, MiembroFamiliar } from '@/types';
-import { adminEditSocioTitularSchema, RelacionFamiliar } from '@/types';
+import type { Socio, AdminNuevoSocioTitularData, MiembroFamiliar } from '@/types';
+import { adminNuevoSocioTitularSchema, RelacionFamiliar } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -21,6 +21,7 @@ import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FileInput } from '../ui/file-input';
 
 
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
@@ -35,8 +36,8 @@ export function AdminNuevoSocioForm() {
   const [maxBirthDate, setMaxBirthDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [maxBirthDateTitular, setMaxBirthDateTitular] = useState<string>(() => format(subYears(new Date(), 18), 'yyyy-MM-dd'));
 
-  const form = useForm<AdminEditSocioTitularData>({
-    resolver: zodResolver(adminEditSocioTitularSchema),
+  const form = useForm<AdminNuevoSocioTitularData>({
+    resolver: zodResolver(adminNuevoSocioTitularSchema),
     mode: 'onBlur',
     defaultValues: {
       nombre: '',
@@ -92,7 +93,7 @@ export function AdminNuevoSocioForm() {
   });
 
 
-  const onSubmit = async (data: AdminEditSocioTitularData) => {
+  const onSubmit = async (data: AdminNuevoSocioTitularData) => {
     const tempId = generateId(); // Use a temp ID for paths if no auth user
 
     const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
@@ -136,81 +137,7 @@ export function AdminNuevoSocioForm() {
 
     addSocioMutation(socioDataForCreation);
   };
-
-
-  const renderFotoInput = (
-    fieldName: FotoFieldName,
-    label: string
-  ) => {
-    const currentFieldValue = form.watch(fieldName);
-    let displayUrl: string | null = null;
-    let newFileName: string | null = null;
   
-    if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
-      if (typeof window !== 'undefined') {
-        displayUrl = URL.createObjectURL(currentFieldValue[0]);
-        newFileName = currentFieldValue[0].name;
-      }
-    } else if (typeof currentFieldValue === 'string') {
-      displayUrl = currentFieldValue;
-    }
-  
-    return (
-      <FormItem>
-        <FormLabel>{label}</FormLabel>
-        <Card className="p-2 space-y-2">
-          {displayUrl ? (
-            <Image
-              src={displayUrl}
-              alt={`Vista previa de ${label}`}
-              width={100}
-              height={100}
-              className="rounded border object-contain"
-              data-ai-hint="user photo document placeholder"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-[100px] w-[100px] bg-muted rounded border text-muted-foreground text-xs text-center">
-              Sin foto
-            </div>
-          )}
-          <FormField
-            control={form.control}
-            name={fieldName}
-            render={({ field }) => (
-              <>
-                <FormControl>
-                  <label className="cursor-pointer text-sm font-medium text-primary hover:underline">
-                    {displayUrl ? 'Cambiar...' : 'Subir...'}
-                    <Input
-                      type="file"
-                      className="hidden"
-                      onChange={e => field.onChange(e.target.files)}
-                      accept="image/png,image/jpeg"
-                    />
-                  </label>
-                </FormControl>
-                {newFileName && (
-                  <p className="text-xs text-muted-foreground mt-1">Nuevo: {newFileName}</p>
-                )}
-                {displayUrl && (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-xs text-destructive p-0 h-auto"
-                    onClick={() => form.setValue(fieldName, null)}
-                  >
-                    Eliminar foto
-                  </Button>
-                )}
-                <FormMessage className="text-xs" />
-              </>
-            )}
-          />
-        </Card>
-      </FormItem>
-    );
-  };
-
   const fotoTitularActual = (form.watch('fotoPerfil') instanceof FileList
                              ? getFileUrl(form.watch('fotoPerfil') as FileList)
                              : form.watch('fotoPerfil') as string)
@@ -286,10 +213,10 @@ export function AdminNuevoSocioForm() {
                 <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Salud y Documentación (Titular)</h3>
                  <p className="text-xs text-muted-foreground mb-4">El apto médico se gestionará desde el Panel Médico una vez creado el socio.</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {renderFotoInput('fotoPerfil', 'Foto de Perfil')}
-                    {renderFotoInput('fotoDniFrente', 'DNI Frente')}
-                    {renderFotoInput('fotoDniDorso', 'DNI Dorso')}
-                    {renderFotoInput('fotoCarnet', 'Foto Carnet')}
+                    <FileInput name="fotoPerfil" label="Foto de Perfil" control={form.control} />
+                    <FileInput name="fotoDniFrente" label="DNI Frente" control={form.control} />
+                    <FileInput name="fotoDniDorso" label="DNI Dorso" control={form.control} />
+                    <FileInput name="fotoCarnet" label="Foto Carnet" control={form.control} />
                 </div>
             </section>
             <Separator />
@@ -373,10 +300,10 @@ export function AdminNuevoSocioForm() {
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'DNI Frente')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'DNI Dorso')}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet')}
+                               <FileInput name={`grupoFamiliar.${index}.fotoPerfil` as any} label="Foto de Perfil" control={form.control} />
+                                <FileInput name={`grupoFamiliar.${index}.fotoDniFrente` as any} label="DNI Frente" control={form.control} />
+                                <FileInput name={`grupoFamiliar.${index}.fotoDniDorso` as any} label="DNI Dorso" control={form.control} />
+                                <FileInput name={`grupoFamiliar.${index}.fotoCarnet` as any} label="Foto Carnet" control={form.control} />
                              </div>
                         </Card>
                     );
