@@ -52,8 +52,8 @@ export default function AdminLayout({
           {/* Mobile Header Logo */}
           <Link href="/" className="flex items-center">
              <Image 
-                src="https://placehold.co/153x76.png?text=Allegro" 
-                alt={`${siteConfig.name} Logo`}
+                src="https://placehold.co/153x76.png?text=Tu+Logo" 
+                alt="Logo de tu Club"
                 data-ai-hint="company logo"
                 width={100} 
                 height={50}

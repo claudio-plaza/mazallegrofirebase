@@ -12,16 +12,16 @@ export default function HomePage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <Image 
-            src="https://placehold.co/100x100.png?text=A" 
-            alt={`${siteConfig.name} Logo Circular`} 
+            src="https://placehold.co/100x100.png?text=L" 
+            alt="Logo Circular de tu Club" 
             width={100} 
             height={100} 
             className="mx-auto mb-4 rounded-full" 
             data-ai-hint="club logo"
           />
           <Image
-            src="https://placehold.co/153x76.png?text=Allegro" 
-            alt={`${siteConfig.name} Logo`}
+            src="https://placehold.co/153x76.png?text=Tu+Logo" 
+            alt="Logo de tu Club"
             data-ai-hint="company logo"
             width={153} // Using original image dimensions
             height={76}
