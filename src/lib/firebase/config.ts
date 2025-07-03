@@ -10,35 +10,34 @@ import { getStorage } from "firebase/storage";
 // =================================================================
 // =================================================================
 //
-// To publish your app, you MUST replace the placeholder values below
-// with the configuration from your own Firebase project.
+// Your Firebase project credentials are now managed in the `.env` 
+// file at the root of your project. This is a more secure practice.
 //
 // HOW TO GET YOUR CONFIG:
-// 1. Go to your Firebase project console: https://console.firebase.google.com/
-// 2. In the top-left, click the gear icon (Project settings).
-// 3. Under the "General" tab, scroll down to the "Your apps" section.
-// 4. Find your web app (or create one if you haven't).
-// 5. Select the "Config" option (</> icon).
-// 6. Copy the entire 'firebaseConfig' object and paste it here, replacing the object below.
+// 1. Open your Firebase project console.
+// 2. Go to Project Settings -> General tab.
+// 3. Under "Your apps", find your web app and click the "SDK setup and configuration" button.
+// 4. Copy the config object and paste its values into the `.env` file at the root of this project.
 //
 // =================================================================
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
-  appId: "REPLACE_WITH_YOUR_APP_ID",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 // =================================================================
 // =================================================================
 
-// This check ensures you've replaced the placeholder values.
-// The app will not start until you provide your own Firebase config.
+// This check warns you if the placeholder values in your .env file haven't been replaced.
+// The app will run, but Firebase services will not work until you provide your own config.
 const configValues = Object.values(firebaseConfig);
-if (configValues.some(value => value.startsWith('REPLACE_WITH_YOUR_'))) {
-  throw new Error("\n\n*** CRITICAL ERROR ***\nPlease replace the placeholder Firebase configuration in 'src/lib/firebase/config.ts' before running the application.\nSee the comments in that file for instructions.\n\n");
+if (configValues.some(value => !value || (typeof value === 'string' && value.includes('your-project-id')))) {
+  console.warn("\n\n*** FIREBASE CONFIG WARNING ***\nYou are using placeholder Firebase credentials. The app will run, but Firebase features like login and data storage will not work.\nPlease update your Firebase configuration in the '.env' file.\nSee the comments in 'src/lib/firebase/config.ts' for instructions.\n\n");
 }
+
 
 // Initialize Firebase only if it hasn't been initialized yet
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
