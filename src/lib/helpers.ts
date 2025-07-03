@@ -25,7 +25,7 @@ export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM
   }
 };
 
-export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo, fechaNacimiento?: string | Date): { status: string; message: string; colorClass: string } => {
+export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNacimiento?: string | Date): { status: string; message: string; colorClass: string } => {
   if (fechaNacimiento) {
     try {
       const birthDate = typeof fechaNacimiento === 'string' ? parseISO(fechaNacimiento) : fechaNacimiento;
