@@ -1,4 +1,3 @@
-
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -85,8 +84,8 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
           </Sheet>
           <Link href="/dashboard" className="flex items-center">
              <Image 
-                src="https://placehold.co/153x76.png?text=Tu+Logo" 
-                alt="Logo de tu Club"
+                src="https://placehold.co/153x76.png" 
+                alt="[Tu Logo]"
                 data-ai-hint="company logo"
                 width={100} 
                 height={50}

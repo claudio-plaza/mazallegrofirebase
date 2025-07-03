@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -71,7 +70,7 @@ export function VistaPerfilSocio() {
   }
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
-  const fotoTitular = socio.fotoUrl || socio.fotoPerfil || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+  const fotoTitular = socio.fotoUrl || socio.fotoPerfil || `https://placehold.co/128x128.png`;
 
 
   const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value?: string | null }) => (
@@ -199,7 +198,7 @@ export function VistaPerfilSocio() {
                     <Accordion type="multiple" className="w-full">
                     {socio.grupoFamiliar.map((familiar, index) => {
                         const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico, familiar.fechaNacimiento);
-                        const fotoFamiliar = familiar.fotoPerfil || `https://placehold.co/96x96.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`;
+                        const fotoFamiliar = familiar.fotoPerfil || `https://placehold.co/96x96.png`;
                         return (
                         <AccordionItem value={`familiar-${index}`} key={familiar.dni || index}>
                             <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 rounded-md">

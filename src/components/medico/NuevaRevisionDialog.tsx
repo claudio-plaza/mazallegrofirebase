@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import type { Socio, RevisionMedica, AptoMedicoInfo, Adherente, MiembroFamiliar, TipoPersona, SolicitudInvitadosDiarios } from '@/types';
-import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, generateId, normalizeText } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO, differenceInYears, isValid, subYears, isToday } from 'date-fns';
 import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle, UserRound } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -123,11 +122,11 @@ export function NuevaRevisionDialog({
     }
     
     let personFound: SearchedPerson | null = null;
-    const term = searchTerm.trim().toLowerCase();
+    const normalizedTerm = normalizeText(searchTerm);
     
-    const socioTitular = await getSocioByNumeroSocioOrDNI(term);
+    const socioTitular = await getSocioByNumeroSocioOrDNI(searchTerm);
     if (socioTitular) {
-        if (socioTitular.numeroSocio.toLowerCase() === term || socioTitular.dni.toLowerCase() === term || `${socioTitular.nombre.toLowerCase()} ${socioTitular.apellido.toLowerCase()}`.includes(term)) {
+        if (normalizeText(socioTitular.numeroSocio) === normalizedTerm || normalizeText(socioTitular.dni) === normalizedTerm || normalizeText(`${socioTitular.nombre} ${socioTitular.apellido}`).includes(normalizedTerm)) {
             personFound = {
                 id: socioTitular.numeroSocio, 
                 nombreCompleto: `${socioTitular.nombre} ${socioTitular.apellido}`,
@@ -141,7 +140,7 @@ export function NuevaRevisionDialog({
     if (!personFound) {
         const allSociosArray = await getSocios();
         for (const socio of allSociosArray) {
-            const familiarFound = socio.grupoFamiliar?.find(f => f.dni.toLowerCase() === term || `${f.nombre.toLowerCase()} ${f.apellido.toLowerCase()}`.includes(term));
+            const familiarFound = socio.grupoFamiliar?.find(f => normalizeText(f.dni) === normalizedTerm || normalizeText(`${f.nombre} ${f.apellido}`).includes(normalizedTerm));
             if (familiarFound) {
               personFound = {
                 id: familiarFound.dni, 
@@ -153,7 +152,7 @@ export function NuevaRevisionDialog({
               };
               break;
             }
-            const adherenteFound = socio.adherentes?.find(a => a.dni.toLowerCase() === term || `${a.nombre.toLowerCase()} ${a.apellido.toLowerCase()}`.includes(term));
+            const adherenteFound = socio.adherentes?.find(a => normalizeText(a.dni) === normalizedTerm || normalizeText(`${a.nombre} ${a.apellido}`).includes(normalizedTerm));
             if (adherenteFound) {
                personFound = {
                 id: adherenteFound.dni, 
@@ -174,8 +173,8 @@ export function NuevaRevisionDialog({
         
         for (const solicitud of solicitudesHoy) {
             const invitadoFound = solicitud.listaInvitadosDiarios.find(inv => 
-                inv.dni.toLowerCase() === term || 
-                `${inv.nombre.toLowerCase()} ${inv.apellido.toLowerCase()}`.includes(term)
+                normalizeText(inv.dni) === normalizedTerm || 
+                normalizeText(`${inv.nombre} ${inv.apellido}`).includes(normalizedTerm)
             );
             if (invitadoFound) {
                 personFound = {

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -13,8 +12,8 @@ const Header = () => {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
           <Image 
-            src="https://placehold.co/153x76.png?text=Tu+Logo"
-            alt="Logo de tu Club"
+            src="https://placehold.co/153x76.png"
+            alt="[Tu Logo]"
             data-ai-hint="company logo"
             width={100}
             height={50}

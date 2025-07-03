@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -75,7 +74,7 @@ export function ControlAcceso() {
       id: socioEncontrado.id,
       nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
       dni: socioEncontrado.dni,
-      fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png?text=${socioEncontrado.nombre[0]}${socioEncontrado.apellido[0]}`,
+      fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png`,
       aptoMedico: socioEncontrado.aptoMedico,
       fechaNacimiento: socioEncontrado.fechaNacimiento,
       estadoSocioTitular: socioEncontrado.estadoSocio,
@@ -85,7 +84,7 @@ export function ControlAcceso() {
       isAdherente: false,
     });
     socioEncontrado.grupoFamiliar?.forEach(fam => {
-      let fotoFamiliar = `https://placehold.co/60x60.png?text=${fam.nombre[0]}${fam.apellido[0]}`;
+      let fotoFamiliar = `https://placehold.co/60x60.png`;
       if (fam.fotoPerfil && typeof fam.fotoPerfil === 'string') {
          fotoFamiliar = fam.fotoPerfil;
       }
@@ -108,7 +107,7 @@ export function ControlAcceso() {
         id: adh.id || adh.dni,
         nombreCompleto: `${adh.nombre} ${adh.apellido}`,
         dni: adh.dni,
-        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png?text=${adh.nombre[0]}${adh.apellido[0]}`),
+        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png`),
         aptoMedico: adh.aptoMedico,
         fechaNacimiento: adh.fechaNacimiento,
         estadoSocioTitular: socioEncontrado.estadoSocio,
@@ -564,7 +563,7 @@ export function ControlAcceso() {
         }
     }
 
-    const fotoToShow = person.fotoUrl || `https://placehold.co/60x60.png?text=${person.nombreCompleto[0]}${person.nombreCompleto.split(' ')[1]?.[0] || ''}`;
+    const fotoToShow = person.fotoUrl || `https://placehold.co/60x60.png`;
 
     return (
       <Card key={person.id} className={`p-4 ${cardBorderClass} bg-card shadow-sm`}>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,13 +30,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck, FileWarning } from 'lucide-react';
 import { siteConfig } from '@/config/site';
-import { signupTitularSchema, type SignupTitularData } from '@/types';
+import { signupTitularSchema, type SignupTitularData, dniFileSchemaConfig, profileFileSchemaConfig } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { signupUser } from '@/lib/auth';
-import { addSocio } from '@/lib/firebase/firestoreService';
-import Image from 'next/image';
+import { FileInput } from '../ui/file-input';
 
 const reglamentoInternoTexto = `Aceptación del Reglamento y Política de Privacidad:
 Al registrarse y utilizar la aplicación de Allegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
@@ -312,83 +310,30 @@ export function SignupForm() {
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => {
-                      const labelText = docType === 'fotoDniFrente' ? 'DNI Frente' :
-                                        docType === 'fotoDniDorso' ? 'DNI Dorso' :
-                                        docType === 'fotoPerfil' ? 'Foto Perfil' :
-                                        'Foto Carnet (Opcional)';
-                      const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
-
-                      return (
-                        <FormField
-                            control={form.control}
-                            name={docType}
-                            key={docType}
-                            render={({ field }) => {
-                              const fileValue = field.value;
-                              const previewUrl = useMemo(() => {
-                                if (fileValue instanceof FileList && fileValue.length > 0 && fileValue[0].type.startsWith("image/")) {
-                                  return URL.createObjectURL(fileValue[0]);
-                                }
-                                return null;
-                              }, [fileValue]);
-
-                              const fileName = useMemo(() => {
-                                if (fileValue instanceof FileList && fileValue.length > 0) {
-                                  return fileValue[0].name;
-                                }
-                                return null;
-                              }, [fileValue]);
-                              
-                              return (
-                                <FormItem>
-                                  <FormLabel>{labelText}</FormLabel>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <label className="relative cursor-pointer w-full min-h-[120px] h-[120px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
-                                        {previewUrl ? (
-                                          <Image src={previewUrl} alt="Vista previa" fill className="object-contain rounded-md" />
-                                        ) : fileName ? (
-                                          <div className="text-center p-2 text-muted-foreground">
-                                            <FileText className="h-8 w-8 mx-auto mb-2" />
-                                            <p className="text-xs break-all">{fileName}</p>
-                                          </div>
-                                        ) : (
-                                          <div className="text-center p-2 text-muted-foreground">
-                                            <UploadCloud className="h-8 w-8 mx-auto mb-2" />
-                                            <p className="text-sm">{placeholderText}</p>
-                                          </div>
-                                        )}
-                                        <Input
-                                          type="file"
-                                          className="hidden"
-                                          onChange={e => field.onChange(e.target.files && e.target.files.length > 0 ? e.target.files : null)}
-                                          accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
-                                          ref={field.ref}
-                                          name={field.name}
-                                          onBlur={field.onBlur}
-                                        />
-                                      </label>
-                                      {fileValue && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="absolute -top-2 -right-2 h-7 w-7 bg-card rounded-full shadow-md hover:bg-destructive/10"
-                                          onClick={() => field.onChange(null)}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              );
-                            }}
-                          />
-                      );
-                  })}
+                  <FileInput
+                      name="fotoDniFrente"
+                      label="DNI Frente"
+                      control={form.control}
+                      accept={dniFileSchemaConfig.mimeTypes.join(',')}
+                  />
+                  <FileInput
+                      name="fotoDniDorso"
+                      label="DNI Dorso"
+                      control={form.control}
+                      accept={dniFileSchemaConfig.mimeTypes.join(',')}
+                  />
+                  <FileInput
+                      name="fotoPerfil"
+                      label="Foto Perfil"
+                      control={form.control}
+                      accept={profileFileSchemaConfig.mimeTypes.join(',')}
+                  />
+                  <FileInput
+                      name="fotoCarnet"
+                      label="Foto Carnet (Opcional)"
+                      control={form.control}
+                      accept={profileFileSchemaConfig.mimeTypes.join(',')}
+                  />
               </div>
             </section>
 
@@ -495,5 +440,3 @@ export function SignupForm() {
     </Card>
   );
 }
-
-    

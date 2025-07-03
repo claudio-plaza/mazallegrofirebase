@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -42,8 +41,8 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
           <Link href="/dashboard" className="flex items-center space-x-2">
             {isExpanded ? (
               <Image 
-                  src="https://placehold.co/153x76.png?text=Tu+Logo" 
-                  alt="Logo de tu Club"
+                  src="https://placehold.co/153x76.png" 
+                  alt="[Tu Logo]"
                   data-ai-hint="company logo"
                   width={120} 
                   height={60}
@@ -52,8 +51,8 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
               />
             ) : (
                <Image 
-                  src="https://placehold.co/40x40.png?text=L" 
-                  alt="Logo de tu Club"
+                  src="https://placehold.co/40x40.png" 
+                  alt="[Tu Logo]"
                   data-ai-hint="club logo"
                   width={40} 
                   height={40}

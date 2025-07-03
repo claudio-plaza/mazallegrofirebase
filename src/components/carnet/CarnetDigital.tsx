@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -130,7 +129,7 @@ export function CarnetDigital() {
             dni: titular.dni,
             aptoMedico: titular.aptoMedico,
             fechaNacimiento: titular.fechaNacimiento,
-            fotoFinalUrl: titular.fotoUrl || titular.fotoPerfil || `https://placehold.co/150x150.png?text=${titular.nombre[0]}${titular.apellido[0]}`,
+            fotoFinalUrl: titular.fotoUrl || titular.fotoPerfil || `https://placehold.co/150x150.png`,
             numeroSocio: titular.numeroSocio,
             miembroDesde: titular.miembroDesde,
             relacion: 'Titular'
@@ -146,7 +145,7 @@ export function CarnetDigital() {
             dni: familiar.dni,
             aptoMedico: familiar.aptoMedico,
             fechaNacimiento: familiar.fechaNacimiento,
-            fotoFinalUrl: (familiar.fotoPerfil as string) || `https://placehold.co/150x150.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`,
+            fotoFinalUrl: (familiar.fotoPerfil as string) || `https://placehold.co/150x150.png`,
             relacion: familiar.relacion
         };
     }
@@ -204,7 +203,7 @@ export function CarnetDigital() {
         <div className="flex items-center justify-between">
             <UserSquare2 className="h-8 w-8 opacity-80" />
             <CardTitle className="text-2xl font-bold">{siteConfig.name}</CardTitle>
-            <Image src="https://placehold.co/40x40.png?text=L" alt="Logo de tu Club" width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
+            <Image src="https://placehold.co/40x40.png" alt="[Tu Logo]" width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
         </div>
       </CardHeader>
       

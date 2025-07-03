@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { subYears, parseISO, isValid, formatISO } from 'date-fns';
 
@@ -567,3 +566,10 @@ export const adminEditSocioTitularSchema = z.object({
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
+
+export const adminNuevoSocioTitularSchema = adminEditSocioTitularSchema.extend({
+  fechaNacimiento: safeDate.refine(date => date <= subYears(new Date(), 18), {
+    message: "El titular debe ser mayor de 18 años."
+  }),
+});
+export type AdminNuevoSocioTitularData = z.infer<typeof adminNuevoSocioTitularSchema>;
