@@ -311,8 +311,8 @@ export function CarnetDigital() {
         
       </CardContent>
       <CardFooter className="p-4 bg-black/10 border-t border-primary-foreground/20">
-        <Button onClick={handleDownloadPdf} className="w-full" variant="outline" size="sm"
-                className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
+        <Button onClick={handleDownloadPdf} variant="outline" size="sm"
+                className="w-full bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
           <Download className="mr-2 h-4 w-4" />
           Descargar PDF (Próximamente)
         </Button>
