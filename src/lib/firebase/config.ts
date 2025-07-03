@@ -10,14 +10,21 @@ import { getStorage } from "firebase/storage";
 // =================================================================
 // =================================================================
 //
-// Your Firebase project credentials are now managed in the `.env` 
+// Your Firebase project credentials are now managed in the `.env`
 // file at the root of your project. This is a more secure practice.
 //
-// HOW TO GET YOUR CONFIG:
+// IMPORTANT: You need the "Web App" configuration, NOT the "Service Account" JSON file.
+// The JSON file you have is for server-side operations, but the .env file needs
+// the client-side configuration.
+//
+// HOW TO GET YOUR WEB APP CONFIG:
 // 1. Open your Firebase project console.
-// 2. Go to Project Settings -> General tab.
-// 3. Under "Your apps", find your web app and click the "SDK setup and configuration" button.
-// 4. Copy the config object and paste its values into the `.env` file at the root of this project.
+// 2. Go to Project Settings (click the gear icon ⚙️ near "Project Overview").
+// 3. In the "General" tab, scroll down to the "Your apps" section.
+// 4. If you don't have a web app, click "Add app" and select the Web icon (</>).
+// 5. Find your web app and look for the "SDK setup and configuration" section.
+// 6. Select the "Config" option. You will see an object like `const firebaseConfig = { ... }`.
+// 7. Copy the values from that object into the `.env` file at the root of this project.
 //
 // =================================================================
 const firebaseConfig = {
