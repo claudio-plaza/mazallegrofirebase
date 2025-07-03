@@ -5,19 +5,40 @@ import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // =================================================================
-// IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIGURATION
 // =================================================================
-// Go to your Firebase project console -> Project settings (gear icon) -> General
-// Under "Your apps", find your web app and copy the configuration object.
+// CRITICAL STEP: CONFIGURE YOUR FIREBASE PROJECT
+// =================================================================
+// =================================================================
+//
+// To publish your app, you MUST replace the placeholder values below
+// with the configuration from your own Firebase project.
+//
+// HOW TO GET YOUR CONFIG:
+// 1. Go to your Firebase project console: https://console.firebase.google.com/
+// 2. In the top-left, click the gear icon (Project settings).
+// 3. Under the "General" tab, scroll down to the "Your apps" section.
+// 4. Find your web app (or create one if you haven't).
+// 5. Select the "Config" option (</> icon).
+// 6. Copy the entire 'firebaseConfig' object and paste it here, replacing the object below.
+//
+// =================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyB_OqHXIjYCXkRMGLjxwXVTxDCA2HN-eRk",
-  authDomain: "clubzenith.firebaseapp.com",
-  projectId: "clubzenith",
-  storageBucket: "clubzenith.appspot.com",
-  messagingSenderId: "720998936376",
-  appId: "1:720998936376:web:27ae05972dbed021795bcd", // You can find this in your Firebase project settings
+  apiKey: "REPLACE_WITH_YOUR_API_KEY",
+  authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
+  storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
+  appId: "REPLACE_WITH_YOUR_APP_ID",
 };
 // =================================================================
+// =================================================================
+
+// This check ensures you've replaced the placeholder values.
+// The app will not start until you provide your own Firebase config.
+const configValues = Object.values(firebaseConfig);
+if (configValues.some(value => value.startsWith('REPLACE_WITH_YOUR_'))) {
+  throw new Error("\n\n*** CRITICAL ERROR ***\nPlease replace the placeholder Firebase configuration in 'src/lib/firebase/config.ts' before running the application.\nSee the comments in that file for instructions.\n\n");
+}
 
 // Initialize Firebase only if it hasn't been initialized yet
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

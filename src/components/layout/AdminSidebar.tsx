@@ -43,7 +43,7 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
           <Link href="/dashboard" className="flex items-center space-x-2">
             {isExpanded ? (
               <Image 
-                  src="https://placehold.co/153x76.png" 
+                  src="https://placehold.co/153x76.png?text=Allegro" 
                   alt={`${siteConfig.name} Logo`}
                   data-ai-hint="company logo"
                   width={120} 
@@ -53,7 +53,7 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
               />
             ) : (
                <Image 
-                  src="https://placehold.co/40x40.png" 
+                  src="https://placehold.co/40x40.png?text=A" 
                   alt={`${siteConfig.name} Logo`}
                   data-ai-hint="club logo"
                   width={40} 

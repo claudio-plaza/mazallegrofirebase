@@ -146,7 +146,7 @@ export function CarnetDigital() {
             dni: familiar.dni,
             aptoMedico: familiar.aptoMedico,
             fechaNacimiento: familiar.fechaNacimiento,
-            fotoFinalUrl: familiar.fotoPerfil || `https://placehold.co/150x150.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`,
+            fotoFinalUrl: (familiar.fotoPerfil as string) || `https://placehold.co/150x150.png?text=${familiar.nombre[0]}${familiar.apellido[0]}`,
             relacion: familiar.relacion
         };
     }
@@ -204,7 +204,7 @@ export function CarnetDigital() {
         <div className="flex items-center justify-between">
             <UserSquare2 className="h-8 w-8 opacity-80" />
             <CardTitle className="text-2xl font-bold">{siteConfig.name}</CardTitle>
-            <Image src="https://placehold.co/40x40.png" alt={`${siteConfig.name} Logo`} width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
+            <Image src="https://placehold.co/40x40.png?text=A" alt={`${siteConfig.name} Logo`} width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
         </div>
       </CardHeader>
       

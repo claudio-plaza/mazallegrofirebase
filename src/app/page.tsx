@@ -12,7 +12,7 @@ export default function HomePage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <Image 
-            src="https://placehold.co/100x100.png" 
+            src="https://placehold.co/100x100.png?text=A" 
             alt={`${siteConfig.name} Logo Circular`} 
             width={100} 
             height={100} 
@@ -20,7 +20,7 @@ export default function HomePage() {
             data-ai-hint="club logo"
           />
           <Image
-            src="https://placehold.co/153x76.png" 
+            src="https://placehold.co/153x76.png?text=Allegro" 
             alt={`${siteConfig.name} Logo`}
             data-ai-hint="company logo"
             width={153} // Using original image dimensions

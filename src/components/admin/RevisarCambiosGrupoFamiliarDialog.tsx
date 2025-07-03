@@ -61,7 +61,7 @@ export function RevisarCambiosGrupoFamiliarDialog({ socio, open, onOpenChange, o
       ].filter(Boolean) as MiembroFamiliar[], // Ensure no nulls if conyuge is null
       estadoCambioGrupoFamiliar: ECGF.NINGUNO,
       cambiosPendientesGrupoFamiliar: null,
-      motivoRechazoCambioGrupoFamiliar: null, // FIX: Changed from undefined to null
+      motivoRechazoCambioGrupoFamiliar: null, 
     };
 
     try {

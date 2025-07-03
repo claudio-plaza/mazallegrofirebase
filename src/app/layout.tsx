@@ -15,6 +15,7 @@ const roboto = Roboto({ // Changed from inter to roboto
 export const metadata: Metadata = {
   title: `${siteConfig.name} - Gestión de Club Deportivo`,
   description: siteConfig.description,
+  icons: null,
 };
 
 export default function RootLayout({
