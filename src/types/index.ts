@@ -112,10 +112,10 @@ export interface MiembroFamiliar {
   direccion?: string;
   telefono?: string;
   email?: string;
-  fotoPerfil?: string | FileList | null;
-  fotoDniFrente?: string | FileList | null;
-  fotoDniDorso?: string | FileList | null;
-  fotoCarnet?: string | FileList | null;
+  fotoPerfil?: string | null;
+  fotoDniFrente?: string | null;
+  fotoDniDorso?: string | null;
+  fotoCarnet?: string | null;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
 }
@@ -152,10 +152,10 @@ export interface Socio {
   direccion: string;
   email: string;
   fotoUrl?: string | null;
-  fotoPerfil?: string | FileList | null;
-  fotoDniFrente?: string | FileList | null;
-  fotoDniDorso?: string | FileList | null;
-  fotoCarnet?: string | FileList | null;
+  fotoPerfil?: string | null;
+  fotoDniFrente?: string | null;
+  fotoDniDorso?: string | null;
+  fotoCarnet?: string | null;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
   aptoMedico: AptoMedicoInfo;
   miembroDesde: Date;
