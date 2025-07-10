@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "clubzenith-efa8b",
     "public": "public",
     "ignore": [
       "firebase.json",
