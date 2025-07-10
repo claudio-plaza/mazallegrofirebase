@@ -103,7 +103,7 @@ export interface CuentaSocio {
 
 // Data model interfaces (used in application logic)
 export interface MiembroFamiliar {
-  id?: string;
+  id: string;
   nombre: string;
   apellido: string;
   dni: string;
@@ -121,7 +121,7 @@ export interface MiembroFamiliar {
 }
 
 export interface Adherente {
-  id?: string;
+  id: string;
   nombre: string;
   apellido: string;
   dni: string;
@@ -365,7 +365,7 @@ export const familiarBaseSchema = z.object({
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
-  relacion: z.nativeEnum(RelacionFamiliar),
+  relacion: z.enum(Object.values(RelacionFamiliar) as [RelacionFamiliar, ...RelacionFamiliar[]]),
   aptoMedico: z.custom<AptoMedicoInfo>().optional(),
   estadoValidacion: z.nativeEnum(EstadoValidacionFamiliar).optional(),
 });
@@ -440,7 +440,7 @@ export const invitadoDiarioSchema = z.object({
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
   fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
   ingresado: z.boolean().default(false),
-  metodoPago: z.nativeEnum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
+  metodoPago: z.enum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
   esDeCumpleanos: z.boolean().optional(), 
 });

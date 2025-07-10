@@ -77,7 +77,7 @@ const deepConvertTimestampsAndDates = (data: any, to: 'timestamp' | 'date'): any
   return data;
 };
 
-const createConverter = <T extends { [key: string]: any }>() => ({
+const createConverter = <T extends { id: string; [key: string]: any }>() => ({
   toFirestore: (data: Partial<T>): DocumentData => {
     // When writing, `data` can be a partial or full object.
     // We only convert dates to timestamps recursively.
@@ -85,7 +85,6 @@ const createConverter = <T extends { [key: string]: any }>() => ({
   },
   fromFirestore: (snapshot: any, options: any): T => {
     const data = snapshot.data(options);
-    // When reading, we convert timestamps back to dates recursively.
     const convertedData = deepConvertTimestampsAndDates(data, 'date');
     return { ...convertedData, id: snapshot.id } as T;
   },
