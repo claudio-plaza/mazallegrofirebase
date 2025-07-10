@@ -146,7 +146,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
     
-    const processPhotoField = async (formValue: any, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
+    const processPhotoField = async (formValue: string | FileList | null | undefined, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
         if (formValue instanceof FileList && formValue.length > 0) {
             return uploadFile(formValue[0], `socios/${socio.id}/${path}`);
         }
