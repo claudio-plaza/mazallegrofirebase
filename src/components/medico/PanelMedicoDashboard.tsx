@@ -215,7 +215,7 @@ export function PanelMedicoDashboard() {
           nombreCompleto: `${adherente.nombre} ${adherente.apellido}`,
           dni: adherente.dni,
           fechaNacimiento: adherente.fechaNacimiento,
-          fotoUrl: adherente.fotoPerfil || undefined,
+          fotoUrl: (adherente.fotoPerfil instanceof FileList ? undefined : adherente.fotoPerfil) || undefined,
           aptoMedico: adherente.aptoMedico,
           tipo: 'Adherente',
           socioAnfitrionNombre: `${socio.nombre} ${socio.apellido}`,
