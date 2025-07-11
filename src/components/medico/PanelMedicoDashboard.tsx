@@ -187,7 +187,7 @@ export function PanelMedicoDashboard() {
           dni: socio.dni,
           numeroSocio: socio.numeroSocio,
           fechaNacimiento: socio.fechaNacimiento,
-          fotoUrl: socio.fotoUrl,
+          fotoUrl: socio.fotoUrl || undefined,
           aptoMedico: socio.aptoMedico,
           tipo: 'Socio Titular'
         };
