@@ -1,17 +1,6 @@
 {
   "hosting": {
     "site": "clubzenith-efa8b",
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
+    "source": "."
   }
 }
