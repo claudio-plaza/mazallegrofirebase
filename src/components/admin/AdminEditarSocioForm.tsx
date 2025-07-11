@@ -145,57 +145,61 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
 
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
-    
+
     const processPhotoField = async (formValue: string | FileList | null | undefined, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
         if (formValue instanceof FileList && formValue.length > 0) {
-            return uploadFile(formValue[0], `socios/${socio.id}/${path}`);
+            return uploadFile(formValue[0], path);
         }
         if (typeof formValue === 'string') {
             return formValue;
         }
-        return null; 
+        return null;
     };
 
-    const dataWithUrls = { ...data };
+    // 1. Process titular's photos
+    const fotoPerfilUrl = await processPhotoField(data.fotoPerfil, socio.fotoPerfil, `socios/${socio.id}/fotoPerfil.jpg`);
+    const fotoDniFrenteUrl = await processPhotoField(data.fotoDniFrente, socio.fotoDniFrente, `socios/${socio.id}/fotoDniFrente.jpg`);
+    const fotoDniDorsoUrl = await processPhotoField(data.fotoDniDorso, socio.fotoDniDorso, `socios/${socio.id}/fotoDniDorso.jpg`);
+    const fotoCarnetUrl = await processPhotoField(data.fotoCarnet, socio.fotoCarnet, `socios/${socio.id}/fotoCarnet.jpg`);
 
-    dataWithUrls.fotoPerfil = await processPhotoField(data.fotoPerfil, socio.fotoPerfil, 'fotoPerfil.jpg');
-    dataWithUrls.fotoUrl = dataWithUrls.fotoPerfil;
-    dataWithUrls.fotoDniFrente = await processPhotoField(data.fotoDniFrente, socio.fotoDniFrente, 'fotoDniFrente.jpg');
-    dataWithUrls.fotoDniDorso = await processPhotoField(data.fotoDniDorso, socio.fotoDniDorso, 'fotoDniDorso.jpg');
-    dataWithUrls.fotoCarnet = await processPhotoField(data.fotoCarnet, socio.fotoCarnet, 'fotoCarnet.jpg');
-
-    if (dataWithUrls.grupoFamiliar) {
-        dataWithUrls.grupoFamiliar = await Promise.all(
-            dataWithUrls.grupoFamiliar.map(async (familiarFormData) => {
+    // 2. Process familiares array separately to ensure it conforms to MiembroFamiliar[]
+    let processedGrupoFamiliar: MiembroFamiliar[] | undefined = undefined;
+    if (data.grupoFamiliar) {
+        processedGrupoFamiliar = await Promise.all(
+            data.grupoFamiliar.map(async (familiarFormData) => {
                 const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
-                // Ensure ID is a string, creating one for new members.
                 const familiarId = familiarFormData.id || generateId();
 
-                // Process and upload photos, getting back URLs (string | null)
-                const fotoPerfilUrl = await processPhotoField(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil, `familiares/${familiarId}_perfil.jpg`);
-                const fotoDniFrenteUrl = await processPhotoField(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`);
-                const fotoDniDorsoUrl = await processPhotoField(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`);
-                const fotoCarnetUrl = await processPhotoField(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet, `familiares/${familiarId}_carnet.jpg`);
-                
-                // Construct a new object that conforms to the MiembroFamiliar type.
-                // This replaces FileList objects with string URLs and ensures id is a string.
+                const familiarFotoPerfilUrl = await processPhotoField(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil, `socios/${socio.id}/familiares/${familiarId}_perfil.jpg`);
+                const familiarFotoDniFrenteUrl = await processPhotoField(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente, `socios/${socio.id}/familiares/${familiarId}_dniFrente.jpg`);
+                const familiarFotoDniDorsoUrl = await processPhotoField(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso, `socios/${socio.id}/familiares/${familiarId}_dniDorso.jpg`);
+                const familiarFotoCarnetUrl = await processPhotoField(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet, `socios/${socio.id}/familiares/${familiarId}_carnet.jpg`);
+
                 const processedFamiliar: MiembroFamiliar = {
                     ...familiarFormData,
                     id: familiarId,
-                    fotoPerfil: fotoPerfilUrl,
-                    fotoDniFrente: fotoDniFrenteUrl,
-                    fotoDniDorso: fotoDniDorsoUrl,
-                    fotoCarnet: fotoCarnetUrl,
+                    fotoPerfil: familiarFotoPerfilUrl,
+                    fotoDniFrente: familiarFotoDniFrenteUrl,
+                    fotoDniDorso: familiarFotoDniDorsoUrl,
+                    fotoCarnet: familiarFotoCarnetUrl,
                 };
-                
                 return processedFamiliar;
             })
         );
     }
-    
+
+    // 3. Construct the final payload with correctly typed properties
+    const { grupoFamiliar, fotoPerfil, fotoDniFrente, fotoDniDorso, fotoCarnet, ...restOfData } = data;
+
     const updatePayload: Partial<Socio> & { id: string } = {
         id: socio.id,
-        ...dataWithUrls,
+        ...restOfData,
+        fotoPerfil: fotoPerfilUrl,
+        fotoUrl: fotoPerfilUrl,
+        fotoDniFrente: fotoDniFrenteUrl,
+        fotoDniDorso: fotoDniDorsoUrl,
+        fotoCarnet: fotoCarnetUrl,
+        grupoFamiliar: processedGrupoFamiliar,
     };
 
     updateSocioMutation(updatePayload);
