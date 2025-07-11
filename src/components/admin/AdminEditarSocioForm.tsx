@@ -168,13 +168,25 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         dataWithUrls.grupoFamiliar = await Promise.all(
             dataWithUrls.grupoFamiliar.map(async (familiarFormData) => {
                 const originalFamiliar = socio.grupoFamiliar?.find(f => f.id === familiarFormData.id);
+                // Ensure ID is a string, creating one for new members.
                 const familiarId = familiarFormData.id || generateId();
-                const processedFamiliar = { ...familiarFormData, id: familiarId };
 
-                processedFamiliar.fotoPerfil = await processPhotoField(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil, `familiares/${familiarId}_perfil.jpg`);
-                processedFamiliar.fotoDniFrente = await processPhotoField(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`);
-                processedFamiliar.fotoDniDorso = await processPhotoField(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`);
-                processedFamiliar.fotoCarnet = await processPhotoField(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet, `familiares/${familiarId}_carnet.jpg`);
+                // Process and upload photos, getting back URLs (string | null)
+                const fotoPerfilUrl = await processPhotoField(familiarFormData.fotoPerfil, originalFamiliar?.fotoPerfil, `familiares/${familiarId}_perfil.jpg`);
+                const fotoDniFrenteUrl = await processPhotoField(familiarFormData.fotoDniFrente, originalFamiliar?.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`);
+                const fotoDniDorsoUrl = await processPhotoField(familiarFormData.fotoDniDorso, originalFamiliar?.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`);
+                const fotoCarnetUrl = await processPhotoField(familiarFormData.fotoCarnet, originalFamiliar?.fotoCarnet, `familiares/${familiarId}_carnet.jpg`);
+                
+                // Construct a new object that conforms to the MiembroFamiliar type.
+                // This replaces FileList objects with string URLs and ensures id is a string.
+                const processedFamiliar: MiembroFamiliar = {
+                    ...familiarFormData,
+                    id: familiarId,
+                    fotoPerfil: fotoPerfilUrl,
+                    fotoDniFrente: fotoDniFrenteUrl,
+                    fotoDniDorso: fotoDniDorsoUrl,
+                    fotoCarnet: fotoCarnetUrl,
+                };
                 
                 return processedFamiliar;
             })
