@@ -74,8 +74,8 @@ export function ControlAcceso() {
       id: socioEncontrado.id,
       nombreCompleto: `${socioEncontrado.nombre} ${socioEncontrado.apellido}`,
       dni: socioEncontrado.dni,
-      fotoUrl: socioEncontrado.fotoUrl || `https://placehold.co/60x60.png`,
-      aptoMedico: socioEncontrado.aptoMedico,
+      fotoUrl: socioEncontrado.fotoUrl || undefined || `https://placehold.co/60x60.png`,
+      aptoMedico: socioEncontrado.aptoMedico || undefined,
       fechaNacimiento: socioEncontrado.fechaNacimiento,
       estadoSocioTitular: socioEncontrado.estadoSocio,
       relacion: 'Titular',
@@ -92,8 +92,8 @@ export function ControlAcceso() {
         id: fam.id || fam.dni,
         nombreCompleto: `${fam.nombre} ${fam.apellido}`,
         dni: fam.dni,
-        fotoUrl: fotoFamiliar,
-        aptoMedico: fam.aptoMedico,
+        fotoUrl: fotoFamiliar || undefined,
+        aptoMedico: fam.aptoMedico || undefined,
         fechaNacimiento: fam.fechaNacimiento,
         estadoSocioTitular: socioEncontrado.estadoSocio,
         relacion: fam.relacion,
@@ -107,8 +107,8 @@ export function ControlAcceso() {
         id: adh.id || adh.dni,
         nombreCompleto: `${adh.nombre} ${adh.apellido}`,
         dni: adh.dni,
-        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : `https://placehold.co/60x60.png`),
-        aptoMedico: adh.aptoMedico,
+        fotoUrl: (adh.fotoPerfil && typeof adh.fotoPerfil === 'string' ? adh.fotoPerfil : undefined) || `https://placehold.co/60x60.png`,
+        aptoMedico: adh.aptoMedico || undefined,
         fechaNacimiento: adh.fechaNacimiento,
         estadoSocioTitular: socioEncontrado.estadoSocio,
         relacion: 'Adherente',
@@ -540,7 +540,7 @@ export function ControlAcceso() {
         statusBadge = <Badge variant={socioEncontrado?.estadoSocio === 'Activo' ? 'default' : 'destructive'} className={socioEncontrado?.estadoSocio === 'Activo' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{socioEncontrado?.estadoSocio}</Badge>;
         aptoMedicoDisplay = (
             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
-                <span className="font-medium">Apto Médico (Obs.): {aptoStatus.status}.</span> {aptoStatus.message}.
+                <span className="font-medium">Apto Médico (Obs.): ${aptoStatus.status}.</span> ${aptoStatus.message}.
             </div>
         );
         puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo';
@@ -553,7 +553,7 @@ export function ControlAcceso() {
         statusBadge = <Badge variant={person.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={person.estadoAdherente === 'Activo' ? 'bg-green-500' : 'bg-slate-500'}>{person.estadoAdherente}</Badge>;
          aptoMedicoDisplay = (
             <div className={`p-2 rounded-md text-xs ${aptoStatus.colorClass.replace('text-', 'text-').replace('bg-', 'bg-opacity-10 ')} border ${aptoStatus.colorClass.replace('text-', 'border-')}`}>
-                <span className="font-medium">Apto Médico (Adh.): {aptoStatus.status}.</span> {aptoStatus.message}.
+                <span className="font-medium">Apto Médico (Adh.): ${aptoStatus.status}.</span> ${aptoStatus.message}.
             </div>
         );
         puedeIngresarIndividualmente = socioEncontrado?.estadoSocio === 'Activo' && person.estadoAdherente === 'Activo';

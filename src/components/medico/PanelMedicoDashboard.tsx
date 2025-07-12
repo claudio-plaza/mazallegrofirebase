@@ -234,7 +234,7 @@ export function PanelMedicoDashboard() {
                 nombreCompleto: `${invitado.nombre} ${invitado.apellido}`,
                 dni: invitado.dni,
                 fechaNacimiento: invitado.fechaNacimiento,
-                aptoMedico: invitado.aptoMedico,
+                aptoMedico: invitado.aptoMedico || undefined,
                 tipo: 'Invitado Diario',
                 socioAnfitrionNombre: anfitrion?.nombre || 'Desconocido',
                 socioAnfitrionNumero: anfitrion?.numeroSocio || invitado.idSocioAnfitrion
