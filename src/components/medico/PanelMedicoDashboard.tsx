@@ -285,7 +285,7 @@ export function PanelMedicoDashboard() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-12 w-1/2" /> {/* Title */}
-        {userRole === 'administrador' && (
+        {userRole === 'admin' && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
           </div>
@@ -326,7 +326,7 @@ export function PanelMedicoDashboard() {
         />
       </div>
 
-      {userRole === 'administrador' && (
+      {userRole === 'admin' && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {statCards.map(stat => (
             <Card key={stat.title} className="shadow-lg">
@@ -426,7 +426,7 @@ export function PanelMedicoDashboard() {
         )}
       </Card>
 
-      {userRole === 'administrador' && (
+      {userRole === 'admin' && (
         <>
           <Card className="shadow-lg">
             <CardHeader>
