@@ -33,61 +33,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        // --- DIAGNOSTIC LOG ---
-        // This will show the exact UID in the browser console.
-        // Compare this UID with the Document ID in your Firestore 'adminUsers' collection.
-        console.log("Firebase Auth UID for logged-in user:", firebaseUser.uid);
-        // --- END DIAGNOSTIC LOG ---
-        try {
-          // 1. Check if the user is a regular 'socio'
-          const socioProfile = await getSocioById(firebaseUser.uid);
+    let unsubscribe: () => void = () => {};
 
-          if (socioProfile) {
-            setUserRole(socioProfile.role);
-            setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
-            setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
-          } else {
-            // 2. If not a socio, check if they are a privileged user (admin, medico, etc.) by UID
-            const adminUser = await getAdminUserById(firebaseUser.uid);
-            if (adminUser) {
-              setUserRole(adminUser.role);
-              setUserName(adminUser.name);
-              setLoggedInUserNumeroSocio(null); // Privileged users are not socios
+    if (auth) { // Only subscribe if auth is initialized
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        setIsLoading(true);
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          console.log("Firebase Auth UID for logged-in user:", firebaseUser.uid);
+          try {
+            const socioProfile = await getSocioById(firebaseUser.uid);
+
+            if (socioProfile) {
+              setUserRole(socioProfile.role);
+              setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
+              setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
             } else {
-              // 3. User is authenticated but has no profile in Firestore.
-              console.warn(
-                `User with UID ${firebaseUser.uid} and email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
-              );
-              setUserRole(null);
-              setUserName(firebaseUser.displayName || firebaseUser.email);
-              setLoggedInUserNumeroSocio(null);
+              const adminUser = await getAdminUserById(firebaseUser.uid);
+              if (adminUser) {
+                setUserRole(adminUser.role);
+                setUserName(adminUser.name);
+                setLoggedInUserNumeroSocio(null);
+              } else {
+                console.warn(
+                  `User with UID ${firebaseUser.uid} and email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
+                );
+                setUserRole(null);
+                setUserName(firebaseUser.displayName || firebaseUser.email);
+                setLoggedInUserNumeroSocio(null);
+              }
             }
+          } catch (error) {
+            console.error("AuthContext: Failed to fetch user profile from Firestore.", error);
+            toast({
+                title: "Error de Permisos o Conexión",
+                description: "No se pudo cargar tu perfil. Esto puede deberse a un problema de conexión o a que las reglas de seguridad de Firestore no permiten el acceso. Contacte al administrador.",
+                variant: "destructive",
+                duration: 10000,
+            });
+            setUserRole(null);
+            setUserName(firebaseUser.displayName || firebaseUser.email);
+            setLoggedInUserNumeroSocio(null);
           }
-        } catch (error) {
-          console.error("AuthContext: Failed to fetch user profile from Firestore.", error);
-          toast({
-              title: "Error de Permisos o Conexión",
-              description: "No se pudo cargar tu perfil. Esto puede deberse a un problema de conexión o a que las reglas de seguridad de Firestore no permiten el acceso. Contacte al administrador.",
-              variant: "destructive",
-              duration: 10000,
-          });
+        } else {
+          setUser(null);
           setUserRole(null);
-          setUserName(firebaseUser.displayName || firebaseUser.email);
+          setUserName(null);
           setLoggedInUserNumeroSocio(null);
         }
-      } else {
-        // No user is logged in
-        setUser(null);
-        setUserRole(null);
-        setUserName(null);
-        setLoggedInUserNumeroSocio(null);
-      }
-      setIsLoading(false);
-    });
+        setIsLoading(false);
+      });
+    }
 
     return () => unsubscribe();
   }, []);

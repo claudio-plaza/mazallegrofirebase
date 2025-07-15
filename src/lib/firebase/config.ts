@@ -1,8 +1,8 @@
 // src/lib/firebase/config.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { initializeFirestore, memoryLocalCache, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 // =================================================================
 // =================================================================
@@ -47,15 +47,18 @@ if (configValues.some(value => !value || (typeof value === 'string' && value.inc
 
 
 // Initialize Firebase only if it hasn't been initialized yet
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app: FirebaseApp | undefined;
+let db: Firestore | undefined;
+let auth: Auth | undefined;
+let storage: FirebaseStorage | undefined;
 
-// Initialize Firestore with in-memory cache and point to the correct DB.
-// This resolves the "client is offline" errors by connecting to the named 'allegro-db' database.
-const db = initializeFirestore(app, {
-  localCache: memoryLocalCache(),
-}, "allegro-db");
-
-const auth = getAuth(app);
-const storage = getStorage(app);
+if (typeof window !== 'undefined') {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+  }, "allegro-db");
+  auth = getAuth(app);
+  storage = getStorage(app);
+}
 
 export { app, db, auth, storage };

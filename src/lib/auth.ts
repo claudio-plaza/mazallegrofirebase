@@ -14,6 +14,7 @@ import { addSocio, uploadFile } from './firebase/firestoreService';
 
 export const loginUser = async (email: string, passwordInput: string) => {
   try {
+    if (!auth) throw new Error("Auth service not initialized.");
     const userCredential = await signInWithEmailAndPassword(auth, email, passwordInput);
     return userCredential.user;
   } catch (error: any) {
@@ -29,6 +30,7 @@ export const loginUser = async (email: string, passwordInput: string) => {
 
 export const signupUser = async (data: SignupTitularData) => {
   try {
+    if (!auth) throw new Error("Auth service not initialized.");
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
     await updateProfile(user, {
@@ -86,6 +88,7 @@ export const signupUser = async (data: SignupTitularData) => {
 
 export const logoutUser = async () => {
   try {
+    if (!auth) throw new Error("Auth service not initialized.");
     await signOut(auth);
   } catch (error) {
     console.error("Error signing out:", error);

@@ -47,11 +47,11 @@ const logFirestoreError = (error: any, context: string) => {
 
 
 // --- Collection References ---
-const sociosCollection = collection(db, 'socios') as CollectionReference<Socio, DocumentData>;
-const revisionesCollection = collection(db, 'revisionesMedicas') as CollectionReference<RevisionMedica, DocumentData>;
-const solicitudesCollection = collection(db, 'solicitudesInvitadosDiarios') as CollectionReference<SolicitudInvitadosDiarios, DocumentData>;
-const novedadesCollection = collection(db, 'novedades') as CollectionReference<Novedad, DocumentData>;
-const adminUsersCollection = collection(db, 'adminUsers');
+const sociosCollection = db ? collection(db, 'socios') as CollectionReference<Socio, DocumentData> : ({} as CollectionReference<Socio, DocumentData>);
+const revisionesCollection = db ? collection(db, 'revisionesMedicas') as CollectionReference<RevisionMedica, DocumentData> : ({} as CollectionReference<RevisionMedica, DocumentData>);
+const solicitudesCollection = db ? collection(db, 'solicitudesInvitadosDiarios') as CollectionReference<SolicitudInvitadosDiarios, DocumentData> : ({} as CollectionReference<SolicitudInvitadosDiarios, DocumentData>);
+const novedadesCollection = db ? collection(db, 'novedades') as CollectionReference<Novedad, DocumentData> : ({} as CollectionReference<Novedad, DocumentData>);
+const adminUsersCollection = db ? collection(db, 'adminUsers') : ({} as CollectionReference<DocumentData, DocumentData>);
 
 // --- Data Converters (handle Date <-> Timestamp) ---
 const deepConvertTimestampsAndDates = (data: any, to: 'timestamp' | 'date'): any => {
@@ -97,6 +97,7 @@ const novedadConverter = createConverter<Novedad>();
 
 // --- File Upload Service ---
 export const uploadFile = async (file: File, path: string): Promise<string> => {
+  if (!storage) throw new Error("Firebase Storage not initialized.");
   const storageRef = ref(storage, path);
   const snapshot = await uploadBytes(storageRef, file);
   return getDownloadURL(snapshot.ref);
@@ -105,6 +106,7 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
 
 // --- Socios Service ---
 export const getSocios = async (): Promise<Socio[]> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(sociosCollection).withConverter(socioConverter);
     const querySnapshot = await getDocs(q);
@@ -118,6 +120,7 @@ export const getSocios = async (): Promise<Socio[]> => {
 export const getSocioById = async (id: string): Promise<Socio | null> => {
   if (!id) return null;
   try {
+    if (!db) throw new Error("Firestore DB not initialized.");
     const docRef = doc(db, 'socios', id).withConverter(socioConverter);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() as Socio : null;
@@ -130,6 +133,7 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
 };
 
 export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(sociosCollection, where("email", "==", email), limit(1)).withConverter(socioConverter);
     const querySnapshot = await getDocs(q);
@@ -145,6 +149,7 @@ export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
 
 
 export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<Socio | null> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const normalizedSearchTerm = normalizeText(searchTerm);
 
@@ -198,6 +203,7 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
 export const getAdminUserById = async (uid: string): Promise<{ email: string; name: string; role: UserRole } | null> => {
   if (!uid) return null;
   try {
+    if (!db) throw new Error("Firestore DB not initialized.");
     const docRef = doc(db, 'adminUsers', uid);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -212,6 +218,7 @@ export const getAdminUserById = async (uid: string): Promise<{ email: string; na
 
 
 export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numeroSocio' | 'role' | 'estadoSocio' | 'miembroDesde' | 'aptoMedico'>, isTitularSignup: boolean = false): Promise<Socio> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const nuevoSocio: Omit<Socio, 'id'> = {
       ...socioData,
@@ -236,6 +243,7 @@ export const addSocio = async (uid: string, socioData: Omit<Socio, 'id' | 'numer
 };
 
 export const updateSocio = async (socioToUpdate: Partial<Socio> & { id: string }): Promise<void> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const { id, ...data } = socioToUpdate;
     const docRef = doc(db, 'socios', id).withConverter(socioConverter);
@@ -247,6 +255,7 @@ export const updateSocio = async (socioToUpdate: Partial<Socio> & { id: string }
 };
 
 export const deleteSocio = async (socioId: string): Promise<boolean> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     await deleteDoc(doc(db, 'socios', socioId));
     return true;
@@ -258,6 +267,7 @@ export const deleteSocio = async (socioId: string): Promise<boolean> => {
 
 // --- Revisiones Medicas Service ---
 export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(revisionesCollection, orderBy("fechaRevision", "desc"), limit(20)).withConverter(revisionConverter);
     const querySnapshot = await getDocs(q);
@@ -269,6 +279,7 @@ export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
 };
 
 export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): Promise<RevisionMedica> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const docRef = await addDoc(revisionesCollection.withConverter(revisionConverter), revision as RevisionMedica);
     return { ...revision, id: docRef.id };
@@ -280,6 +291,7 @@ export const addRevisionMedica = async (revision: Omit<RevisionMedica, 'id'>): P
 
 // --- Solicitudes Invitados Diarios Service ---
 export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvitadosDiarios[]> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(solicitudesCollection).withConverter(solicitudConverter);
     const querySnapshot = await getDocs(q);
@@ -291,6 +303,7 @@ export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvi
 };
 
 export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fechaISO: string): Promise<SolicitudInvitadosDiarios | null> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(
       solicitudesCollection, 
@@ -307,6 +320,7 @@ export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fecha
 };
 
 export const addOrUpdateSolicitudInvitadosDiarios = async (solicitud: SolicitudInvitadosDiarios): Promise<SolicitudInvitadosDiarios> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const existingDoc = await getSolicitudInvitadosDiarios(solicitud.idSocioTitular, solicitud.fecha);
     const docId = existingDoc ? existingDoc.id : solicitud.id;
@@ -327,6 +341,7 @@ export const updateSolicitudInvitadosDiarios = async (updatedSolicitud: Solicitu
 
 // --- Precios Invitados Service ---
 export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const docRef = doc(db, 'config', 'preciosInvitados');
     const docSnap = await getDoc(docRef);
@@ -341,6 +356,7 @@ export const getPreciosInvitados = async (): Promise<PreciosInvitadosConfig> => 
 };
 
 export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Promise<void> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const docRef = doc(db, 'config', 'preciosInvitados');
     await setDoc(docRef, config, { merge: true });
@@ -352,6 +368,7 @@ export const updatePreciosInvitados = async (config: PreciosInvitadosConfig): Pr
 
 // --- Novedades Service ---
 export const getNovedades = async (): Promise<Novedad[]> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const q = query(novedadesCollection, orderBy("fechaCreacion", "desc")).withConverter(novedadConverter);
     const querySnapshot = await getDocs(q);
@@ -363,6 +380,7 @@ export const getNovedades = async (): Promise<Novedad[]> => {
 };
 
 export const addNovedad = async (novedadData: Omit<Novedad, 'id' | 'fechaCreacion'>): Promise<Novedad> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const dataToSave = { ...novedadData, fechaCreacion: new Date() };
     const docRef = await addDoc(novedadesCollection.withConverter(novedadConverter), dataToSave as Novedad);
@@ -374,6 +392,7 @@ export const addNovedad = async (novedadData: Omit<Novedad, 'id' | 'fechaCreacio
 };
 
 export const updateNovedad = async (updatedNovedad: Novedad): Promise<Novedad> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     const { id, ...data } = updatedNovedad;
     const docRef = doc(db, 'novedades', id).withConverter(novedadConverter);
@@ -386,6 +405,7 @@ export const updateNovedad = async (updatedNovedad: Novedad): Promise<Novedad> =
 };
 
 export const deleteNovedad = async (novedadId: string): Promise<boolean> => {
+  if (!db) throw new Error("Firestore DB not initialized.");
   try {
     await deleteDoc(doc(db, 'novedades', novedadId));
     return true;
