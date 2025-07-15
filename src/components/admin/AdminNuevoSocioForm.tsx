@@ -21,7 +21,8 @@ import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileInput } from '../ui/file-input';
+import dynamic from 'next/dynamic';
+const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
 
 
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
@@ -138,7 +139,7 @@ export function AdminNuevoSocioForm() {
     addSocioMutation(socioDataForCreation);
   };
   
-  const fotoTitularActual = (form.watch('fotoPerfil') instanceof FileList
+  const fotoTitularActual = (typeof window !== 'undefined' && form.watch('fotoPerfil') instanceof FileList
                              ? getFileUrl(form.watch('fotoPerfil') as FileList)
                              : form.watch('fotoPerfil') as string)
                              || `https://placehold.co/128x128.png?text=N S`;

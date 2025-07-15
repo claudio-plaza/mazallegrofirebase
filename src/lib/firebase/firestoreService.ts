@@ -108,7 +108,7 @@ export const getSocios = async (): Promise<Socio[]> => {
   try {
     const q = query(sociosCollection).withConverter(socioConverter);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+    return querySnapshot.docs.map(doc => doc.data() as Socio);
   } catch (error) {
     logFirestoreError(error, 'getSocios');
     throw error;
@@ -120,7 +120,7 @@ export const getSocioById = async (id: string): Promise<Socio | null> => {
   try {
     const docRef = doc(db, 'socios', id).withConverter(socioConverter);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? docSnap.data() : null;
+    return docSnap.exists() ? docSnap.data() as Socio : null;
   } catch (error) {
     // A permissions error on getDoc often doesn't throw but results in a non-existent snapshot.
     // If it *does* throw (e.g., offline), we log it but still return null to allow auth flow to continue.
@@ -136,7 +136,7 @@ export const getSocioByEmail = async (email: string): Promise<Socio | null> => {
     if (querySnapshot.empty) {
         return null;
     }
-    return querySnapshot.docs[0].data();
+    return querySnapshot.docs[0].data() as Socio;
   } catch (error) {
     logFirestoreError(error, `getSocioByEmail for email: ${email}`);
     throw error;
@@ -152,12 +152,12 @@ export const getSocioByNumeroSocioOrDNI = async (searchTerm: string): Promise<So
     // 1. By NumeroSocio (exact match, case-insensitive for 'S')
     let q = query(sociosCollection, where('numeroSocio', '==', searchTerm.toUpperCase()), limit(1)).withConverter(socioConverter);
     let querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) return querySnapshot.docs[0].data();
+    if (!querySnapshot.empty) return querySnapshot.docs[0].data() as Socio;
     
     // 2. By DNI of the Titular (exact match)
     q = query(sociosCollection, where('dni', '==', normalizedSearchTerm), limit(1)).withConverter(socioConverter);
     querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) return querySnapshot.docs[0].data();
+    if (!querySnapshot.empty) return querySnapshot.docs[0].data() as Socio;
 
     // --- Comprehensive Fallback Search (Slower) ---
     // This part is executed only if the direct searches fail.
@@ -261,7 +261,7 @@ export const getRevisionesMedicas = async (): Promise<RevisionMedica[]> => {
   try {
     const q = query(revisionesCollection, orderBy("fechaRevision", "desc"), limit(20)).withConverter(revisionConverter);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+    return querySnapshot.docs.map(doc => doc.data() as RevisionMedica);
   } catch(error) {
     logFirestoreError(error, 'getRevisionesMedicas');
     throw error;
@@ -283,7 +283,7 @@ export const getAllSolicitudesInvitadosDiarios = async (): Promise<SolicitudInvi
   try {
     const q = query(solicitudesCollection).withConverter(solicitudConverter);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+    return querySnapshot.docs.map(doc => doc.data() as SolicitudInvitadosDiarios);
   } catch(error) {
     logFirestoreError(error, 'getAllSolicitudesInvitadosDiarios');
     throw error;
@@ -299,7 +299,7 @@ export const getSolicitudInvitadosDiarios = async (idSocioTitular: string, fecha
       limit(1)
     ).withConverter(solicitudConverter);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.empty ? null : querySnapshot.docs[0].data();
+    return querySnapshot.empty ? null : querySnapshot.docs[0].data() as SolicitudInvitadosDiarios;
   } catch(error) {
     logFirestoreError(error, `getSolicitudInvitadosDiarios for socio: ${idSocioTitular} on date: ${fechaISO}`);
     throw error;
@@ -355,7 +355,7 @@ export const getNovedades = async (): Promise<Novedad[]> => {
   try {
     const q = query(novedadesCollection, orderBy("fechaCreacion", "desc")).withConverter(novedadConverter);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+    return querySnapshot.docs.map(doc => doc.data() as Novedad);
   } catch(error) {
     logFirestoreError(error, 'getNovedades');
     throw error;
