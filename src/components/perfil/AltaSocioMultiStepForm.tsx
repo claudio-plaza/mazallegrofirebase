@@ -103,7 +103,11 @@ export function AltaSocioMultiStepForm() {
             }
           };
 
-      setValue('tipoGrupoFamiliar', dataToDisplayOrEdit.tipoGrupoFamiliar || undefined);
+      if (dataToDisplayOrEdit.tipoGrupoFamiliar) {
+              if (dataToDisplayOrEdit.tipoGrupoFamiliar) {
+        setValue('tipoGrupoFamiliar', dataToDisplayOrEdit.tipoGrupoFamiliar);
+      }
+      }
 
       const conyugeData = dataToDisplayOrEdit.familiares?.conyuge;
       const hijosData = dataToDisplayOrEdit.familiares?.hijos;
@@ -111,20 +115,23 @@ export function AltaSocioMultiStepForm() {
 
       setValue('familiares.conyuge', conyugeData ? {
         ...conyugeData,
+        relacion: RelacionFamiliar.CONYUGE,
         fechaNacimiento: conyugeData.fechaNacimiento,
         fotoDniFrente: typeof conyugeData.fotoDniFrente === 'string' ? conyugeData.fotoDniFrente : null,
         fotoDniDorso: typeof conyugeData.fotoDniDorso === 'string' ? conyugeData.fotoDniDorso : null,
         fotoPerfil: typeof conyugeData.fotoPerfil === 'string' ? conyugeData.fotoPerfil : null,
       } : null);
       setValue('familiares.hijos', hijosData?.map(h => ({
-        ...h,
+        ...(h as any),
+        relacion: RelacionFamiliar.HIJO_A,
         fechaNacimiento: h.fechaNacimiento,
         fotoDniFrente: typeof h.fotoDniFrente === 'string' ? h.fotoDniFrente : null,
         fotoDniDorso: typeof h.fotoDniDorso === 'string' ? h.fotoDniDorso : null,
         fotoPerfil: typeof h.fotoPerfil === 'string' ? h.fotoPerfil : null,
       })) || []);
       setValue('familiares.padres', padresData?.map(p => ({
-        ...p,
+        ...(p as any),
+        relacion: RelacionFamiliar.PADRE_MADRE,
         fechaNacimiento: p.fechaNacimiento,
         fotoDniFrente: typeof p.fotoDniFrente === 'string' ? p.fotoDniFrente : null,
         fotoDniDorso: typeof p.fotoDniDorso === 'string' ? p.fotoDniDorso : null,
