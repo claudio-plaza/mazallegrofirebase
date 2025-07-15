@@ -19,6 +19,6 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLUBZENITH }}
           channelId: live
           projectId: clubzenith
-          args: --force
+          command: "deploy --only hosting --force"
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
