@@ -19,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
+      - name: Debug Environment Variables
+        run: env | grep NEXT_PUBLIC_ || echo "No NEXT_PUBLIC variables found"
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
