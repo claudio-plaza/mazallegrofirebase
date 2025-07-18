@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Regla General: Por defecto, nadie puede acceder a nada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Socios:
+    // - PERMITE CREAR (signup): Cualquiera puede crear un nuevo documento de socio si el ID del documento coincide con su propio ID de usuario (uid).
+    //   Esto es crucial para el registro. El `request.auth.uid` es el ID del usuario que se acaba de crear en Firebase Auth.
+    // - PERMITE LEER, ACTUALIZAR, BORRAR: Solo el propio socio puede leer, actualizar o borrar su propio documento.
+    match /socios/{userId} {
+      allow create: if request.auth.uid == userId;
+      allow read, update, delete: if request.auth.uid == userId;
+    }
+
+    // AdminUsers:
+    // - PERMITE LEER: Cualquier usuario autenticado puede intentar leer la colección de administradores.
+    //   Esto es útil para que el AuthContext pueda verificar si un usuario es admin, medico, etc.
+    match /adminUsers/{userId} {
+      allow read: if request.auth != null;
+    }
+
+    // Config, Novedades, etc. (Colecciones públicas o semi-públicas)
+    // - PERMITE LEER: Cualquier usuario autenticado puede leer la configuración y las novedades.
+    // - PERMITE ESCRIBIR: Nadie (excepto desde la consola de Firebase o con reglas de admin más específicas) puede escribir.
+    match /config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Proteger la configuración
+    }
+
+    match /novedades/{novedadId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Solo admins deberían poder escribir aquí (se podría añadir una regla más específica)
+    }
+
+    // Agrega aquí más reglas para otras colecciones como 'revisionesMedicas', 'solicitudesInvitadosDiarios', etc.
+    // Por ejemplo, para revisiones, podrías permitir que el médico escriba y el socio lea las suyas.
+    // match /revisionesMedicas/{revisionId} {
+    //   allow read: if resource.data.socioId == request.auth.uid;
+    //   allow create: if get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'medico';
+    // }
+  }
+}

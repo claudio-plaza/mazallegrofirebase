@@ -22,11 +22,11 @@ jobs:
       - name: Debug Environment Variables
         run: env | grep NEXT_PUBLIC_ || echo "No NEXT_PUBLIC variables found"
       - run: npm run build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@master
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLUBZENITH }}
-          channelId: live
-          projectId: clubzenith
+          args: deploy --only hosting,firestore
         env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLUBZENITH }}
+          PROJECT_ID: clubzenith
           FIREBASE_CLI_EXPERIMENTS: webframeworks
