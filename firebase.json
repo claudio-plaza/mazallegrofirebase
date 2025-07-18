@@ -4,6 +4,15 @@
   },
   "hosting": {
     "site": "clubzenith-efa8b",
-    "source": "."
+    "source": ".",
+    "rewrites": [
+      {
+        "source": "**",
+        "apphosting": {
+          "backendId": "mazallegrofirebase",
+          "region": "us-central1"
+        }
+      }
+    ]
   }
 }
