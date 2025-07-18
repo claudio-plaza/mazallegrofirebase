@@ -23,7 +23,7 @@ jobs:
         run: env | grep NEXT_PUBLIC_ || echo "No NEXT_PUBLIC variables found"
       - run: npm run build
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@master
+        uses: w9jds/firebase-action@v11.9.0
         with:
           args: deploy --only hosting,firestore
         env:
