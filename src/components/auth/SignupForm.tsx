@@ -35,8 +35,7 @@ import { format, parseISO, subYears } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect } from 'react';
 import { signupUser } from '@/lib/auth';
-import dynamic from 'next/dynamic';
-const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
+import { FileInput } from '../ui/file-input';
 
 const reglamentoInternoTexto = `Aceptación del Reglamento y Política de Privacidad:
 Al registrarse y utilizar la aplicación de Allegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
@@ -311,29 +310,57 @@ export function SignupForm() {
             <section>
               <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  <FileInput
-                      name="fotoDniFrente"
-                      label="DNI Frente"
-                      control={form.control}
-                      accept={dniFileSchemaConfig.mimeTypes.join(',')}
+                  <FormField
+                    control={form.control}
+                    name="fotoDniFrente"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>DNI Frente</FormLabel>
+                        <FormControl>
+                          <FileInput field={field} label="DNI Frente" accept={dniFileSchemaConfig.mimeTypes.join(',')} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <FileInput
-                      name="fotoDniDorso"
-                      label="DNI Dorso"
-                      control={form.control}
-                      accept={dniFileSchemaConfig.mimeTypes.join(',')}
+                  <FormField
+                    control={form.control}
+                    name="fotoDniDorso"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>DNI Dorso</FormLabel>
+                        <FormControl>
+                          <FileInput field={field} label="DNI Dorso" accept={dniFileSchemaConfig.mimeTypes.join(',')} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <FileInput
-                      name="fotoPerfil"
-                      label="Foto Perfil"
-                      control={form.control}
-                      accept={profileFileSchemaConfig.mimeTypes.join(',')}
+                  <FormField
+                    control={form.control}
+                    name="fotoPerfil"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Foto Perfil</FormLabel>
+                        <FormControl>
+                          <FileInput field={field} label="Foto Perfil" accept={profileFileSchemaConfig.mimeTypes.join(',')} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <FileInput
-                      name="fotoCarnet"
-                      label="Foto Carnet (Opcional)"
-                      control={form.control}
-                      accept={profileFileSchemaConfig.mimeTypes.join(',')}
+                  <FormField
+                    control={form.control}
+                    name="fotoCarnet"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Foto Carnet (Opcional)</FormLabel>
+                        <FormControl>
+                          <FileInput field={field} label="Foto Carnet (Opcional)" accept={profileFileSchemaConfig.mimeTypes.join(',')} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
               </div>
             </section>
