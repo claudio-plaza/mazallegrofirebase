@@ -298,10 +298,16 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     return <p className="text-center text-destructive">Socio no encontrado.</p>;
   }
   
-  const fotoTitularActual = typeof form.watch('fotoPerfil') === 'string'
-                            ? form.watch('fotoPerfil')
-                            : (form.watch('fotoPerfil') instanceof File && typeof window !== 'undefined' ? URL.createObjectURL(form.watch('fotoPerfil') as File) 
-                            : socio.fotoPerfil || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`);
+  const fotoTitularActual = useMemo(() => {
+    const watchedFotoPerfil = form.watch('fotoPerfil');
+    if (typeof window !== 'undefined' && watchedFotoPerfil instanceof File) {
+      return URL.createObjectURL(watchedFotoPerfil);
+    }
+    if (typeof watchedFotoPerfil === 'string') {
+      return watchedFotoPerfil;
+    }
+    return socio?.fotoPerfil || `https://placehold.co/128x128.png?text=${socio?.nombre[0] || 'S'}${socio?.apellido[0] || ''}`;
+  }, [form, socio]);
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
 
@@ -437,10 +443,16 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                     const familiarData = socio.grupoFamiliar?.find(f => f.id === field.id || f.dni === field.dni);
                     const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
                     
-                    const fotoPerfilFamiliarActual = typeof form.watch(`grupoFamiliar.${index}.fotoPerfil`) === 'string'
-                                                    ? form.watch(`grupoFamiliar.${index}.fotoPerfil`)
-                                                    : (form.watch(`grupoFamiliar.${index}.fotoPerfil`) instanceof FileList && typeof window !== 'undefined' && (form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList).length > 0 ? URL.createObjectURL((form.watch(`grupoFamiliar.${index}.fotoPerfil`) as FileList)[0])
-                                                    : familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || ''}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`);
+                    const fotoPerfilFamiliarActual = useMemo(() => {
+                        const watchedFoto = form.watch(`grupoFamiliar.${index}.fotoPerfil`);
+                        if (typeof window !== 'undefined' && watchedFoto instanceof File) {
+                            return URL.createObjectURL(watchedFoto);
+                        }
+                        if (typeof watchedFoto === 'string') {
+                            return watchedFoto;
+                        }
+                        return familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || 'F'}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`;
+                    }, [form, familiarData, index]);
 
 
                     return (
