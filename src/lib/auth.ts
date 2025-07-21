@@ -37,9 +37,9 @@ export const signupUser = async (data: SignupTitularData) => {
         displayName: `${data.nombre} ${data.apellido}`
     });
 
-    const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
-        if (fileInput instanceof FileList && fileInput.length > 0) {
-            return uploadFile(fileInput[0], `socios/${user.uid}/${pathSuffix}`);
+    const uploadAndGetUrl = async (file: File | null | undefined, pathSuffix: string): Promise<string | null> => {
+        if (file instanceof File) {
+            return uploadFile(file, `socios/${user.uid}/${pathSuffix}`);
         }
         return null;
     };

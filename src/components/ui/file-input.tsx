@@ -17,19 +17,19 @@ interface FileInputControlProps extends Omit<React.InputHTMLAttributes<HTMLInput
 }
 
 export function FileInput({ field, label, isEditable = true, aiHint, ...props }: FileInputControlProps) {
-  const fileValue = field.value;
+  const fileValue = field.value as File | string | null | undefined;
 
   const previewUrl = useMemo(() => {
-    if (fileValue instanceof FileList && fileValue.length > 0 && fileValue[0].type.startsWith("image/")) {
-      return URL.createObjectURL(fileValue[0]);
+    if (fileValue instanceof File && fileValue.type.startsWith("image/")) {
+      return URL.createObjectURL(fileValue);
     }
     if (typeof fileValue === 'string') return fileValue;
     return null;
   }, [fileValue]);
 
   const fileName = useMemo(() => {
-    if (fileValue instanceof FileList && fileValue.length > 0) {
-      return fileValue[0].name;
+    if (fileValue instanceof File) {
+      return fileValue.name;
     }
     return null;
   }, [fileValue]);
@@ -68,7 +68,7 @@ export function FileInput({ field, label, isEditable = true, aiHint, ...props }:
         <Input
           type="file"
           className="hidden"
-          onChange={e => field.onChange(e.target.files && e.target.files.length > 0 ? e.target.files : null)}
+          onChange={e => field.onChange(e.target.files ? e.target.files[0] : null)}
           disabled={!isEditable}
           {...props}
         />

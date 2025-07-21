@@ -255,35 +255,25 @@ export const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
-const fileValidation = (config: FileSchemaConfig) => 
-  z.any()
-    .refine((val) => {
-      if (!val || typeof val === 'string') return true;
-      if (typeof FileList !== 'undefined' && val instanceof FileList && val.length > 0) {
-        return val[0].size <= MAX_FILE_SIZE_BYTES;
-      }
-      return true;
-    }, { message: config.sizeError })
-    .refine((val) => {
-      if (!val || typeof val === 'string') return true;
-      if (typeof FileList !== 'undefined' && val instanceof FileList && val.length > 0) {
-        return config.mimeTypes.includes(val[0].type);
-      }
-      return true;
-    }, { message: config.mimeTypeError });
+const fileSchema = z.union([
+  z.instanceof(File, { message: "Debe ser un archivo." }),
+  z.string().url({ message: "Debe ser una URL válida." }),
+]);
 
+const fileValidation = (config: FileSchemaConfig) =>
+  fileSchema.nullable().refine((file) => {
+    if (!file || typeof file === 'string') return true; // Pass if null or already a URL
+    return file.size <= MAX_FILE_SIZE_BYTES;
+  }, config.sizeError).refine((file) => {
+    if (!file || typeof file === 'string') return true;
+    return config.mimeTypes.includes(file.type);
+  }, config.mimeTypeError);
 
 export const requiredFileField = (config: FileSchemaConfig, requiredMessage: string) =>
-  fileValidation(config).refine(val => {
-    if (val === null || val === undefined) return false;
-    if (typeof val === 'string' && val.length > 0) return true;
-    if (typeof FileList !== 'undefined' && val instanceof FileList && val.length > 0) return true;
-    return false;
-  }, {
-    message: requiredMessage,
-  });
+  fileValidation(config).refine(Boolean, requiredMessage);
 
-export const optionalFileField = (config: FileSchemaConfig) => fileValidation(config).nullable().optional();
+export const optionalFileField = (config: FileSchemaConfig) =>
+  fileValidation(config).optional();
 
 
 export const signupTitularSchema = z.object({
