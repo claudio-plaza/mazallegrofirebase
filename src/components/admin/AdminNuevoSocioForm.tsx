@@ -21,8 +21,7 @@ import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import dynamic from 'next/dynamic';
-const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
+import { FileInput } from '../ui/file-input';
 
 
 type FotoFieldNameTitular = 'fotoPerfil' | 'fotoDniFrente' | 'fotoDniDorso' | 'fotoCarnet';
@@ -214,10 +213,58 @@ export function AdminNuevoSocioForm() {
                 <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Salud y Documentación (Titular)</h3>
                  <p className="text-xs text-muted-foreground mb-4">El apto médico se gestionará desde el Panel Médico una vez creado el socio.</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <FileInput name="fotoPerfil" label="Foto de Perfil" control={form.control} />
-                    <FileInput name="fotoDniFrente" label="DNI Frente" control={form.control} />
-                    <FileInput name="fotoDniDorso" label="DNI Dorso" control={form.control} />
-                    <FileInput name="fotoCarnet" label="Foto Carnet" control={form.control} />
+                    <FormField
+                      control={form.control}
+                      name="fotoPerfil"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Foto de Perfil</FormLabel>
+                          <FormControl>
+                            <FileInput field={field} label="Foto de Perfil" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="fotoDniFrente"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>DNI Frente</FormLabel>
+                          <FormControl>
+                            <FileInput field={field} label="DNI Frente" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="fotoDniDorso"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>DNI Dorso</FormLabel>
+                          <FormControl>
+                            <FileInput field={field} label="DNI Dorso" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="fotoCarnet"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Foto Carnet</FormLabel>
+                          <FormControl>
+                            <FileInput field={field} label="Foto Carnet" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </div>
             </section>
             <Separator />
@@ -301,10 +348,58 @@ export function AdminNuevoSocioForm() {
                             <Separator className="my-3"/>
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                               <FileInput name={`grupoFamiliar.${index}.fotoPerfil` as any} label="Foto de Perfil" control={form.control} />
-                                <FileInput name={`grupoFamiliar.${index}.fotoDniFrente` as any} label="DNI Frente" control={form.control} />
-                                <FileInput name={`grupoFamiliar.${index}.fotoDniDorso` as any} label="DNI Dorso" control={form.control} />
-                                <FileInput name={`grupoFamiliar.${index}.fotoCarnet` as any} label="Foto Carnet" control={form.control} />
+                               <FormField
+                                  control={form.control}
+                                  name={`grupoFamiliar.${index}.fotoPerfil`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Foto Perfil</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`Foto Perfil Familiar ${index + 1}`} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`grupoFamiliar.${index}.fotoDniFrente`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">DNI Frente</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Frente Familiar ${index + 1}`} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`grupoFamiliar.${index}.fotoDniDorso`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">DNI Dorso</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Dorso Familiar ${index + 1}`} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`grupoFamiliar.${index}.fotoCarnet`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Foto Carnet</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`Foto Carnet Familiar ${index + 1}`} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
                              </div>
                         </Card>
                     );
