@@ -138,6 +138,8 @@ export function SignupForm() {
   });
 
   async function onSubmit(data: SignupTitularData) {
+    console.log("Validation successful, onSubmit triggered.");
+    console.log("Form data:", data);
     try {
       const authUser = await signupUser(data);
       if (authUser) {
@@ -157,6 +159,15 @@ export function SignupForm() {
     }
   }
 
+  function onInvalid(errors: any) {
+    console.error("Validation failed. Errors:", errors);
+    toast({
+      title: "Error de Validación",
+      description: "Por favor, revise los campos del formulario. Hay errores o faltan datos.",
+      variant: "destructive",
+    });
+  }
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl my-8">
@@ -168,7 +179,7 @@ export function SignupForm() {
         </CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
           <CardContent className="space-y-8">
 
             <section>
