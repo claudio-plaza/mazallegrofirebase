@@ -436,9 +436,45 @@ export function AltaSocioMultiStepForm() {
                           </div>
                           <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Cónyuge</h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FileInput name="familiares.conyuge.fotoDniFrente" label="DNI Frente" control={control} disabled={isFormDisabled} />
-                            <FileInput name="familiares.conyuge.fotoDniDorso" label="DNI Dorso" control={control} disabled={isFormDisabled} />
-                            <FileInput name="familiares.conyuge.fotoPerfil" label="Foto Perfil" control={control} disabled={isFormDisabled} />
+                            <FormField
+                              control={control}
+                              name="familiares.conyuge.fotoDniFrente"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>DNI Frente</FormLabel>
+                                  <FormControl>
+                                    <FileInput field={field} label="DNI Frente Cónyuge" disabled={isFormDisabled} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={control}
+                              name="familiares.conyuge.fotoDniDorso"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>DNI Dorso</FormLabel>
+                                  <FormControl>
+                                    <FileInput field={field} label="DNI Dorso Cónyuge" disabled={isFormDisabled} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={control}
+                              name="familiares.conyuge.fotoPerfil"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Foto Perfil</FormLabel>
+                                  <FormControl>
+                                    <FileInput field={field} label="Foto Perfil Cónyuge" disabled={isFormDisabled} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           </div>
                         </>
                        )}
@@ -470,9 +506,45 @@ export function AltaSocioMultiStepForm() {
                             </div>
                             <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FileInput name={`familiares.hijos.${index}.fotoDniFrente`} label="DNI Frente" control={control} disabled={isFormDisabled} />
-                                <FileInput name={`familiares.hijos.${index}.fotoDniDorso`} label="DNI Dorso" control={control} disabled={isFormDisabled} />
-                                <FileInput name={`familiares.hijos.${index}.fotoPerfil`} label="Foto Perfil" control={control} disabled={isFormDisabled} />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.hijos.${index}.fotoDniFrente`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>DNI Frente</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Frente Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.hijos.${index}.fotoDniDorso`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>DNI Dorso</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Dorso Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.hijos.${index}.fotoPerfil`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Foto Perfil</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`Foto Perfil Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
                             </div>
                         </div>
                         ))}
@@ -513,9 +585,45 @@ export function AltaSocioMultiStepForm() {
                             </div>
                             <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre {index + 1}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FileInput name={`familiares.padres.${index}.fotoDniFrente`} label="DNI Frente" control={control} disabled={isFormDisabled} />
-                                <FileInput name={`familiares.padres.${index}.fotoDniDorso`} label="DNI Dorso" control={control} disabled={isFormDisabled} />
-                                <FileInput name={`familiares.padres.${index}.fotoPerfil`} label="Foto Perfil" control={control} disabled={isFormDisabled} />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.padres.${index}.fotoDniFrente`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>DNI Frente</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Frente Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.padres.${index}.fotoDniDorso`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>DNI Dorso</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`DNI Dorso Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={control}
+                                  name={`familiares.padres.${index}.fotoPerfil`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Foto Perfil</FormLabel>
+                                      <FormControl>
+                                        <FileInput field={field} label={`Foto Perfil Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
                             </div>
                         </div>
                         ))}
