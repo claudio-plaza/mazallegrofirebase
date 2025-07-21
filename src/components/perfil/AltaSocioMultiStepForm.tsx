@@ -20,7 +20,8 @@ import { getFileUrl, generateId } from '@/lib/helpers';
 import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
-import { FileInput } from '../ui/file-input';
+import dynamic from 'next/dynamic';
+const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
 
 const totalSteps = 3;
 
