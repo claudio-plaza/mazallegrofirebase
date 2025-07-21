@@ -146,9 +146,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   const onSubmit = async (data: AdminEditSocioTitularData) => {
     if (!socio) return;
 
-    const processPhotoField = async (formValue: string | FileList | null | undefined, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
-        if (formValue instanceof FileList && formValue.length > 0) {
-            return uploadFile(formValue[0], path);
+    const processPhotoField = async (formValue: string | File | null | undefined, originalUrl: string | null | undefined, path: string): Promise<string | null> => {
+        if (formValue instanceof File) {
+            return uploadFile(formValue, path);
         }
         if (typeof formValue === 'string') {
             return formValue;
@@ -215,10 +215,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     let displayUrl: string | null = null;
     let newFileName: string | null = null;
   
-    if (currentFieldValue instanceof FileList && currentFieldValue.length > 0) {
+    if (currentFieldValue instanceof File) {
       if (typeof window !== 'undefined') {
-        displayUrl = URL.createObjectURL(currentFieldValue[0]);
-        newFileName = currentFieldValue[0].name;
+        displayUrl = URL.createObjectURL(currentFieldValue);
+        newFileName = currentFieldValue.name;
       }
     } else if (typeof currentFieldValue === 'string') {
       displayUrl = currentFieldValue;
@@ -255,7 +255,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                       <Input
                         type="file"
                         className="hidden"
-                        onChange={e => field.onChange(e.target.files)}
+                        onChange={e => field.onChange(e.target.files ? e.target.files[0] : null)}
                         accept="image/png,image/jpeg"
                       />
                     </label>
@@ -300,7 +300,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   
   const fotoTitularActual = typeof form.watch('fotoPerfil') === 'string'
                             ? form.watch('fotoPerfil')
-                            : (form.watch('fotoPerfil') instanceof FileList && typeof window !== 'undefined' && (form.watch('fotoPerfil') as FileList).length > 0 ? URL.createObjectURL((form.watch('fotoPerfil') as FileList)[0]) 
+                            : (form.watch('fotoPerfil') instanceof File && typeof window !== 'undefined' ? URL.createObjectURL(form.watch('fotoPerfil') as File) 
                             : socio.fotoPerfil || `https://placehold.co/128x128.png?text=${socio.nombre[0]}${socio.apellido[0]}`);
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
