@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { generateId, getFileUrl } from '@/lib/helpers';
+import { generateId } from '@/lib/helpers';
 import { PlusCircle, Trash2, Edit2, Info, CheckCircle, XCircle, Hourglass, Users, UploadCloud, FileText, CalendarDays, Building, BadgeCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,8 @@ import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/fireb
 import { format, parseISO, subYears } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
+const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
 
 export function GestionAdherentesSocio() {
   const { toast } = useToast();
@@ -74,9 +76,12 @@ export function GestionAdherentesSocio() {
       return;
     }
 
-    const uploadAndGetUrl = async (fileInput: any, pathSuffix: string): Promise<string | null> => {
-        if (fileInput instanceof FileList && fileInput.length > 0) {
-            return uploadFile(fileInput[0], `socios/${socioData.id}/${pathSuffix}`);
+    const uploadAndGetUrl = async (fileInput: File | string | null, pathSuffix: string): Promise<string | null> => {
+        if (fileInput instanceof File) {
+            return uploadFile(fileInput, `socios/${socioData.id}/${pathSuffix}`);
+        }
+        if (typeof fileInput === 'string') {
+            return fileInput; // It's already a URL
         }
         return null;
     };
@@ -258,68 +263,22 @@ export function GestionAdherentesSocio() {
                             control={form.control}
                             name={docType}
                             key={docType}
-                            render={({ field }) => {
-                              const fileValue = field.value;
-                              const previewUrl = useMemo(() => {
-                                if (fileValue instanceof FileList && fileValue.length > 0 && fileValue[0].type.startsWith("image/")) {
-                                  return URL.createObjectURL(fileValue[0]);
-                                }
-                                return null;
-                              }, [fileValue]);
-
-                              const fileName = useMemo(() => {
-                                if (fileValue instanceof FileList && fileValue.length > 0) {
-                                  return fileValue[0].name;
-                                }
-                                return null;
-                              }, [fileValue]);
-
-                              return (
+                            render={({ field: { onChange, value, ...rest } }) => (
                                 <FormItem>
                                   <FormLabel>{labelText}</FormLabel>
                                   <FormControl>
-                                    <div className="relative">
-                                      <label className="cursor-pointer w-full min-h-[100px] h-[100px] flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-primary bg-background hover:bg-muted/50 transition-colors">
-                                        {previewUrl ? (
-                                          <Image src={previewUrl} alt="Vista previa" layout="fill" objectFit="contain" className="rounded-md" />
-                                        ) : fileName ? (
-                                          <div className="text-center p-2 text-muted-foreground">
-                                            <FileText className="h-6 w-6 mx-auto mb-1" />
-                                            <p className="text-xs break-all">{fileName}</p>
-                                          </div>
-                                        ) : (
-                                          <div className="text-center p-2 text-muted-foreground">
-                                            <UploadCloud className="h-6 w-6 mx-auto mb-1" />
-                                            <p className="text-xs">{placeholderText}</p>
-                                          </div>
-                                        )}
-                                        <Input
-                                          type="file"
-                                          className="hidden"
-                                          onChange={e => field.onChange(e.target.files && e.target.files.length > 0 ? e.target.files : null)}
-                                          accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"}
-                                          ref={field.ref}
-                                          name={field.name}
-                                          onBlur={field.onBlur}
-                                        />
-                                      </label>
-                                      {fileValue && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="absolute -top-2 -right-2 h-7 w-7 bg-card rounded-full shadow-md hover:bg-destructive/10"
-                                          onClick={() => field.onChange(null)}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      )}
-                                    </div>
+                                    <FileInput 
+                                        onValueChange={onChange} 
+                                        value={value} 
+                                        placeholder={placeholderText} 
+                                        accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
+                                        {...rest} 
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
-                              );
-                            }}
+                              )
+                            }
                           />
                       );
                   })}

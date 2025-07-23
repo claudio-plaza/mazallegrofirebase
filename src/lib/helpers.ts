@@ -91,12 +91,7 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNac
   return { status: 'Pendiente', message: 'Apto médico pendiente o información incompleta', colorClass: 'text-yellow-600 bg-yellow-100' };
 };
 
-export const getFileUrl = (fileList: FileList | null | undefined): string | null => {
-  if (typeof window !== 'undefined' && fileList && fileList.length > 0 && fileList[0] instanceof File) {
-    return URL.createObjectURL(fileList[0]);
-  }
-  return null;
-};
+
 
 export const generateId = (): string => {
   return Math.random().toString(36).substr(2, 9);
