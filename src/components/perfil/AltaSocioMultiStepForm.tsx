@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -16,7 +17,7 @@ import {
   type AgregarFamiliaresData, agregarFamiliaresSchema,
   RelacionFamiliar, MAX_HIJOS, MAX_PADRES, type Socio, EstadoCambioGrupoFamiliar, MiembroFamiliar
 } from '@/types';
-import { getFileUrl, generateId } from '@/lib/helpers';
+import { generateId } from '@/lib/helpers';
 import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
@@ -185,7 +186,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -199,9 +200,9 @@ export function AltaSocioMultiStepForm() {
       return;
     }
     
-    const processFamiliarFile = async (file: any, familiarId: string, docType: string): Promise<string|null> => {
-        if (file instanceof FileList && file.length > 0) {
-            return uploadFile(file[0], `socios/${socioData.id}/familiares/${familiarId}_${docType}.jpg`);
+    const processFamiliarFile = async (file: File | string | null, familiarId: string, docType: string): Promise<string|null> => {
+        if (file instanceof File) {
+            return uploadFile(file, `socios/${socioData.id}/familiares/${familiarId}_${docType}.jpg`);
         }
         if (typeof file === 'string') return file;
         return null;
@@ -292,8 +293,8 @@ export function AltaSocioMultiStepForm() {
           <CardTitle>Gestionar Grupo Familiar</CardTitle>
            <CardDescription>
             Paso {currentStep} de {totalSteps} - {
-            currentStep === 1 ? "Selección de tipo de grupo" :
-            currentStep === 2 ? "Detalles de familiares" :
+            currentStep === 1 ? "Selección de tipo de grupo" : 
+            currentStep === 2 ? "Detalles de familiares" : 
             "Revisión final"
           }</CardDescription>
 
@@ -440,11 +441,11 @@ export function AltaSocioMultiStepForm() {
                             <FormField
                               control={control}
                               name="familiares.conyuge.fotoDniFrente"
-                              render={({ field }) => (
+                              render={({ field: { onChange, value, ...rest } }) => (
                                 <FormItem>
                                   <FormLabel>DNI Frente</FormLabel>
                                   <FormControl>
-                                    <FileInput field={field} label="DNI Frente Cónyuge" disabled={isFormDisabled} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente Cónyuge" disabled={isFormDisabled} {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -453,11 +454,11 @@ export function AltaSocioMultiStepForm() {
                             <FormField
                               control={control}
                               name="familiares.conyuge.fotoDniDorso"
-                              render={({ field }) => (
+                              render={({ field: { onChange, value, ...rest } }) => (
                                 <FormItem>
                                   <FormLabel>DNI Dorso</FormLabel>
                                   <FormControl>
-                                    <FileInput field={field} label="DNI Dorso Cónyuge" disabled={isFormDisabled} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso Cónyuge" disabled={isFormDisabled} {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -466,11 +467,11 @@ export function AltaSocioMultiStepForm() {
                             <FormField
                               control={control}
                               name="familiares.conyuge.fotoPerfil"
-                              render={({ field }) => (
+                              render={({ field: { onChange, value, ...rest } }) => (
                                 <FormItem>
                                   <FormLabel>Foto Perfil</FormLabel>
                                   <FormControl>
-                                    <FileInput field={field} label="Foto Perfil Cónyuge" disabled={isFormDisabled} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="Foto Perfil Cónyuge" disabled={isFormDisabled} {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -510,11 +511,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.hijos.${index}.fotoDniFrente`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>DNI Frente</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`DNI Frente Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -523,11 +524,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.hijos.${index}.fotoDniDorso`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>DNI Dorso</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`DNI Dorso Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -536,11 +537,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.hijos.${index}.fotoPerfil`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>Foto Perfil</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`Foto Perfil Hijo/a ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -589,11 +590,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.padres.${index}.fotoDniFrente`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>DNI Frente</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`DNI Frente Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -602,11 +603,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.padres.${index}.fotoDniDorso`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>DNI Dorso</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`DNI Dorso Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -615,11 +616,11 @@ export function AltaSocioMultiStepForm() {
                                 <FormField
                                   control={control}
                                   name={`familiares.padres.${index}.fotoPerfil`}
-                                  render={({ field }) => (
+                                  render={({ field: { onChange, value, ...rest } }) => (
                                     <FormItem>
                                       <FormLabel>Foto Perfil</FormLabel>
                                       <FormControl>
-                                        <FileInput field={field} label={`Foto Perfil Padre/Madre ${index + 1}`} disabled={isFormDisabled} />
+                                        <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -663,13 +664,13 @@ export function AltaSocioMultiStepForm() {
                   {(watch("tipoGrupoFamiliar") === 'conyugeEHijos' || existingGroupType === 'conyugeEHijos') && (
                     <>
                       {watch("familiares.conyuge") && <p className="pl-4"><strong>Cónyuge:</strong> {watch("familiares.conyuge.nombre")} {watch("familiares.conyuge.apellido")}</p>}
-                      {watch("familiares.hijos")?.map((h, i) => <p key={`hijo-rev-${i}`} className="pl-4"><strong>Hijo/a {i+1}:</strong> {h.nombre} {h.apellido}</p>)}
+                      {watch("familiares.hijos")?.map((h, i) => <p key={`hijo-rev-${i}`} className="pl-4"><strong>Hijo/a {i+1}:</strong> {h.nombre} {h.apellido}</p>)} 
                       {watch("familiares.hijos")?.length === 0 && !watch("familiares.conyuge") && <p className="pl-4 text-muted-foreground">No se proponen cónyuges ni hijos/as.</p>}
                     </>
                   )}
                   {(watch("tipoGrupoFamiliar") === 'padresMadres' || existingGroupType === 'padresMadres') && (
                     <>
-                      {watch("familiares.padres")?.map((p, i) => <p key={`padre-rev-${i}`} className="pl-4"><strong>Padre/Madre {i+1}:</strong> {p.nombre} {p.apellido}</p>)}
+                      {watch("familiares.padres")?.map((p, i) => <p key={`padre-rev-${i}`} className="pl-4"><strong>Padre/Madre {i+1}:</strong> {p.nombre} {p.apellido}</p>)} 
                       {watch("familiares.padres")?.length === 0 && <p className="pl-4 text-muted-foreground">No se proponen padres/madres.</p>}
                     </>
                   )}
@@ -697,3 +698,4 @@ export function AltaSocioMultiStepForm() {
     </FormProvider>
   );
 }
+

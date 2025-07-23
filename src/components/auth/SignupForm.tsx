@@ -325,11 +325,11 @@ export function SignupForm() {
                   <FormField
                     control={form.control}
                     name="fotoDniFrente"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest } }) => (
                       <FormItem>
                         <FormLabel>DNI Frente</FormLabel>
                         <FormControl>
-                          <FileInput field={field} label="DNI Frente" accept={dniFileSchemaConfig.mimeTypes.join(',')} />
+                          <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente" accept={dniFileSchemaConfig.mimeTypes.join(',')} {...rest} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -338,11 +338,11 @@ export function SignupForm() {
                   <FormField
                     control={form.control}
                     name="fotoDniDorso"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest } }) => (
                       <FormItem>
                         <FormLabel>DNI Dorso</FormLabel>
                         <FormControl>
-                          <FileInput field={field} label="DNI Dorso" accept={dniFileSchemaConfig.mimeTypes.join(',')} />
+                          <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso" accept={dniFileSchemaConfig.mimeTypes.join(',')} {...rest} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -351,11 +351,11 @@ export function SignupForm() {
                   <FormField
                     control={form.control}
                     name="fotoPerfil"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest } }) => (
                       <FormItem>
                         <FormLabel>Foto Perfil</FormLabel>
                         <FormControl>
-                          <FileInput field={field} label="Foto Perfil" accept={profileFileSchemaConfig.mimeTypes.join(',')} />
+                          <FileInput onValueChange={onChange} value={value} placeholder="Foto Perfil" accept={profileFileSchemaConfig.mimeTypes.join(',')} {...rest} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -364,11 +364,11 @@ export function SignupForm() {
                   <FormField
                     control={form.control}
                     name="fotoCarnet"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest } }) => (
                       <FormItem>
                         <FormLabel>Foto Carnet (Opcional)</FormLabel>
                         <FormControl>
-                          <FileInput field={field} label="Foto Carnet (Opcional)" accept={profileFileSchemaConfig.mimeTypes.join(',')} />
+                          <FileInput onValueChange={onChange} value={value} placeholder="Foto Carnet (Opcional)" accept={profileFileSchemaConfig.mimeTypes.join(',')} {...rest} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
