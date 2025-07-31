@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getAptoMedicoStatus, generateId, esCumpleanosHoy, normalizeText } from '@/lib/helpers';
 import { parseISO, addDays, formatISO, subDays } from 'date-fns';
-import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2, Info, ChevronRight } from 'lucide-react';
+import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Edit, Contact2, Info, ChevronRight, ChevronDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -24,6 +24,9 @@ import { RevisarCambiosGrupoFamiliarDialog } from './RevisarCambiosGrupoFamiliar
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
@@ -32,6 +35,7 @@ export function GestionSociosDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoSocioFiltro>('Todos');
@@ -159,10 +163,35 @@ export function GestionSociosDashboard() {
       });
       return;
     }
-    console.log("Simulando generación de PDF para los siguientes socios:", filteredSocios);
+
+    const doc = new jsPDF();
+    doc.text("Lista de Socios", 14, 16);
+
+    const tableColumn = ["N° Socio", "Nombre Completo", "Estado", "Apto Médico"];
+    const tableRows: any[] = [];
+
+    filteredSocios.forEach(socio => {
+      const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
+      const socioData = [
+        socio.numeroSocio,
+        `${socio.nombre} ${socio.apellido}`,
+        socio.estadoSocio,
+        aptoStatus.status
+      ];
+      tableRows.push(socioData);
+    });
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+
+    doc.save('lista_socios.pdf');
+
     toast({
-      title: "Descarga Iniciada (Simulada)",
-      description: `Se está generando un PDF con ${filteredSocios.length} socio(s). (Esta es una simulación, ver consola para datos).`,
+      title: "Descarga Iniciada",
+      description: `Se ha generado un PDF con ${filteredSocios.length} socio(s).`,
     });
   };
 
@@ -261,6 +290,92 @@ export function GestionSociosDashboard() {
     </TableRow>
   );
 
+  const renderMobileSocioCard = (socio: Socio) => {
+    const isExpanded = expandedRows.includes(socio.id);
+    const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
+    const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+    const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
+    const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
+
+    return (
+      <Fragment key={socio.id}>
+        <Card className="p-3 shadow-md">
+          <div className="flex items-start gap-4">
+            <Avatar className="h-12 w-12 border-2 border-muted">
+              <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} />
+              <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex-grow">
+              <div className="flex justify-between items-center">
+                <p className="font-bold text-base leading-tight">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2"><MoreVertical className="h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleToggleEstadoSocio(socio.id)}
+                      className={cn(
+                        socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50",
+                        socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                      )}
+                    >
+                      {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+                      {socio.estadoSocio === 'Activo' ? 'Desactivar' : 'Activar'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openRevisionDialog(socio)} disabled={socio.estadoCambioGrupoFamiliar !== 'Pendiente'}>
+                      <MailQuestion className="mr-2 h-4 w-4" /> Revisar Cambios GF
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}>
+                      <Contact2 className="mr-2 h-4 w-4" /> Adherentes
+                      {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, false)} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50"><ShieldAlert className="mr-2 h-4 w-4" /> Marcar Apto Inválido</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive-foreground focus:bg-destructive/90"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>¿Está seguro?</AlertDialogTitle><AlertDialogDescription>Se eliminará permanentemente al socio.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleEliminarSocio(socio.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Eliminar</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <p className="text-xs text-muted-foreground">Socio: {socio.numeroSocio} | DNI: {socio.dni}</p>
+              <div className="mt-2 flex flex-wrap gap-2 items-center text-xs">
+                <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'} className={cn('py-1 px-2 text-xs', socio.estadoSocio === 'Activo' ? 'bg-green-500' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500' : 'bg-yellow-500')}>{socio.estadoSocio}</Badge>
+                <Badge variant="outline" className={cn('py-1 px-2 text-xs font-medium', aptoStatus.colorClass, 'border-current')}>
+                    {aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                    {(aptoStatus.status === 'Vencido' || aptoStatus.status === 'Inválido') && <XCircle className="mr-1 h-3 w-3" />}
+                    {aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}
+                    {aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}
+                    {aptoStatus.status}
+                </Badge>
+                {socio.estadoCambioGrupoFamiliar === 'Pendiente' && <Badge variant="outline" className="py-1 px-2 text-xs border-purple-500 text-purple-600"><MailQuestion className="mr-1 h-3 w-3" />Cambio GF</Badge>}
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => toggleRow(socio.id)} className="w-full mt-2 text-xs justify-center items-center gap-1">
+            Ver Detalles <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+          </Button>
+          {isExpanded && (
+            <div className="p-2 mt-2 border-t">
+              {renderDetailRow(socio)}
+            </div>
+          )}
+        </Card>
+      </Fragment>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Gestión de Socios</h1>
@@ -319,153 +434,162 @@ export function GestionSociosDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[500px] w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px] px-2"></TableHead>
-                  <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
-                  <TableHead>Nombre Completo</TableHead>
-                  <TableHead className="hidden md:table-cell">N° Socio</TableHead>
-                  <TableHead className="hidden lg:table-cell">Adherentes (Act./Pend.)</TableHead>
-                  <TableHead>Estado Club</TableHead>
-                  <TableHead className="hidden lg:table-cell">Cambio GF</TableHead>
-                  <TableHead>Apto Médico</TableHead>
-                  <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSocios.map(socio => {
-                  const isExpanded = expandedRows.includes(socio.id);
-                  const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
-                  const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
-                  const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
-                  const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
-                  
-                  return (
-                    <Fragment key={socio.id}>
-                      <TableRow>
-                        <TableCell className="px-2">
-                          <Button variant="ghost" size="icon" onClick={() => toggleRow(socio.id)} className="h-8 w-8">
-                              <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
-                          </Button>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} data-ai-hint="member photo" />
-                            <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
-                        <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-center">
-                          {activeAdherentsCount}
-                          {adherentesPendientesCount > 0 && (
-                            <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5" title={`${adherentesPendientesCount} solicitudes pendientes`}>
-                              {adherentesPendientesCount}P
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
-                                className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
-                            {socio.estadoSocio}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {socio.estadoCambioGrupoFamiliar === 'Pendiente' && (
-                            <Badge variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-500/10">
-                              <MailQuestion className="mr-1 h-3 w-3" /> Pend.
-                            </Badge>
-                          )}
-                          {socio.estadoCambioGrupoFamiliar === 'Rechazado' && (
-                            <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
-                              <XCircle className="mr-1 h-3 w-3" /> Rech.
-                            </Badge>
-                          )}
-                          {(socio.estadoCambioGrupoFamiliar === 'Ninguno' || !socio.estadoCambioGrupoFamiliar) && (
-                            <Badge variant="outline" className="border-transparent text-muted-foreground">
-                              -
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>
-                            {aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}
-                            {(aptoStatus.status === 'Vencido' || aptoStatus.status === 'Inválido') && <XCircle className="mr-1 h-3 w-3" />}
-                            {aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}
-                            {aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}
-                            {aptoStatus.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right min-w-[80px]">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleToggleEstadoSocio(socio.id)}
-                                className={cn(
-                                  socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50",
-                                  socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50"
-                                )}
-                              >
-                                {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
-                                {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                  onClick={() => openRevisionDialog(socio)}
-                                  disabled={socio.estadoCambioGrupoFamiliar !== 'Pendiente'}
-                                >
-                                  <MailQuestion className="mr-2 h-4 w-4" /> Revisar Cambios GF
-                                </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}>
-                                  <Contact2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
-                                  {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, false)} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50"><ShieldAlert className="mr-2 h-4 w-4" /> Marcar Apto Vencido/Inválido</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive-foreground focus:bg-destructive/90"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Socio</DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Se eliminará permanentemente al socio ${socio.nombre} ${socio.apellido} de la base de datos.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleEliminarSocio(socio.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Eliminar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && renderDetailRow(socio)}
-                    </Fragment>
-                  );
-                })}
-                {filteredSocios.length === 0 && (
+          {isMobile ? (
+            <div className="space-y-4">
+              {filteredSocios.map(renderMobileSocioCard)}
+              {filteredSocios.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">No se encontraron socios.</p>
+              )}
+            </div>
+          ) : (
+            <ScrollArea className="h-[500px] w-full overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      No se encontraron socios con los criterios seleccionados.
-                    </TableCell>
+                    <TableHead className="w-[40px] px-2"></TableHead>
+                    <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
+                    <TableHead>Nombre Completo</TableHead>
+                    <TableHead className="hidden md:table-cell">N° Socio</TableHead>
+                    <TableHead className="hidden lg:table-cell">Adherentes (Act./Pend.)</TableHead>
+                    <TableHead>Estado Club</TableHead>
+                    <TableHead className="hidden lg:table-cell">Cambio GF</TableHead>
+                    <TableHead>Apto Médico</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {filteredSocios.map(socio => {
+                    const isExpanded = expandedRows.includes(socio.id);
+                    const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
+                    const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+                    const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
+                    const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
+                    
+                    return (
+                      <Fragment key={socio.id}>
+                        <TableRow>
+                          <TableCell className="px-2">
+                            <Button variant="ghost" size="icon" onClick={() => toggleRow(socio.id)} className="h-8 w-8">
+                                <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                            </Button>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} data-ai-hint="member photo" />
+                              <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
+                          <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-center">
+                            {activeAdherentsCount}
+                            {adherentesPendientesCount > 0 && (
+                              <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5" title={`${adherentesPendientesCount} solicitudes pendientes`}>
+                                {adherentesPendientesCount}P
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'}
+                                  className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>
+                              {socio.estadoSocio}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {socio.estadoCambioGrupoFamiliar === 'Pendiente' && (
+                              <Badge variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-500/10">
+                                <MailQuestion className="mr-1 h-3 w-3" /> Pend.
+                              </Badge>
+                            )}
+                            {socio.estadoCambioGrupoFamiliar === 'Rechazado' && (
+                              <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+                                <XCircle className="mr-1 h-3 w-3" /> Rech.
+                              </Badge>
+                            )}
+                            {(socio.estadoCambioGrupoFamiliar === 'Ninguno' || !socio.estadoCambioGrupoFamiliar) && (
+                              <Badge variant="outline" className="border-transparent text-muted-foreground">
+                                -
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>
+                              {aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                              {(aptoStatus.status === 'Vencido' || aptoStatus.status === 'Inválido') && <XCircle className="mr-1 h-3 w-3" />}
+                              {aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}
+                              {aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}
+                              {aptoStatus.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right min-w-[80px]">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleEstadoSocio(socio.id)}
+                                  className={cn(
+                                    socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50",
+                                    socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                                  )}
+                                >
+                                  {socio.estadoSocio === 'Activo' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+                                  {socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                    onClick={() => openRevisionDialog(socio)}
+                                    disabled={socio.estadoCambioGrupoFamiliar !== 'Pendiente'}
+                                  >
+                                    <MailQuestion className="mr-2 h-4 w-4" /> Revisar Cambios GF
+                                  </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}>
+                                    <Contact2 className="mr-2 h-4 w-4" /> Gestionar Adherentes
+                                    {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMarcarApto(socio.id, false)} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50"><ShieldAlert className="mr-2 h-4 w-4" /> Marcar Apto Vencido/Inválido</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive-foreground focus:bg-destructive/90"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Socio</DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Se eliminará permanentemente al socio ${socio.nombre} ${socio.apellido} de la base de datos.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleEliminarSocio(socio.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && renderDetailRow(socio)}
+                      </Fragment>
+                    );
+                  })}
+                  {filteredSocios.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                        No se encontraron socios con los criterios seleccionados.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
         </CardContent>
       </Card>
        {selectedSocioForAdherentes && (

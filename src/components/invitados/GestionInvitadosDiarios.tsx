@@ -174,7 +174,10 @@ export function GestionInvitadosDiarios() {
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = parseISO(e.target.value);
+    const [year, month, day] = e.target.value.split('-').map(Number);
+    // Create date in local timezone by providing year, month (0-indexed), and day
+    // to avoid timezone issues with parseISO which assumes UTC.
+    const newDate = new Date(year, month - 1, day);
     if (isValid(newDate)) {
         setSelectedDate(newDate);
     }
@@ -320,7 +323,7 @@ export function GestionInvitadosDiarios() {
                   <h3 className="text-lg font-medium mb-1">Lista de Invitados ({fields.length})</h3>
                   <p className="text-xs text-muted-foreground mb-3">Nombre, Apellido, DNI y Fecha de Nacimiento son obligatorios.</p>
                   
-                  <ScrollArea className="max-h-[500px]"> 
+                  <ScrollArea className="max-h-[auto]"> 
                     <div className="space-y-4 pr-3">
                       {fields.map((item, index) => (
                         <Card key={item.id} className="p-4 relative bg-muted/30">

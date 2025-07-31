@@ -11,16 +11,16 @@ export default function HomePage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <Image 
-            src="https://placehold.co/100x100.png" 
-            alt="[Tu Logo Circular]" 
+            src="/logo.png" 
+            alt="Logo Circular Mazallegro" 
             width={100} 
             height={100} 
             className="mx-auto mb-4 rounded-full" 
             data-ai-hint="club logo"
           />
           <Image
-            src="https://placehold.co/153x76.png" 
-            alt="[Tu Logo]"
+            src="/logo-largo.jpg" 
+            alt="Logo Mazallegro"
             data-ai-hint="company logo"
             width={153}
             height={76}

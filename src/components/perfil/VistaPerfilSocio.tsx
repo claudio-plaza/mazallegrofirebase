@@ -131,7 +131,7 @@ export function VistaPerfilSocio() {
                     <AlertTitle className="font-semibold">Solicitud de Cambio Rechazada</AlertTitle>
                     <AlertDescription>
                         Su última solicitud de cambio de grupo familiar fue rechazada. Motivo: {socio.motivoRechazoCambioGrupoFamiliar || "No especificado"}.
-                        Puede realizar una nueva solicitud desde "Gestionar Grupo Familiar".
+                        Puede realizar una nueva solicitud desde &quot;Gestionar Grupo Familiar&quot;.
                     </AlertDescription>
                 </Alert>
             )}
@@ -142,7 +142,7 @@ export function VistaPerfilSocio() {
                     <InfoItem icon={Phone} label="Teléfono" value={socio.telefono} />
                     <InfoItem icon={MapPin} label="Dirección" value={socio.direccion} />
                     <InfoItem icon={Calendar} label="Fecha de Nacimiento" value={formatDate(socio.fechaNacimiento)} />
-                    <InfoItem icon={Briefcase} label="Empresa / Obra Social" value={socio.empresa.toString()} />
+                    <InfoItem icon={Briefcase} label="Empresa / Obra Social" value={socio.empresa || undefined} />
                     <InfoItem icon={LogInIcon} label="Miembro Desde" value={formatDate(socio.miembroDesde)} />
                 </div>
             </ProfileSection>
@@ -268,7 +268,7 @@ export function VistaPerfilSocio() {
                 <AlertTitle>Información Importante</AlertTitle>
                 <AlertDescription>
                     Para modificar tus datos personales (nombre, DNI, email, foto de perfil, etc.) o los de tus familiares ya aprobados, por favor, contacta a la administración del club.
-                    Puedes proponer cambios a tu grupo familiar (agregar/quitar miembros o modificar datos de miembros aún no validados) desde el botón "Gestionar Grupo Familiar". Estos cambios requerirán aprobación.
+                    Puedes proponer cambios a tu grupo familiar (agregar/quitar miembros o modificar datos de miembros aún no validados) desde el botón &quot;Gestionar Grupo Familiar&quot;. Estos cambios requerirán aprobación.
                 </AlertDescription>
             </Alert>
 

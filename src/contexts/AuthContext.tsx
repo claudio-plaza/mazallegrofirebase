@@ -11,9 +11,10 @@ import { toast } from '@/hooks/use-toast';
 
 export interface AuthContextType {
   isLoggedIn: boolean;
-  user: User | null; // Firebase user object
+  user: User | null;
   userRole: UserRole | null;
   userName: string | null;
+  socio: Socio | null;
   loggedInUserNumeroSocio: string | null;
   isLoading: boolean;
   logout: () => void;
@@ -29,13 +30,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [socio, setSocio] = useState<Socio | null>(null);
   const [loggedInUserNumeroSocio, setLoggedInUserNumeroSocio] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let unsubscribe: () => void = () => {};
 
-    if (auth) { // Only subscribe if auth is initialized
+    if (auth) { 
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         setIsLoading(true);
         if (firebaseUser) {
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const socioProfile = await getSocioById(firebaseUser.uid);
 
             if (socioProfile) {
+              setSocio(socioProfile);
               setUserRole(socioProfile.role);
               setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
               setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
@@ -93,8 +96,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // onAuthStateChanged will handle the state updates
   };
 
+  if (isLoading) {
+    return <div>Cargando...</div>; // Or a more sophisticated loading spinner
+  }
+
   return (
-    <AuthContext.Provider value={{ isLoggedIn: !!user, user, userRole, userName, loggedInUserNumeroSocio, isLoading, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn: !!user, user, userRole, userName, socio, loggedInUserNumeroSocio, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );

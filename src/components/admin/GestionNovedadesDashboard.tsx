@@ -78,11 +78,11 @@ export function GestionNovedadesDashboard() {
             fechaCreacion: editingNovedad.fechaCreacion 
         };
         savedNovedad = await updateNovedad(dataToUpdate);
-        toast({ title: "Novedad Actualizada", description: `La novedad "${savedNovedad?.titulo}" ha sido actualizada.` });
+        toast({ title: "Novedad Actualizada", description: `La novedad &quot;${savedNovedad?.titulo}&quot; ha sido actualizada.` });
       } else {
         const { id, fechaCreacion, ...dataToAdd } = processedData; // Excluir campos autogenerados o que no deben enviarse
         savedNovedad = await addNovedad(dataToAdd);
-        toast({ title: "Novedad Creada", description: `La novedad "${savedNovedad?.titulo}" ha sido creada.` });
+        toast({ title: "Novedad Creada", description: `La novedad &quot;${savedNovedad?.titulo}&quot; ha sido creada.` });
       }
       loadNovedades();
       setIsFormOpen(false);
@@ -157,7 +157,7 @@ export function GestionNovedadesDashboard() {
           <div className="text-center py-10 px-6 border border-dashed rounded-md">
             <ListChecks className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <p className="text-xl font-medium text-foreground">No hay novedades creadas.</p>
-            <p className="text-muted-foreground mt-1">Haz clic en "Nueva Novedad" para agregar una.</p>
+            <p className="text-muted-foreground mt-1">Haz clic en &quot;Nueva Novedad&quot; para agregar una.</p>
           </div>
         )}
         {!loading && novedades.length > 0 && (
@@ -195,7 +195,7 @@ export function GestionNovedadesDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
                           <AlertDialogDescriptionComponent>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente la novedad "{novedad.titulo}".
+                            Esta acción no se puede deshacer. Se eliminará permanentemente la novedad &quot;{novedad.titulo}&quot;.
                           </AlertDialogDescriptionComponent>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -76,7 +76,7 @@ export function GestionAdherentesSocio() {
       return;
     }
 
-    const uploadAndGetUrl = async (fileInput: File | string | null, pathSuffix: string): Promise<string | null> => {
+    const uploadAndGetUrl = async (fileInput: File | string | null | undefined, pathSuffix: string): Promise<string | null> => {
         if (fileInput instanceof File) {
             return uploadFile(fileInput, `socios/${socioData.id}/${pathSuffix}`);
         }

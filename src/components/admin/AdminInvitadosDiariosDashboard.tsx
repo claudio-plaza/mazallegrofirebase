@@ -336,8 +336,8 @@ export function AdminInvitadosDiariosDashboard() {
                 <h3 className="text-lg font-semibold">
                   Detalle de Invitados para el {formatDate(selectedDate, "dd 'de' MMMM 'de' yyyy")}
                 </h3>
-                <ScrollArea className="h-[500px] w-full border rounded-md">
-                  <Table>
+                <ScrollArea className="h-[500px] w-full border rounded-md overflow-x-auto">
+                  <Table className="min-w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[30%]">Socio Titular (N° Socio)</TableHead>

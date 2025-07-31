@@ -37,9 +37,12 @@ export const signupUser = async (data: SignupTitularData) => {
         displayName: `${data.nombre} ${data.apellido}`
     });
 
-    const uploadAndGetUrl = async (file: File | null | undefined, pathSuffix: string): Promise<string | null> => {
-        if (file instanceof File) {
-            return uploadFile(file, `socios/${user.uid}/${pathSuffix}`);
+    const uploadAndGetUrl = async (fileInput: File | string | null | undefined, pathSuffix: string): Promise<string | null> => {
+        if (fileInput instanceof File) {
+            return uploadFile(fileInput, `socios/${user.uid}/${pathSuffix}`);
+        }
+        if (typeof fileInput === 'string') {
+            return fileInput; // It's already a URL
         }
         return null;
     };

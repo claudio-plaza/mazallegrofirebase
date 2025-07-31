@@ -12,8 +12,8 @@ const Header = () => {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
           <Image 
-            src="https://placehold.co/153x76.png"
-            alt="[Tu Logo]"
+            src="/logo-largo.jpg"
+            alt="Logo Mazallegro"
             data-ai-hint="company logo"
             width={100}
             height={50}

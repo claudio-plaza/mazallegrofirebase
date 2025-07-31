@@ -51,7 +51,7 @@ export default function AdminLayout({
           {/* Mobile Header Logo */}
           <Link href="/" className="flex items-center">
              <Image 
-                src="https://placehold.co/153x76.png" 
+                src="/logo-largo.jpg" 
                 alt="[Tu Logo]"
                 data-ai-hint="company logo"
                 width={100} 

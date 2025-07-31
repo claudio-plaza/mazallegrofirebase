@@ -251,7 +251,7 @@ export function SignupForm() {
                       <FormControl>
                         <div className="relative">
                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                           <Input placeholder="Nombre de su empresa o sindicato" {...field} className="pl-10" />
+                           <Input placeholder="Empresa/sindicato (si corresponde)" {...field} className="pl-10" />
                         </div>
                       </FormControl>
                       <FormMessage />

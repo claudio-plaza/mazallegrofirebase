@@ -147,7 +147,7 @@ export interface Socio {
   apellido: string;
   fechaNacimiento: Date;
   dni: string;
-  empresa: string;
+  empresa?: string;
   telefono: string;
   direccion: string;
   email: string;
@@ -283,7 +283,7 @@ export const signupTitularSchema = z.object({
     message: "Debe ser mayor de 18 años."
   }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
+  empresa: z.string().optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
@@ -309,7 +309,7 @@ export const titularSchema = z.object({
     message: "Debe ser mayor de 18 años."
   }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
+  empresa: z.string().optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
@@ -322,6 +322,24 @@ export type TitularData = z.infer<typeof titularSchema>;
 
 
 export type TipoPersona = 'Socio Titular' | 'Familiar' | 'Adherente' | 'Invitado Diario';
+
+export interface PersonaParaIngreso {
+  id: string;
+  socioTitularId: string; // ID del socio titular al que pertenece
+  numeroSocio?: string; // Solo para el titular
+  nombre: string;
+  apellido: string;
+  dni: string;
+  fechaNacimiento: Date;
+  tipo: TipoPersona;
+  fotoUrl?: string | null;
+  aptoMedico?: AptoMedicoInfo | null;
+  estadoSocio?: 'Activo' | 'Inactivo' | 'Pendiente Validacion'; // Solo para socio titular
+  relacion?: RelacionFamiliar; // Solo para familiares
+  esDeCumpleanos?: boolean; // Solo para invitados
+  ingresado?: boolean; // Solo para invitados
+  metodoPago?: MetodoPagoInvitado | null; // Solo para invitados
+}
 
 export interface RevisionMedica {
   id: string;
@@ -485,6 +503,7 @@ export const adherenteFormSchema = z.object({
     fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
     fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
     fotoCarnet: optionalFileField(profileFileSchemaConfig),
+
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
 

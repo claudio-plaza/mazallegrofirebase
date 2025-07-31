@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoggedIn, userRole, isLoading } = useAuth();
+  const { isLoggedIn, userRole, isLoading, socio } = useAuth();
   const isAdminRoute = pathname.startsWith('/admin');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
@@ -69,22 +69,10 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
         "flex flex-col transition-[padding-left] duration-300 ease-in-out",
         isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
       )}>
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button size="icon" variant="outline">
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64 bg-secondary">
-              <UserSidebar isExpanded={true} className="flex h-full w-full" />
-            </SheetContent>
-          </Sheet>
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
           <Link href="/dashboard" className="flex items-center">
              <Image 
-                src="https://placehold.co/153x76.png" 
+                src="/logo-largo.jpg" 
                 alt="[Tu Logo]"
                 data-ai-hint="company logo"
                 width={100} 
@@ -93,6 +81,23 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
                 priority
              />
           </Link>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="outline" className="rounded-full">
+                <Image 
+                  src={socio?.fotoPerfil || "/logo-chico.png"} 
+                  alt="User menu"
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover"
+                />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="p-0 w-64 bg-secondary">
+              <UserSidebar isExpanded={true} className="flex h-full w-full" />
+            </SheetContent>
+          </Sheet>
         </header>
 
         {/* Main Content Area */}

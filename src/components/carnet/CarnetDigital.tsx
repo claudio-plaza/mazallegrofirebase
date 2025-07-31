@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Socio, MiembroFamiliar, AptoMedicoInfo } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Download, UserCircle, ShieldCheck, ShieldAlert, CalendarClock, AlertTriangle, CheckCircle2, XCircle, Users, QrCode, UserSquare2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, normalizeText } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
 import { cn } from '@/lib/utils';
+import html2canvas from 'html2canvas';
 
 type DisplayablePerson = {
   id: string;
@@ -40,6 +41,7 @@ export function CarnetDigital() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const fetchSocioData = useCallback(async () => {
     const titularIdFromQuery = searchParams.get('titularId');
@@ -100,11 +102,59 @@ export function CarnetDigital() {
     return () => window.removeEventListener('sociosDBUpdated', handleSociosDBUpdate);
   }, [fetchSocioData]);
 
-  const handleDownloadPdf = () => {
-    toast({
-      title: 'Función no implementada',
-      description: 'La descarga de PDF será implementada próximamente.',
-    });
+  const handleDownloadImage = () => {
+    if (cardRef.current) {
+      html2canvas(cardRef.current).then(canvas => {
+        const image = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = 'carnet-digital.png';
+        link.click();
+      });
+    }
+  };
+
+  const handleDownloadQrWithName = () => {
+    if (!selectedPersonData) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const qrImg = document.createElement('img');
+    qrImg.crossOrigin = 'Anonymous'; // Important for loading external images onto canvas
+    qrImg.src = qrCodeUrl;
+
+    qrImg.onload = () => {
+      // Setup canvas dimensions
+      const padding = 20; // Padding around QR
+      const fontSize = 24;
+      const textHeight = fontSize + 10; // Approximate height for the text line
+      canvas.width = qrImg.width + padding * 2;
+      canvas.height = qrImg.height + padding * 2 + textHeight;
+
+      // White background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw name
+      ctx.fillStyle = 'black';
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`${selectedPersonData.nombre} ${selectedPersonData.apellido}`, canvas.width / 2, padding + fontSize);
+
+      // Draw QR code
+      ctx.drawImage(qrImg, padding, padding + textHeight);
+
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `qr-${normalizeText(selectedPersonData.apellido)}.png`;
+      link.click();
+    };
+    qrImg.onerror = () => {
+        toast({ title: "Error de descarga", description: "No se pudo cargar la imagen del QR para la descarga.", variant: "destructive" });
+    }
   };
   
   const displayablePeopleOptions = titularData
@@ -190,12 +240,13 @@ export function CarnetDigital() {
 
   const aptoStatus = getAptoMedicoStatus(selectedPersonData.aptoMedico, selectedPersonData.fechaNacimiento);
   
-  const qrData = `Socio N°: ${titularData.numeroSocio}\nTitular: ${titularData.nombre} ${titularData.apellido}\nVerificado por: ${siteConfig.name}`;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const qrData = `${baseUrl}/carnet?titularId=${titularData.numeroSocio}&memberDni=${selectedPersonData.dni}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&format=png&bgcolor=ffffff&color=ed771b&qzone=1`; // Updated QR color
   const esTitularSeleccionado = selectedPersonData.id === titularData.id;
 
   return (
-    <Card className={cn(
+    <Card ref={cardRef} className={cn(
         "w-full max-w-md mx-auto shadow-2xl rounded-xl overflow-hidden border-0",
         "bg-gradient-to-br from-primary to-secondary text-primary-foreground" // Gradient background
       )}>
@@ -203,7 +254,7 @@ export function CarnetDigital() {
         <div className="flex items-center justify-between">
             <UserSquare2 className="h-8 w-8 opacity-80" />
             <CardTitle className="text-2xl font-bold">{siteConfig.name}</CardTitle>
-            <Image src="https://placehold.co/40x40.png" alt="[Tu Logo]" width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
+            <Image src="/logo.png" alt="[Tu Logo]" width={40} height={40} data-ai-hint="club logo" className="rounded-sm opacity-90"/>
         </div>
       </CardHeader>
       
@@ -304,16 +355,21 @@ export function CarnetDigital() {
         <Separator className="bg-primary-foreground/20" />
 
         <div className="flex flex-col items-center space-y-2 pt-2">
+          <h3 className="text-lg font-semibold text-primary-foreground/90 -mb-1">{selectedPersonData.nombre} {selectedPersonData.apellido}</h3>
           <Image src={qrCodeUrl} alt={`QR Code para ${titularData.numeroSocio}`} width={150} height={150} className="rounded-lg shadow-md border-4 border-white bg-white p-1" data-ai-hint="access qr code" />
           <p className="text-xs text-primary-foreground/70 text-center px-4">Presentar este código para ingreso y gestiones. Válido para todo el grupo familiar.</p>
         </div>
         
       </CardContent>
-      <CardFooter className="p-4 bg-black/10 border-t border-primary-foreground/20">
-        <Button onClick={handleDownloadPdf} variant="outline" size="sm"
+      <CardFooter className="p-4 bg-black/10 border-t border-primary-foreground/20 flex flex-col gap-2">
+        <Button onClick={handleDownloadQrWithName} variant="outline" size="sm" className="w-full bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
+          <QrCode className="mr-2 h-4 w-4" />
+          Descargar QR de Acceso
+        </Button>
+        <Button onClick={handleDownloadImage} variant="outline" size="sm"
                 className="w-full bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
           <Download className="mr-2 h-4 w-4" />
-          Descargar PDF (Próximamente)
+          Descargar Tarjeta (Imagen)
         </Button>
       </CardFooter>
     </Card>

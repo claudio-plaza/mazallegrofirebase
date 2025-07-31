@@ -1,7 +1,8 @@
 
 'use client';
 
-import { Smartphone, ExternalLink } from 'lucide-react'; // Using Smartphone as a generic contact icon
+import { ExternalLink } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -24,12 +25,11 @@ export function WhatsAppBubble() {
       <Popover>
         <PopoverTrigger asChild>
           <Button
-            variant="default" // Uses primary color (orange)
             size="lg"
-            className="rounded-full shadow-lg w-16 h-16 p-0 flex items-center justify-center"
+            className="rounded-full shadow-lg w-16 h-16 p-0 flex items-center justify-center bg-white"
             aria-label="Contactar por WhatsApp"
           >
-            <Smartphone className="h-8 w-8 text-primary-foreground" />
+            <Image src="/whatsapp.png" alt="WhatsApp" width={32} height={32} className="h-8 w-8" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-4 rounded-lg shadow-xl bg-background border-border">

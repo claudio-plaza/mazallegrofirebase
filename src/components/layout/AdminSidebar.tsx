@@ -36,14 +36,14 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
     <TooltipProvider delayDuration={0}>
       <aside className={cn("flex flex-col bg-card border-r", className)}>
         <div className={cn(
-          "h-16 flex items-center border-b transition-all duration-300",
+          "h-16 flex items-center border-b transition-all duration-300 bg-white",
           isExpanded ? "justify-start px-4" : "justify-center px-2"
         )}>
           <Link href="/dashboard" className="flex items-center space-x-2">
             {isExpanded ? (
               <Image 
-                  src="https://placehold.co/153x76.png" 
-                  alt="[Tu Logo]"
+                  src="/logo-largo.jpg" 
+                  alt="Logo Mazallegro"
                   data-ai-hint="company logo"
                   width={120} 
                   height={60}
@@ -52,8 +52,8 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
               />
             ) : (
                <Image 
-                  src="https://placehold.co/40x40.png" 
-                  alt="[Tu Logo]"
+                  src="/logo.png" 
+                  alt="Logo Circular Mazallegro"
                   data-ai-hint="club logo"
                   width={40} 
                   height={40}

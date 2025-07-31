@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { allFeatures, siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, LogOut } from 'lucide-react';
+import { ChevronLeft, LogOut, Instagram, Facebook } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,14 +35,14 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
     <TooltipProvider delayDuration={0}>
       <aside className={cn("flex flex-col bg-secondary text-secondary-foreground border-r border-secondary-foreground/20", className)}>
         <div className={cn(
-          "h-16 flex items-center border-b border-secondary-foreground/20 transition-all duration-300",
+          "h-16 flex items-center border-b border-secondary-foreground/20 transition-all duration-300 bg-white",
           isExpanded ? "justify-start px-4" : "justify-center px-2"
         )}>
           <Link href="/dashboard" className="flex items-center space-x-2">
             {isExpanded ? (
               <Image 
-                  src="https://placehold.co/153x76.png" 
-                  alt="[Tu Logo]"
+                  src="/logo-largo.jpg" 
+                  alt="Logo Mazallegro"
                   data-ai-hint="company logo"
                   width={120} 
                   height={60}
@@ -51,8 +51,8 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
               />
             ) : (
                <Image 
-                  src="https://placehold.co/40x40.png" 
-                  alt="[Tu Logo]"
+                  src="/logo.png" 
+                  alt="Logo Circular Mazallegro"
                   data-ai-hint="club logo"
                   width={40} 
                   height={40}
@@ -82,15 +82,41 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
                   </Button>
                 </Link>
               </TooltipTrigger>
-              {!isExpanded && (
-                <TooltipContent side="right">
-                  <p>{feature.title}</p>
-                </TooltipContent>
-              )}
+              <TooltipContent side="right" className={cn(isExpanded && "hidden")}>
+                <p>{feature.title}</p>
+              </TooltipContent>
             </Tooltip>
           ))}
         </nav>
         <div className="p-2 border-t border-secondary-foreground/20 mt-auto">
+           <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="https://www.instagram.com/allegroeventosmza/?hl=es" target="_blank" rel="noopener noreferrer">
+                  <Button 
+                    variant="ghost" 
+                    className={cn("w-full text-secondary-foreground hover:bg-primary/20", !isExpanded && "justify-center p-0")}
+                  >
+                    <Image src="/instagram.png" alt="Instagram" width={20} height={20} className={cn("h-5 w-5", isExpanded && "mr-2")} />
+                    <span className={cn(!isExpanded && "sr-only")}>Instagram</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className={cn(isExpanded && "hidden")}><p>Instagram</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="https://www.facebook.com/AllegroEventosMendoza/reels/?_rdr" target="_blank" rel="noopener noreferrer">
+                  <Button 
+                    variant="ghost" 
+                    className={cn("w-full text-secondary-foreground hover:bg-primary/20", !isExpanded && "justify-center p-0")}
+                  >
+                    <Image src="/facebook.png" alt="Facebook" width={20} height={20} className={cn("h-5 w-5", isExpanded && "mr-2")} />
+                    <span className={cn(!isExpanded && "sr-only")}>Facebook</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className={cn(isExpanded && "hidden")}><p>Facebook</p></TooltipContent>
+            </Tooltip>
            <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -102,9 +128,7 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
                   <span className={cn(!isExpanded && "sr-only")}>Cerrar Sesión</span>
                 </Button>
               </TooltipTrigger>
-              {!isExpanded && (
-                <TooltipContent side="right"><p>Cerrar Sesión</p></TooltipContent>
-              )}
+              <TooltipContent side="right" className={cn(isExpanded && "hidden")}><p>Cerrar Sesión</p></TooltipContent>
             </Tooltip>
           {onToggle && (
             <Button variant="ghost" className={cn("w-full mt-1 hover:bg-primary/20", !isExpanded && "justify-center p-0")} onClick={onToggle}>

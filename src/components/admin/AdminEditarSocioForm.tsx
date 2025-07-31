@@ -71,6 +71,17 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     name: "grupoFamiliar",
   });
 
+  const fotoTitularActual = useMemo(() => {
+    const watchedFotoPerfil = form.watch('fotoPerfil');
+    if (typeof window !== 'undefined' && watchedFotoPerfil instanceof File) {
+      return URL.createObjectURL(watchedFotoPerfil);
+    }
+    if (typeof watchedFotoPerfil === 'string') {
+      return watchedFotoPerfil;
+    }
+    return socio?.fotoPerfil || `https://placehold.co/128x128.png?text=${socio?.nombre[0] || 'S'}${socio?.apellido[0] || ''}`;
+  }, [form, socio]);
+
   const tipoGrupoFamiliarSeleccionado = form.watch('tipoGrupoFamiliar');
 
   useEffect(() => {
@@ -189,7 +200,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
     }
 
     // 3. Construct the final payload with correctly typed properties
-    const { grupoFamiliar, fotoPerfil, fotoDniFrente, fotoDniDorso, fotoCarnet, ...restOfData } = data;
+    const { grupoFamiliar, fotoPerfil, fotoDniFrente, fotoDniDorso, fotoCarnet, tipoGrupoFamiliar, ...restOfData } = data;
 
     const updatePayload: Partial<Socio> & { id: string } = {
         id: socio.id,
@@ -297,17 +308,6 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
   if (!socio) {
     return <p className="text-center text-destructive">Socio no encontrado.</p>;
   }
-  
-  const fotoTitularActual = useMemo(() => {
-    const watchedFotoPerfil = form.watch('fotoPerfil');
-    if (typeof window !== 'undefined' && watchedFotoPerfil instanceof File) {
-      return URL.createObjectURL(watchedFotoPerfil);
-    }
-    if (typeof watchedFotoPerfil === 'string') {
-      return watchedFotoPerfil;
-    }
-    return socio?.fotoPerfil || `https://placehold.co/128x128.png?text=${socio?.nombre[0] || 'S'}${socio?.apellido[0] || ''}`;
-  }, [form, socio]);
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
 
@@ -413,9 +413,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                     {renderFotoInput('fotoPerfil', 'Foto de Perfil', true)}
-                    {renderFotoInput('fotoDniFrente', 'DNI Frente', false)}
-                    {renderFotoInput('fotoDniDorso', 'DNI Dorso', false)}
-                    {renderFotoInput('fotoCarnet', 'Foto Carnet', false)}
+                    {renderFotoInput('fotoDniFrente', 'DNI Frente', true)}
+                    {renderFotoInput('fotoDniDorso', 'DNI Dorso', true)}
+                    {renderFotoInput('fotoCarnet', 'Foto Carnet', true)}
                 </div>
             </section>
             <Separator />
@@ -443,7 +443,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                     const familiarData = socio.grupoFamiliar?.find(f => f.id === field.id || f.dni === field.dni);
                     const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
                     
-                    const fotoPerfilFamiliarActual = useMemo(() => {
+                    const getFotoPerfilFamiliarActual = () => {
                         const watchedFoto = form.watch(`grupoFamiliar.${index}.fotoPerfil`);
                         if (typeof window !== 'undefined' && watchedFoto instanceof File) {
                             return URL.createObjectURL(watchedFoto);
@@ -452,7 +452,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             return watchedFoto;
                         }
                         return familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || 'F'}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`;
-                    }, [form, familiarData, index]);
+                    };
+
+                    const fotoPerfilFamiliarActual = getFotoPerfilFamiliarActual();
 
 
                     return (
@@ -511,9 +513,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <h5 className="text-sm font-semibold mt-2 mb-1">Documentación Familiar {index + 1}</h5>
                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {renderFotoInput(`grupoFamiliar.${index}.fotoPerfil` as FotoFieldNameFamiliar, 'Foto de Perfil', true)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'DNI Frente', false)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'DNI Dorso', false)}
-                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet', false)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniFrente` as FotoFieldNameFamiliar, 'DNI Frente', true)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoDniDorso` as FotoFieldNameFamiliar, 'DNI Dorso', true)}
+                                {renderFotoInput(`grupoFamiliar.${index}.fotoCarnet` as FotoFieldNameFamiliar, 'Foto Carnet', true)}
                              </div>
                         </Card>
                     );
