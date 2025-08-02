@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Socio, MiembroFamiliar, AptoMedicoInfo } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -104,7 +104,7 @@ export function CarnetDigital() {
 
   const handleDownloadImage = () => {
     if (cardRef.current) {
-      html2canvas(cardRef.current).then(canvas => {
+      html2canvas(cardRef.current, { scale: 2 }).then(canvas => {
         const image = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = image;
@@ -361,7 +361,7 @@ export function CarnetDigital() {
         </div>
         
       </CardContent>
-      <CardFooter className="p-4 bg-black/10 border-t border-primary-foreground/20 flex flex-col gap-2">
+      <div className="p-4 bg-black/10 border-t border-primary-foreground/20 flex flex-col gap-2">
         <Button onClick={handleDownloadQrWithName} variant="outline" size="sm" className="w-full bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
           <QrCode className="mr-2 h-4 w-4" />
           Descargar QR de Acceso
@@ -371,7 +371,7 @@ export function CarnetDigital() {
           <Download className="mr-2 h-4 w-4" />
           Descargar Tarjeta (Imagen)
         </Button>
-      </CardFooter>
+      </div>
     </Card>
   );
 }

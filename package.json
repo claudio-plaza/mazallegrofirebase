@@ -34,13 +34,13 @@
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@tanstack/react-query": "^5.51.15",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "firebase": "^10.12.4",
     "genkit": "^1.0.0",
     "html2canvas": "^1.4.1",
-    "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.417.0",
@@ -55,12 +55,10 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "20",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.4",
-    "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },

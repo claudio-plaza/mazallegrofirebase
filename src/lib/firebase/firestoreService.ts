@@ -95,9 +95,30 @@ const revisionConverter = createConverter<RevisionMedica>();
 const solicitudConverter = createConverter<SolicitudInvitadosDiarios>();
 const novedadConverter = createConverter<Novedad>();
 
+import imageCompression from 'browser-image-compression';
+
 // --- File Upload Service ---
 export const uploadFile = async (file: File, path: string): Promise<string> => {
   if (!storage) throw new Error("Firebase Storage not initialized.");
+
+  // Comprimir la imagen si es un tipo de archivo de imagen
+  const imageFileTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (imageFileTypes.includes(file.type)) {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+    try {
+      const compressedFile = await imageCompression(file, options);
+      console.log(`Imagen comprimida exitosamente: ${compressedFile.size / 1024 / 1024} MB`);
+      file = compressedFile;
+    } catch (error) {
+      console.error('Error al comprimir la imagen:', error);
+      // Continuar con el archivo original si la compresión falla
+    }
+  }
+
   const storageRef = ref(storage, path);
   const snapshot = await uploadBytes(storageRef, file);
   return getDownloadURL(snapshot.ref);
