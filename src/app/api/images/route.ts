@@ -15,6 +15,10 @@ export async function GET(
       return new NextResponse('Image path is required', { status: 400 });
     }
 
+    if (!storage) {
+      return new NextResponse('Firebase storage is not initialized', { status: 500 });
+    }
+
     const storageRef = ref(storage, imagePath);
     const encryptedBytes = await getBytes(storageRef);
     const encryptedBuffer = Buffer.from(encryptedBytes);
