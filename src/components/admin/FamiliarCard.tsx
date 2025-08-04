@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RelacionFamiliar } from '@/types';
 import { getEncryptedImageUrl } from '@/lib/helpers';
+import { FileInput } from '@/components/ui/file-input';
 
 interface FamiliarCardProps {
   index: number;
