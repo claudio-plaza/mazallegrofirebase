@@ -18,7 +18,7 @@ import { formatDate, getAptoMedicoStatus, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
-import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
+import { getEncryptedImageUrl } from '@/lib/helpers';
 import { Separator } from '../ui/separator';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -77,9 +77,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
       return URL.createObjectURL(watchedFotoPerfil);
     }
     if (typeof watchedFotoPerfil === 'string') {
-      return watchedFotoPerfil;
+      return getEncryptedImageUrl(watchedFotoPerfil);
     }
-    return socio?.fotoPerfil || `https://placehold.co/128x128.png?text=${socio?.nombre[0] || 'S'}${socio?.apellido[0] || ''}`;
+    return socio?.fotoPerfil ? getEncryptedImageUrl(socio.fotoPerfil) : `https://placehold.co/128x128.png?text=${socio?.nombre[0] || 'S'}${socio?.apellido[0] || ''}`;
   }, [form, socio]);
 
   const tipoGrupoFamiliarSeleccionado = form.watch('tipoGrupoFamiliar');
@@ -232,7 +232,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         newFileName = currentFieldValue.name;
       }
     } else if (typeof currentFieldValue === 'string') {
-      displayUrl = currentFieldValue;
+      displayUrl = getEncryptedImageUrl(currentFieldValue);
     }
   
     return (
@@ -449,9 +449,9 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             return URL.createObjectURL(watchedFoto);
                         }
                         if (typeof watchedFoto === 'string') {
-                            return watchedFoto;
+                            return getEncryptedImageUrl(watchedFoto);
                         }
-                        return familiarData?.fotoPerfil || `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || 'F'}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`;
+                        return familiarData?.fotoPerfil ? getEncryptedImageUrl(familiarData.fotoPerfil) : `https://placehold.co/64x64.png?text=${form.watch(`grupoFamiliar.${index}.nombre`)?.[0] || 'F'}${form.watch(`grupoFamiliar.${index}.apellido`)?.[0] || ''}`;
                     };
 
                     const fotoPerfilFamiliarActual = getFotoPerfilFamiliarActual();

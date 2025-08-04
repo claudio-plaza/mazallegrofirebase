@@ -92,6 +92,11 @@ export function LoginForm() {
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
+                  <div className="text-right">
+                    <Link href="/olvide-mi-contrasena" className="text-sm font-medium text-primary hover:underline">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
                 </FormItem>
               )}
             />

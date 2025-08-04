@@ -12,7 +12,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RelacionFamiliar } from '@/types';
-import { FileInput } from '@/components/ui/file-input';
+import { getEncryptedImageUrl } from '@/lib/helpers';
 
 interface FamiliarCardProps {
   index: number;
@@ -33,7 +33,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
       return URL.createObjectURL(fotoPerfilFamiliarValue);
     }
     if (typeof fotoPerfilFamiliarValue === 'string') {
-      return fotoPerfilFamiliarValue;
+      return getEncryptedImageUrl(fotoPerfilFamiliarValue);
     }
     return `https://placehold.co/64x64.png?text=${nombre?.[0] || 'F'}${apellido?.[0] || ''}`;
   }, [fotoPerfilFamiliarValue, nombre, apellido]);

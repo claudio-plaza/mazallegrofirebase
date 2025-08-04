@@ -95,6 +95,7 @@ const revisionConverter = createConverter<RevisionMedica>();
 const solicitudConverter = createConverter<SolicitudInvitadosDiarios>();
 const novedadConverter = createConverter<Novedad>();
 
+import { encrypt } from '../crypto';
 import imageCompression from 'browser-image-compression';
 
 // --- File Upload Service ---
@@ -120,7 +121,13 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
   }
 
   const storageRef = ref(storage, path);
-  const snapshot = await uploadBytes(storageRef, file);
+
+  // Encrypt the file
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const encryptedBuffer = encrypt(buffer);
+
+  const snapshot = await uploadBytes(storageRef, encryptedBuffer);
   return getDownloadURL(snapshot.ref);
 };
 

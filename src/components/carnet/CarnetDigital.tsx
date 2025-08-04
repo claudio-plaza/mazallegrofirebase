@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Download, UserCircle, ShieldCheck, ShieldAlert, CalendarClock, AlertTriangle, CheckCircle2, XCircle, Users, QrCode, UserSquare2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus, normalizeText } from '@/lib/helpers';
+import { getEncryptedImageUrl, formatDate, getAptoMedicoStatus, normalizeText } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
@@ -179,7 +179,7 @@ export function CarnetDigital() {
             dni: titular.dni,
             aptoMedico: titular.aptoMedico,
             fechaNacimiento: titular.fechaNacimiento,
-            fotoFinalUrl: titular.fotoUrl || titular.fotoPerfil || `https://placehold.co/150x150.png`,
+            fotoFinalUrl: getEncryptedImageUrl(titular.fotoUrl || titular.fotoPerfil),
             numeroSocio: titular.numeroSocio,
             miembroDesde: titular.miembroDesde,
             relacion: 'Titular'
@@ -195,7 +195,7 @@ export function CarnetDigital() {
             dni: familiar.dni,
             aptoMedico: familiar.aptoMedico,
             fechaNacimiento: familiar.fechaNacimiento,
-            fotoFinalUrl: (familiar.fotoPerfil as string) || `https://placehold.co/150x150.png`,
+            fotoFinalUrl: getEncryptedImageUrl(familiar.fotoPerfil as string),
             relacion: familiar.relacion
         };
     }

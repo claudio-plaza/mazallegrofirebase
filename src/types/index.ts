@@ -244,15 +244,15 @@ export interface FileSchemaConfig {
 export const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, o PDF para DNI.",
-  mimeTypes: ["image/png", "image/jpeg", "application/pdf"],
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, JPEG, TIFF o PDF para DNI.",
+  mimeTypes: ["image/png", "image/jpeg", "image/tiff", "application/pdf"],
 };
 
 export const profileFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen.",
   sizeError: `La foto de perfil no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG o JPG para foto de perfil.",
-  mimeTypes: ["image/png", "image/jpeg"],
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, JPEG o TIFF para foto de perfil.",
+  mimeTypes: ["image/png", "image/jpeg", "image/tiff"],
 };
 
 const fileSchema = z.union([
@@ -277,17 +277,20 @@ export const optionalFileField = (config: FileSchemaConfig) =>
 
 
 export const signupTitularSchema = z.object({
-  apellido: z.string().min(2, "Apellido es requerido."),
-  nombre: z.string().min(2, "Nombre es requerido."),
+  apellido: z.string().min(2, "Apellido es requerido.").regex(/^[a-zA-Z\s]+$/, "Apellido solo debe contener letras y espacios."),
+  nombre: z.string().min(2, "Nombre es requerido.").regex(/^[a-zA-Z\s]+$/, "Nombre solo debe contener letras y espacios."),
   fechaNacimiento: safeDate.refine(date => date <= subYears(new Date(), 18), {
     message: "Debe ser mayor de 18 años."
   }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.string().optional().or(z.literal('')),
+  empresa: z.string().regex(/^[a-zA-Z\s]*$/, "Empresa solo debe contener letras y espacios.").optional(),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
-  direccion: z.string().min(5, "Dirección es requerida."),
+  direccion: z.string().min(5, "Dirección es requerida.").regex(/^[a-zA-Z0-9\s]+$/, "Dirección solo debe contener letras, números y espacios."),
   email: z.string().email("Email inválido."),
-  password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres.'),
+  password: z.string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres.')
+    .regex(/[A-Z]/, 'La contraseña debe contener al menos una mayúscula.')
+    .regex(/[0-9]/, 'La contraseña debe contener al menos un número.'),
   confirmPassword: z.string(),
   fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
   fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),

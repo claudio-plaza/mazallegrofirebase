@@ -138,3 +138,13 @@ export const esFechaRestringidaParaCumpleanos = (fecha: Date): boolean => {
 
   return false;
 };
+
+export const getEncryptedImageUrl = (path: string | undefined | null): string => {
+  if (!path) {
+    // Return a path to a default/placeholder image
+    return '/placeholder.png'; 
+  }
+  // Remove any leading slashes from the path to prevent double slashes in the URL
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  return `/api/images/${cleanPath}`;
+};

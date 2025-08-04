@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase/config';
 import type { SignupTitularData } from '@/types';
@@ -100,5 +101,21 @@ export const logoutUser = async () => {
       description: 'No se pudo cerrar la sesión.',
       variant: 'destructive',
     });
+  }
+};
+
+export const sendPasswordReset = async (email: string) => {
+  try {
+    if (!auth) throw new Error("Auth service not initialized.");
+    await sendPasswordResetEmail(auth, email);
+    return true;
+  } catch (error: any) {
+    console.error("Firebase password reset error:", error);
+    toast({
+      title: 'Error',
+      description: 'No se pudo enviar el correo de restablecimiento. Por favor, intente de nuevo.',
+      variant: 'destructive',
+    });
+    return false;
   }
 };

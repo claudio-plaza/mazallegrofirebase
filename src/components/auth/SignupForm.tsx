@@ -247,7 +247,7 @@ export function SignupForm() {
                   name="empresa"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Empresa / Sindicato</FormLabel>
+                      <FormLabel>Empresa / Sindicato (Opcional)</FormLabel>
                       <FormControl>
                         <div className="relative">
                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -320,7 +320,8 @@ export function SignupForm() {
             <Separator />
 
             <section>
-              <h3 className="text-xl font-semibold mb-4 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
+              <h3 className="text-xl font-semibold mb-2 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
+              <p className="text-sm text-muted-foreground mb-4">Formatos admitidos: PNG, JPG, JPEG, TIFF, PDF.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   <FormField
                     control={form.control}
@@ -388,7 +389,7 @@ export function SignupForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
-                      <FormControl><Input type="password" placeholder="Al menos 6 caracteres" {...field} /></FormControl>
+                      <FormControl><Input type="password" placeholder="Mín. 8 caracteres, 1 mayúscula, 1 número" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

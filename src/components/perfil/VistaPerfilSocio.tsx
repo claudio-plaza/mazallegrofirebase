@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate, getAptoMedicoStatus } from '@/lib/helpers';
+import { getEncryptedImageUrl, formatDate, getAptoMedicoStatus } from '@/lib/helpers';
 import { UserCircle, Users, Calendar, ShieldCheck, ShieldAlert, Mail, Phone, MapPin, Briefcase, LogInIcon, Info, UserSquare2, MailQuestion, XSquare, AlertTriangle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -70,7 +70,7 @@ export function VistaPerfilSocio() {
   }
 
   const aptoStatusTitular = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
-  const fotoTitular = socio.fotoUrl || socio.fotoPerfil || `https://placehold.co/128x128.png`;
+  const fotoTitular = getEncryptedImageUrl(socio.fotoUrl || socio.fotoPerfil);
 
 
   const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value?: string | null }) => (
@@ -198,7 +198,7 @@ export function VistaPerfilSocio() {
                     <Accordion type="multiple" className="w-full">
                     {socio.grupoFamiliar.map((familiar, index) => {
                         const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico, familiar.fechaNacimiento);
-                        const fotoFamiliar = familiar.fotoPerfil || `https://placehold.co/96x96.png`;
+                        const fotoFamiliar = getEncryptedImageUrl(familiar.fotoPerfil);
                         return (
                         <AccordionItem value={`familiar-${index}`} key={familiar.dni || index}>
                             <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 rounded-md">
