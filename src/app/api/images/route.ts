@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   try {
-    const imagePath = params.path.join('/');
+    const imagePath = params?.path?.join('/');
     if (!imagePath) {
       return new NextResponse('Image path is required', { status: 400 });
     }
