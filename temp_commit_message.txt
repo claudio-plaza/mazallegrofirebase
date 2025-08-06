@@ -1,0 +1,3 @@
+fix: Handle undefined params.path in image API route
+
+This commit adds optional chaining to params.path in src/app/api/images/route.ts to prevent errors when params or params.path are undefined. This addresses the 'Cannot read properties of undefined (reading 'path')' error during static page generation.

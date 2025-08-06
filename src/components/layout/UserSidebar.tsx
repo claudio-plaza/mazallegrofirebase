@@ -47,6 +47,7 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
                   width={120} 
                   height={60}
                   className="h-auto" 
+                  style={{ width: 'auto' }}
                   priority 
               />
             ) : (

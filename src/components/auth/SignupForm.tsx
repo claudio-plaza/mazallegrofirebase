@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck, FileWarning } from 'lucide-react';
+import { UserPlus, FileText, UploadCloud, Trash2, UserCircle, Mail, Phone, MapPin, KeyRound, Building, CalendarDays, BadgeCheck, FileWarning, Eye, EyeOff } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { signupTitularSchema, type SignupTitularData, dniFileSchemaConfig, profileFileSchemaConfig } from '@/types';
 import { format, parseISO, subYears } from 'date-fns';
@@ -109,6 +109,8 @@ export function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const eighteenYearsAgo = subYears(new Date(), 18);
@@ -389,7 +391,20 @@ export function SignupForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
-                      <FormControl><Input type="password" placeholder="Mín. 8 caracteres, 1 mayúscula, 1 número" {...field} /></FormControl>
+                      <FormControl>
+                        <div className="relative">
+                          <Input type={showPassword ? 'text' : 'password'} placeholder="Mín. 8 caracteres, 1 mayúscula, 1 número" {...field} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute inset-y-0 right-0 h-full px-3 py-2 text-muted-foreground"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -400,7 +415,20 @@ export function SignupForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Confirmar Contraseña</FormLabel>
-                      <FormControl><Input type="password" placeholder="Repita su contraseña" {...field} /></FormControl>
+                      <FormControl>
+                        <div className="relative">
+                          <Input type={showConfirmPassword ? 'text' : 'password'} placeholder="Repita su contraseña" {...field} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute inset-y-0 right-0 h-full px-3 py-2 text-muted-foreground"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

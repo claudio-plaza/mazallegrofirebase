@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import { WhatsAppBubble } from '@/components/layout/WhatsAppBubble';
 import { siteConfig } from '@/config/site';
@@ -11,14 +11,39 @@ import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isLoggedIn, userRole, isLoading, socio } = useAuth();
+  const router = useRouter(); // Import and use router
   const isAdminRoute = pathname.startsWith('/admin');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Define public routes
+  const publicPaths = ['/', '/login', '/signup', '/olvide-mi-contrasena'];
+  const isPublicRoute = publicPaths.includes(pathname);
+
+  useEffect(() => {
+    if (!isLoading && !isLoggedIn && !isPublicRoute) {
+      router.push('/login');
+    }
+  }, [isLoading, isLoggedIn, isPublicRoute, router]);
+
+  // Display a full-page loader while authentication is in progress or redirecting
+  if (isLoading || !isMounted || (!isLoggedIn && !isPublicRoute)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/40">
+        <div className="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-primary"></div>
+      </div>
+    );
+  }
 
   // When routing through the main dashboard, if the user is still loading OR they have a role that
   // will be redirected away from the user dashboard, show a layout-less page.
@@ -32,9 +57,7 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Define public routes that should never show the user sidebar
-  const publicPaths = ['/', '/login', '/signup'];
-  const isPublicRoute = publicPaths.includes(pathname);
+  
 
   // Public routes (not logged in OR explicitly public paths) have a simple layout with a header
   if (!isLoggedIn || isPublicRoute) {
@@ -78,6 +101,7 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
                 width={100} 
                 height={50}
                 className="h-auto"
+                style={{ width: 'auto' }}
                 priority
              />
           </Link>

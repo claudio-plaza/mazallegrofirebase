@@ -15,12 +15,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/auth'; 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { LogIn } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 
 const loginSchema = z.object({
@@ -33,6 +34,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -89,7 +91,18 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Contraseña</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <div className="relative">
+                      <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute inset-y-0 right-0 h-full px-3 py-2 text-muted-foreground"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                   <div className="text-right">

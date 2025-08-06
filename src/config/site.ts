@@ -1,6 +1,6 @@
-
 import type { QuickAccessFeature } from '@/types';
 import { 
+    Home,
     Users, 
     FileText, 
     UserPlus, 
@@ -24,6 +24,14 @@ export const siteConfig = {
 // Non-socio roles are redirected directly to their specific pages from the main dashboard gatekeeper.
 export const allFeatures: QuickAccessFeature[] = [
   // --- Socio Features ---
+  {
+    id: 'inicio',
+    title: 'Inicio',
+    description: 'Página de inicio.',
+    icon: Home,
+    href: '/dashboard',
+    roles: ['socio'],
+  },
   {
     id: 'mi-perfil-vista',
     title: 'Mi Perfil',
