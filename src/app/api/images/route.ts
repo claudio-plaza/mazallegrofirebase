@@ -27,7 +27,7 @@ export async function GET(
 
     const mimeType = lookup(imagePath) || 'application/octet-stream';
 
-    return new NextResponse(decryptedBuffer.buffer, {
+    return new NextResponse(decryptedBuffer, {
       status: 200,
       headers: {
         'Content-Type': mimeType,
