@@ -2,7 +2,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 const algorithm = 'aes-256-gcm';
-const key = Buffer.from(process.env.IMAGE_ENCRYPTION_KEY || '', 'hex');
+let key = Buffer.from(process.env.IMAGE_ENCRYPTION_KEY || '', 'hex');
 
 if (!process.env.IMAGE_ENCRYPTION_KEY || key.length !== 32) {
   if (process.env.NODE_ENV === 'production') {
@@ -12,7 +12,7 @@ if (!process.env.IMAGE_ENCRYPTION_KEY || key.length !== 32) {
       'IMAGE_ENCRYPTION_KEY is not set or is invalid. Using a temporary key for development. Please set a proper key in .env.local'
     );
     // Use a temporary, non-secure key for development if none is provided
-    process.env.IMAGE_ENCRYPTION_KEY = 'a3b8c1d4e7f2a1b3c5d6e8f1a3b8c1d4e7f2a1b3c5d6e8f1a3b8c1d4e7f2a1b3';
+    key = Buffer.from('a3b8c1d4e7f2a1b3c5d6e8f1a3b8c1d4e7f2a1b3c5d6e8f1a3b8c1d4e7f2a1b3', 'hex');
   }
 }
 

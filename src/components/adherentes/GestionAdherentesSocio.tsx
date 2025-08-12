@@ -58,14 +58,12 @@ export function GestionAdherentesSocio() {
       apellido: '',
       dni: '',
       fechaNacimiento: new Date(),
-      empresa: '',
       telefono: '',
       direccion: '',
       email: '',
       fotoDniFrente: null,
       fotoDniDorso: null,
       fotoPerfil: null,
-      fotoCarnet: null,
     },
   });
 
@@ -93,7 +91,6 @@ export function GestionAdherentesSocio() {
       nombre: data.nombre,
       apellido: data.apellido,
       dni: data.dni,
-      empresa: data.empresa,
       telefono: data.telefono,
       direccion: data.direccion,
       email: data.email,
@@ -101,7 +98,6 @@ export function GestionAdherentesSocio() {
       fotoDniFrente: await uploadAndGetUrl(data.fotoDniFrente, `adherentes/${adherenteId}_dniFrente.jpg`),
       fotoDniDorso: await uploadAndGetUrl(data.fotoDniDorso, `adherentes/${adherenteId}_dniDorso.jpg`),
       fotoPerfil: await uploadAndGetUrl(data.fotoPerfil, `adherentes/${adherenteId}_perfil.jpg`),
-      fotoCarnet: await uploadAndGetUrl(data.fotoCarnet, `adherentes/${adherenteId}_carnet.jpg`),
       estadoAdherente: EstadoAdherente.INACTIVO,
       estadoSolicitud: EstadoSolicitudAdherente.PENDIENTE,
       aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión médica inicial' },
@@ -223,22 +219,6 @@ export function GestionAdherentesSocio() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="empresa"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Empresa / Sindicato</FormLabel>
-                       <FormControl>
-                        <div className="relative">
-                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                           <Input placeholder="Nombre de la empresa o sindicato" {...field} className="pl-10" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <FormField control={form.control} name="telefono" render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" placeholder="Teléfono de contacto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" placeholder="Email de contacto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                  <FormField control={form.control} name="direccion" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input placeholder="Dirección del adherente" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -247,16 +227,15 @@ export function GestionAdherentesSocio() {
               <Separator className="my-6" />
               <h4 className="text-md font-semibold mb-3">Documentación del Adherente</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil', 'fotoCarnet'] as const).map(docType => {
-                      const isOptional = docType === 'fotoCarnet';
+                  {(['fotoDniFrente', 'fotoDniDorso', 'fotoPerfil'] as const).map(docType => {
+                      const isOptional = false;
                       let labelText = '';
                         switch(docType) {
                             case 'fotoDniFrente': labelText = 'DNI Frente'; break;
                             case 'fotoDniDorso': labelText = 'DNI Dorso'; break;
                             case 'fotoPerfil': labelText = 'Foto Perfil'; break;
-                            case 'fotoCarnet': labelText = 'Foto Carnet (Opcional)'; break;
                         }
-                      const placeholderText = docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
+                      const placeholderText = docType === 'fotoPerfil' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
 
                       return (
                         <FormField
@@ -271,7 +250,7 @@ export function GestionAdherentesSocio() {
                                         onValueChange={onChange} 
                                         value={value} 
                                         placeholder={placeholderText} 
-                                        accept={docType === 'fotoPerfil' || docType === 'fotoCarnet' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
+                                        accept={docType === 'fotoPerfil' ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} 
                                         {...rest} 
                                     />
                                   </FormControl>

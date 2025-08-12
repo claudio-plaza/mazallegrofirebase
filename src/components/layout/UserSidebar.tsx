@@ -69,7 +69,7 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
               <TooltipTrigger asChild>
                 <Link href={feature.href} passHref>
                   <Button
-                    variant={pathname.startsWith(feature.href) ? 'default' : 'ghost'}
+                    variant={pathname === feature.href || (feature.id === 'mi-perfil-vista' && pathname.startsWith('/mi-perfil')) ? 'default' : 'ghost'}
                     className={cn(
                       "w-full text-sm h-11",
                       pathname.startsWith(feature.href) 

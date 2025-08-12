@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud, FileText as FileIcon, Users, Heart, UserSquare2, Lock, Info, MailQuestion, XSquare, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Home, Users, Heart, User, Lock, Info, MailQuestion, XSquare, CalendarDays } from 'lucide-react';
 import { format, parseISO, isValid, subYears } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -22,6 +22,7 @@ import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/fireb
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
 
 const totalSteps = 3;
@@ -29,6 +30,7 @@ const totalSteps = 3;
 export function AltaSocioMultiStepForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const { toast } = useToast();
+  const router = useRouter();
   const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
   const [socioData, setSocioData] = useState<Socio | null>(null);
   const [loadingSocio, setLoadingSocio] = useState(true);
@@ -186,7 +188,7 @@ export function AltaSocioMultiStepForm() {
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(prev => prev - 1);
     }
   };
 
@@ -401,9 +403,9 @@ export function AltaSocioMultiStepForm() {
                  {(!tipoGrupoFamiliar) && <p className="text-destructive">Por favor, regrese al paso anterior y seleccione un tipo de grupo familiar.</p>}
                 {(tipoGrupoFamiliar === 'conyugeEHijos') && (
                     <>
-                    <div className="mb-6 p-4 border rounded-md">
-                        <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-md font-semibold">Datos del Cónyuge</h4>
+                    <Card className="mb-6 p-4 border rounded-md bg-blue-50 border-blue-200">
+                        <CardHeader className="flex flex-row justify-between items-center mb-2 p-2">
+                            <CardTitle className="text-lg flex items-center text-blue-800"><Heart className="mr-2"/>Datos del Cónyuge</CardTitle>
                             {!watch("familiares.conyuge") ? (
                                 <Button type="button" size="sm" variant="outline" onClick={() => setValue('familiares.conyuge', { apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.CONYUGE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })} disabled={isFormDisabled}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cónyuge
@@ -413,9 +415,9 @@ export function AltaSocioMultiStepForm() {
                                     <Trash2 className="mr-2 h-4 w-4" /> Quitar Cónyuge
                                 </Button>
                             )}
-                        </div>
+                        </CardHeader>
                         {watch("familiares.conyuge") && (
-                        <>
+                        <CardContent className="p-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField control={control} name="familiares.conyuge.apellido" render={({ field }) => ( <FormItem> <FormLabel>Apellido Cónyuge</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
                               <FormField control={control} name="familiares.conyuge.nombre" render={({ field }) => ( <FormItem> <FormLabel>Nombre Cónyuge</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -445,7 +447,7 @@ export function AltaSocioMultiStepForm() {
                                 <FormItem>
                                   <FormLabel>DNI Frente</FormLabel>
                                   <FormControl>
-                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente Cónyuge" disabled={isFormDisabled} {...rest} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente Cónyuge" disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -458,7 +460,7 @@ export function AltaSocioMultiStepForm() {
                                 <FormItem>
                                   <FormLabel>DNI Dorso</FormLabel>
                                   <FormControl>
-                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso Cónyuge" disabled={isFormDisabled} {...rest} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso Cónyuge" disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -471,105 +473,29 @@ export function AltaSocioMultiStepForm() {
                                 <FormItem>
                                   <FormLabel>Foto Perfil</FormLabel>
                                   <FormControl>
-                                    <FileInput onValueChange={onChange} value={value} placeholder="Foto Perfil Cónyuge" disabled={isFormDisabled} {...rest} />
+                                    <FileInput onValueChange={onChange} value={value} placeholder="Foto Perfil Cónyuge" disabled={isFormDisabled} accept="image/png,image/jpeg" {...rest} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </div>
-                        </>
+                        </CardContent>
                        )}
-                    </div>
-                    <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Hijos/as (hasta {MAX_HIJOS})</h4>
-                        {hijosFields.map((item, index) => (
-                        <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
-                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)} disabled={isFormDisabled}> <Trash2 className="h-4 w-4" /> </Button>
-                            <p className="font-medium mb-2">Hijo/a {index + 1}</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => (
-                              <FormItem> <FormLabel>Fecha Nac.</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                    <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={isFormDisabled || !maxBirthDate} />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}/>
-                            <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            <FormField control={control} name={`familiares.hijos.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            </div>
-                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a {index + 1}</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField
-                                  control={control}
-                                  name={`familiares.hijos.${index}.fotoDniFrente`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>DNI Frente</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={control}
-                                  name={`familiares.hijos.${index}.fotoDniDorso`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>DNI Dorso</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={control}
-                                  name={`familiares.hijos.${index}.fotoPerfil`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>Foto Perfil</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Hijo/a ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                            </div>
-                        </div>
-                        ))}
-                        {hijosFields.length < MAX_HIJOS && (
-                        <Button type="button" variant="outline" onClick={() => appendHijo({ id: generateId(), apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.HIJO_A, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })} disabled={isFormDisabled}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Hijo/a
-                        </Button>
-                        )}
-                    </div>
-                    </>
-                )}
-
-                {(tipoGrupoFamiliar === 'padresMadres') && (
-                    <div className="mb-6 p-4 border rounded-md">
-                        <h4 className="text-md font-semibold mb-2">Datos de Padres/Madres (hasta {MAX_PADRES})</h4>
-                        {padresFields.map((item, index) => (
-                        <div key={item.id} className="mb-4 p-4 border rounded-md relative bg-muted/20">
-                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)} disabled={isFormDisabled}> <Trash2 className="h-4 w-4" /> </Button>
-                            <p className="font-medium mb-2">Padre/Madre {index + 1}</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => (
+                    </Card>
+                    <Card className="mb-6 p-4 border rounded-md bg-green-50 border-green-200">
+                        <CardHeader className="p-2">
+                          <CardTitle className="text-lg flex items-center text-green-800"><User className="mr-2"/>Datos de Hijos/as (hasta {MAX_HIJOS})</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-2 space-y-4">
+                          {hijosFields.map((item, index) => (
+                          <div key={item.id} className="p-4 border rounded-md relative bg-white">
+                              <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removeHijo(index)} disabled={isFormDisabled}> <Trash2 className="h-4 w-4" /> </Button>
+                              <p className="font-medium mb-2">Hijo/a {index + 1}</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField control={control} name={`familiares.hijos.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              <FormField control={control} name={`familiares.hijos.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              <FormField control={control} name={`familiares.hijos.${index}.fechaNacimiento`} render={({ field }) => (
                                 <FormItem> <FormLabel>Fecha Nac.</FormLabel>
                                   <FormControl>
                                     <div className="relative">
@@ -580,61 +506,145 @@ export function AltaSocioMultiStepForm() {
                                   <FormMessage />
                                 </FormItem>
                               )}/>
-                              <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                              <FormField control={control} name={`familiares.padres.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
-                            </div>
-                            <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre {index + 1}</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField
-                                  control={control}
-                                  name={`familiares.padres.${index}.fotoDniFrente`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>DNI Frente</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={control}
-                                  name={`familiares.padres.${index}.fotoDniDorso`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>DNI Dorso</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={control}
-                                  name={`familiares.padres.${index}.fotoPerfil`}
-                                  render={({ field: { onChange, value, ...rest } }) => (
-                                    <FormItem>
-                                      <FormLabel>Foto Perfil</FormLabel>
-                                      <FormControl>
-                                        <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Padre/Madre ${index + 1}`} disabled={isFormDisabled} {...rest} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                            </div>
-                        </div>
-                        ))}
-                        {padresFields.length < MAX_PADRES && (
-                        <Button type="button" variant="outline" onClick={() => appendPadre({ id: generateId(), apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.PADRE_MADRE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })} disabled={isFormDisabled}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Padre/Madre
-                        </Button>
-                        )}
-                    </div>
+                              <FormField control={control} name={`familiares.hijos.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              <FormField control={control} name={`familiares.hijos.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              <FormField control={control} name={`familiares.hijos.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              <FormField control={control} name={`familiares.hijos.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              </div>
+                              <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Hijo/a {index + 1}</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.hijos.${index}.fotoDniFrente`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>DNI Frente</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Hijo/a ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.hijos.${index}.fotoDniDorso`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>DNI Dorso</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Hijo/a ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.hijos.${index}.fotoPerfil`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>Foto Perfil</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Hijo/a ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                              </div>
+                          </div>
+                          ))}
+                          {hijosFields.length < MAX_HIJOS && (
+                          <Button type="button" variant="outline" onClick={() => appendHijo({ id: generateId(), apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.HIJO_A, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })} disabled={isFormDisabled}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Agregar Hijo/a
+                          </Button>
+                          )}
+                        </CardContent>
+                    </Card>
+                    </>
+                )}
+
+                {(tipoGrupoFamiliar === 'padresMadres') && (
+                    <Card className="mb-6 p-4 border rounded-md bg-yellow-50 border-yellow-200">
+                        <CardHeader className="p-2">
+                          <CardTitle className="text-lg flex items-center text-yellow-800"><Users className="mr-2"/>Datos de Padres/Madres (hasta {MAX_PADRES})</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-2 space-y-4">
+                          {padresFields.map((item, index) => (
+                          <div key={item.id} className="p-4 border rounded-md relative bg-white">
+                              <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10" onClick={() => removePadre(index)} disabled={isFormDisabled}> <Trash2 className="h-4 w-4" /> </Button>
+                              <p className="font-medium mb-2">Padre/Madre {index + 1}</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={control} name={`familiares.padres.${index}.apellido`} render={({ field }) => ( <FormItem> <FormLabel>Apellido</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={control} name={`familiares.padres.${index}.nombre`} render={({ field }) => ( <FormItem> <FormLabel>Nombre</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={control} name={`familiares.padres.${index}.fechaNacimiento`} render={({ field }) => (
+                                  <FormItem> <FormLabel>Fecha Nac.</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                        <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} className="w-full pl-10" max={maxBirthDate} min="1900-01-01" disabled={isFormDisabled || !maxBirthDate} />
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}/>
+                                <FormField control={control} name={`familiares.padres.${index}.dni`} render={({ field }) => ( <FormItem> <FormLabel>DNI</FormLabel> <FormControl><Input type="number" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={control} name={`familiares.padres.${index}.telefono`} render={({ field }) => ( <FormItem> <FormLabel>Teléfono (Opcional)</FormLabel> <FormControl><Input type="tel" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={control} name={`familiares.padres.${index}.direccion`} render={({ field }) => ( <FormItem> <FormLabel>Dirección (Opcional)</FormLabel> <FormControl><Input {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                                <FormField control={control} name={`familiares.padres.${index}.email`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email (Opcional)</FormLabel> <FormControl><Input type="email" {...field} disabled={isFormDisabled} /></FormControl> <FormMessage /> </FormItem> )} />
+                              </div>
+                              <h5 className="text-sm font-semibold mt-4 mb-2">Documentación Padre/Madre {index + 1}</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.padres.${index}.fotoDniFrente`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>DNI Frente</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Padre/Madre ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.padres.${index}.fotoDniDorso`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>DNI Dorso</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Padre/Madre ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg,application/pdf" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={control}
+                                    name={`familiares.padres.${index}.fotoPerfil`}
+                                    render={({ field: { onChange, value, ...rest } }) => (
+                                      <FormItem>
+                                        <FormLabel>Foto Perfil</FormLabel>
+                                        <FormControl>
+                                          <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Padre/Madre ${index + 1}`} disabled={isFormDisabled} accept="image/png,image/jpeg" {...rest} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                              </div>
+                          </div>
+                          ))}
+                          {padresFields.length < MAX_PADRES && (
+                          <Button type="button" variant="outline" onClick={() => appendPadre({ id: generateId(), apellido: '', nombre: '', fechaNacimiento: new Date(), dni: '', relacion: RelacionFamiliar.PADRE_MADRE, fotoDniFrente: null, fotoDniDorso: null, fotoPerfil: null, telefono: '', direccion: '', email: '' })} disabled={isFormDisabled}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Agregar Padre/Madre
+                          </Button>
+                          )}
+                        </CardContent>
+                    </Card>
                 )}
                  {errors.familiares && (errors.familiares as any).message && (
                   <FormItem>
@@ -680,9 +690,14 @@ export function AltaSocioMultiStepForm() {
             )}
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={prevStep} disabled={currentStep === 1}>
-              <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => router.push('/dashboard')}>
+                  <Home className="mr-2 h-4 w-4" /> Volver a Inicio
+              </Button>
+              <Button type="button" variant="outline" onClick={prevStep} disabled={currentStep === 1}>
+                <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+              </Button>
+            </div>
             {currentStep < totalSteps ? (
               <Button type="button" onClick={nextStep} disabled={isFormDisabled}>
                 Siguiente <ChevronRight className="ml-2 h-4 w-4" />

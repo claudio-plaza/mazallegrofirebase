@@ -45,7 +45,7 @@ export const allFeatures: QuickAccessFeature[] = [
     title: 'Gestionar Grupo Familiar',
     description: 'Agrega o modifica los datos de tu grupo familiar.',
     icon: Users,
-    href: '/perfil',
+    href: '/mi-perfil/grupo-familiar',
     roles: ['socio'],
   },
   {

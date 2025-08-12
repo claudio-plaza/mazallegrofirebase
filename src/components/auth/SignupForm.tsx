@@ -323,7 +323,7 @@ export function SignupForm() {
 
             <section>
               <h3 className="text-xl font-semibold mb-2 flex items-center"><FileText className="mr-2 h-6 w-6 text-primary"/>Documentación</h3>
-              <p className="text-sm text-muted-foreground mb-4">Formatos admitidos: PNG, JPG, JPEG, TIFF, PDF.</p>
+              <p className="text-sm text-muted-foreground mb-4">Formatos admitidos: PNG, JPG, JPEG, PDF.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   <FormField
                     control={form.control}

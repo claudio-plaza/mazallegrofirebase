@@ -1,3 +1,6 @@
-fix: Handle undefined params.path in image API route
+feat: Mejoras en la experiencia de usuario y correcciones
 
-This commit adds optional chaining to params.path in src/app/api/images/route.ts to prevent errors when params or params.path are undefined. This addresses the 'Cannot read properties of undefined (reading 'path')' error during static page generation.
+- La página de inicio ahora es la vista de bienvenida con opciones para iniciar sesión o registrarse.
+- Se ha movido el perfil del socio a la ruta dedicada `/mi-perfil`.
+- Se ha añadido la funcionalidad de mostrar/ocultar contraseña en los formularios de inicio de sesión y registro.
+- Se han corregido múltiples errores de renderizado, hidratación y carga de componentes.

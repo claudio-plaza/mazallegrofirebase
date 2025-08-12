@@ -126,14 +126,12 @@ export interface Adherente {
   apellido: string;
   dni: string;
   fechaNacimiento: Date;
-  empresa: string;
   telefono?: string;
   direccion?: string;
   email?: string;
   fotoDniFrente?: string | FileList | null;
   fotoDniDorso?: string | FileList | null;
   fotoPerfil?: string | FileList | null;
-  fotoCarnet?: string | FileList | null;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string | null;
@@ -244,15 +242,15 @@ export interface FileSchemaConfig {
 export const dniFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen o PDF.",
   sizeError: `El archivo DNI no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, JPEG, TIFF o PDF para DNI.",
-  mimeTypes: ["image/png", "image/jpeg", "image/tiff", "application/pdf"],
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, JPEG o PDF para DNI.",
+  mimeTypes: ["image/png", "image/jpeg", "application/pdf"],
 };
 
 export const profileFileSchemaConfig: FileSchemaConfig = {
   typeError: "Debe seleccionar un archivo de imagen.",
   sizeError: `La foto de perfil no debe exceder ${MAX_FILE_SIZE_MB}MB.`,
-  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG, JPEG o TIFF para foto de perfil.",
-  mimeTypes: ["image/png", "image/jpeg", "image/tiff"],
+  mimeTypeError: "Tipo de archivo inválido. Solo se permiten PNG, JPG o JPEG para foto de perfil.",
+  mimeTypes: ["image/png", "image/jpeg"],
 };
 
 const fileSchema = z.union([
@@ -498,14 +496,12 @@ export const adherenteFormSchema = z.object({
     apellido: z.string().min(2, "Apellido es requerido."),
     fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
     dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-    empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
     telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
     direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
     email: z.string().email("Email inválido.").optional().or(z.literal('')),
     fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
     fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
     fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
-    fotoCarnet: optionalFileField(profileFileSchemaConfig),
 
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;

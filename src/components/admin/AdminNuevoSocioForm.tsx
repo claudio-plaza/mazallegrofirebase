@@ -225,7 +225,7 @@ export function AdminNuevoSocioForm() {
                         <FormItem>
                           <FormLabel>Foto de Perfil</FormLabel>
                           <FormControl>
-                            <FileInput onValueChange={onChange} value={value} placeholder="Foto de Perfil" {...rest} />
+                            <FileInput onValueChange={onChange} value={value} placeholder="Foto de Perfil" accept="image/png,image/jpeg" {...rest} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -238,7 +238,7 @@ export function AdminNuevoSocioForm() {
                         <FormItem>
                           <FormLabel>DNI Frente</FormLabel>
                           <FormControl>
-                            <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente" {...rest} />
+                            <FileInput onValueChange={onChange} value={value} placeholder="DNI Frente" accept="image/png,image/jpeg,application/pdf" {...rest} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -251,7 +251,7 @@ export function AdminNuevoSocioForm() {
                         <FormItem>
                           <FormLabel>DNI Dorso</FormLabel>
                           <FormControl>
-                            <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso" {...rest} />
+                            <FileInput onValueChange={onChange} value={value} placeholder="DNI Dorso" accept="image/png,image/jpeg,application/pdf" {...rest} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -264,7 +264,7 @@ export function AdminNuevoSocioForm() {
                         <FormItem>
                           <FormLabel>Foto Carnet</FormLabel>
                           <FormControl>
-                            <FileInput onValueChange={onChange} value={value} placeholder="Foto Carnet" {...rest} />
+                            <FileInput onValueChange={onChange} value={value} placeholder="Foto Carnet" accept="image/png,image/jpeg" {...rest} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

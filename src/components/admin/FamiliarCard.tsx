@@ -101,7 +101,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
               <FormItem>
                 <FormLabel className="text-xs">Foto Perfil</FormLabel>
                 <FormControl>
-                  <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Familiar ${index + 1}`} {...rest} />
+                  <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Familiar ${index + 1}`} accept="image/png,image/jpeg" {...rest} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -114,7 +114,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
               <FormItem>
                 <FormLabel className="text-xs">DNI Frente</FormLabel>
                 <FormControl>
-                  <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Familiar ${index + 1}`} {...rest} />
+                  <FileInput onValueChange={onChange} value={value} placeholder={`DNI Frente Familiar ${index + 1}`} accept="image/png,image/jpeg,application/pdf" {...rest} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -127,7 +127,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
               <FormItem>
                 <FormLabel className="text-xs">DNI Dorso</FormLabel>
                 <FormControl>
-                  <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Familiar ${index + 1}`} {...rest} />
+                  <FileInput onValueChange={onChange} value={value} placeholder={`DNI Dorso Familiar ${index + 1}`} accept="image/png,image/jpeg,application/pdf" {...rest} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -140,7 +140,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
               <FormItem>
                 <FormLabel className="text-xs">Foto Carnet</FormLabel>
                 <FormControl>
-                  <FileInput onValueChange={onChange} value={value} placeholder={`Foto Carnet Familiar ${index + 1}`} {...rest} />
+                  <FileInput onValueChange={onChange} value={value} placeholder={`Foto Carnet Familiar ${index + 1}`} accept="image/png,image/jpeg" {...rest} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
