@@ -95,13 +95,10 @@ const revisionConverter = createConverter<RevisionMedica>();
 const solicitudConverter = createConverter<SolicitudInvitadosDiarios>();
 const novedadConverter = createConverter<Novedad>();
 
-import { encrypt } from '../crypto';
 import imageCompression from 'browser-image-compression';
 
 // --- File Upload Service ---
 export const uploadFile = async (file: File, path: string): Promise<string> => {
-  if (!storage) throw new Error("Firebase Storage not initialized.");
-
   // Comprimir la imagen si es un tipo de archivo de imagen
   const imageFileTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (imageFileTypes.includes(file.type)) {
@@ -120,15 +117,21 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
     }
   }
 
-  const storageRef = ref(storage, path);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('path', path);
 
-  // Encrypt the file
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const encryptedBuffer = encrypt(buffer);
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+  });
 
-  const snapshot = await uploadBytes(storageRef, encryptedBuffer);
-  return getDownloadURL(snapshot.ref);
+  if (!response.ok) {
+    throw new Error('Error al subir el archivo.');
+  }
+
+  const { downloadURL } = await response.json();
+  return downloadURL;
 };
 
 

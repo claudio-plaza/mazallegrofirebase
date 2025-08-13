@@ -1,6 +1,8 @@
-feat: Mejoras en la experiencia de usuario y correcciones
+feat(familiares, adherentes): Mejoras en UX y subida de archivos
 
-- La página de inicio ahora es la vista de bienvenida con opciones para iniciar sesión o registrarse.
-- Se ha movido el perfil del socio a la ruta dedicada `/mi-perfil`.
-- Se ha añadido la funcionalidad de mostrar/ocultar contraseña en los formularios de inicio de sesión y registro.
-- Se han corregido múltiples errores de renderizado, hidratación y carga de componentes.
+Se realizan los siguientes cambios:
+
+- Se estandariza la subida de archivos en toda la aplicación, permitiendo solo los formatos `jpg`, `jpeg`, `png` y `pdf` para DNI, y solo formatos de imagen para fotos de perfil y carnet.
+- Se eliminan los campos "Empresa / Sindicato" y "foto carnet" del formulario de alta de adherentes para simplificar el proceso.
+- Se mejora la interfaz de usuario de la sección "Gestionar Grupo Familiar", añadiendo colores, iconos y una mejor distribución para facilitar la carga y edición de familiares.
+- Se agrega un botón "Volver a Inicio" en la sección de grupo familiar para mejorar la navegación en dispositivos móviles.
