@@ -1,4 +1,4 @@
-import type { QuickAccessFeature } from '@/types';
+import { QuickAccessFeature } from '@/types';
 import { 
     Home,
     Users, 
@@ -6,13 +6,16 @@ import {
     UserPlus, 
     Handshake, 
     UserCircle,
+    HelpCircle, // <-- Añadido
     // Admin Icons
     Users as UsersAdmin, // Alias for clarity
     Stethoscope,
     ShieldCheck,
     ListFilter,
     DollarSign,
-    Megaphone
+    Megaphone,
+    Database, // Icon for backfill
+    FileImage
 } from 'lucide-react'; 
 
 export const siteConfig = {
@@ -72,6 +75,14 @@ export const allFeatures: QuickAccessFeature[] = [
     href: '/mis-adherentes',
     roles: ['socio'],
   },
+  { // <-- Nuevo elemento de Ayuda
+    id: 'ayuda',
+    title: 'Ayuda',
+    description: 'Accede a tutoriales y guías de uso.',
+    icon: HelpCircle,
+    href: 'https://tutorial.mazallegro.com/',
+    roles: ['socio', 'admin', 'medico', 'portero'],
+  },
 
   // --- Admin, Medico, Portero Features (accessible from Admin sidebar) ---
   {
@@ -81,6 +92,30 @@ export const allFeatures: QuickAccessFeature[] = [
     icon: UsersAdmin,
     href: '/admin/gestion-socios',
     roles: ['admin'],
+  },
+  {
+    id: 'solicitudes-cambio-foto',
+    title: "Solicitudes de Foto",
+    href: "/admin/solicitudes-cambio-foto",
+    icon: FileImage,
+    roles: ['admin'],
+    description: "Aprobar o rechazar solicitudes de cambio de foto."
+  },
+  {
+    id: 'solicitudes-familiares',
+    title: "Solicitudes Familiares",
+    href: "/admin/solicitudes-familiares",
+    icon: Users,
+    roles: ['admin'],
+    description: "Aprobar o rechazar cambios en los familiares de los socios."
+  },
+  {
+    id: 'solicitudes-adherentes',
+    title: "Solicitudes Adherentes",
+    href: "/admin/solicitudes-adherentes",
+    icon: UserPlus,
+    roles: ['admin'],
+    description: "Aprobar o rechazar solicitudes de nuevos adherentes."
   },
   {
     id: 'panel-medico',
@@ -99,19 +134,19 @@ export const allFeatures: QuickAccessFeature[] = [
     roles: ['portero', 'admin'],
   },
   {
+    id: 'registros-ingreso',
+    title: 'Registro de Ingresos',
+    description: 'Ver el historial de ingresos diarios.',
+    icon: ListFilter,
+    href: '/admin/control-acceso/registros',
+    roles: ['admin'],
+  },
+  {
     id: 'gestion-invitados-diarios-admin',
     title: 'Listas de Invitados',
     description: 'Revisa y descarga listas de invitados diarios.',
     icon: ListFilter,
     href: '/admin/gestion-invitados-diarios',
-    roles: ['admin'],
-  },
-  {
-    id: 'configuracion-precios',
-    title: 'Configurar Precios',
-    description: 'Establece los precios de las entradas para invitados.',
-    icon: DollarSign,
-    href: '/admin/configuracion-precios',
     roles: ['admin'],
   },
   { 

@@ -1,44 +1,36 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Socio, Adherente } from '@/types';
 import { adherenteFormSchema, EstadoSolicitudAdherente, EstadoAdherente, AdherenteFormData } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Edit2, Info, CheckCircle, XCircle, Hourglass, Users, UploadCloud, FileText, CalendarDays, Building, BadgeCheck } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlusCircle, Trash2, Hourglass, Users, CheckCircle, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getSocioByNumeroSocioOrDNI, updateSocio, uploadFile } from '@/lib/firebase/firestoreService';
-import { format, parseISO, subYears } from 'date-fns';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Image from 'next/image';
+import { updateSocio } from '@/lib/firebase/firestoreService';
+import { uploadFile } from '@/lib/firebase/storageService';
+import { format, parseISO } from 'date-fns';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
-const FileInput = dynamic(() => import('../ui/file-input').then(mod => mod.FileInput), { ssr: false });
+const FileInput = dynamic(() => import('@/components/ui/file-input'), { ssr: false });
 
 export function GestionAdherentesSocio() {
   const { toast } = useToast();
-  const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
+  const { socio: socioData, isLoading: authLoading, loggedInUserNumeroSocio } = useAuth();
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
   const queryClient = useQueryClient();
 
-  const { data: socioData, isLoading: loading } = useQuery({
-    queryKey: ['socio', loggedInUserNumeroSocio],
-    queryFn: () => getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio!),
-    enabled: !!loggedInUserNumeroSocio && !authLoading,
-  });
-
   const { mutate: updateSocioMutation, isPending: isSubmitting } = useMutation({
-    mutationFn: (updatedSocio: Socio) => updateSocio(updatedSocio),
+    mutationFn: (updatedSocio: Socio) => updateSocio(updatedSocio.id, { adherentes: updatedSocio.adherentes }),
     onError: (error) => {
       toast({ title: "Error", description: `No se pudo completar la operación: ${error.message}`, variant: "destructive" });
     },
@@ -110,6 +102,7 @@ export function GestionAdherentesSocio() {
         queryClient.invalidateQueries({ queryKey: ['socio', loggedInUserNumeroSocio] });
         toast({ title: 'Solicitud Enviada', description: `La solicitud para agregar a ${data.nombre} ${data.apellido} como adherente ha sido enviada.` });
         form.reset();
+        window.location.reload();
       },
       onError: (error) => {
         toast({ title: "Error", description: `No se pudo enviar la solicitud para el adherente: ${error.message}`, variant: "destructive" });
@@ -141,7 +134,7 @@ export function GestionAdherentesSocio() {
   };
 
 
-  if (loading || authLoading) {
+  if (authLoading) {
     return <p className="text-center py-10">Cargando información de adherentes...</p>;
   }
 
@@ -203,7 +196,6 @@ export function GestionAdherentesSocio() {
                       <FormLabel>Fecha de Nacimiento</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                           <Input
                             type="date"
                             value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
@@ -233,7 +225,7 @@ export function GestionAdherentesSocio() {
                         switch(docType) {
                             case 'fotoDniFrente': labelText = 'DNI Frente'; break;
                             case 'fotoDniDorso': labelText = 'DNI Dorso'; break;
-                            case 'fotoPerfil': labelText = 'Foto Perfil'; break;
+                            case 'fotoPerfil': labelText = 'Foto Perfil (Rostro descubierto, sin lentes ni sombreros, tipo selfie)'; break;
                         }
                       const placeholderText = docType === 'fotoPerfil' ? "Subir foto (PNG, JPG)" : "Subir DNI (PNG, JPG, PDF)";
 

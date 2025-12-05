@@ -5,16 +5,17 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import type { Socio, AdminNuevoSocioTitularData, MiembroFamiliar } from '@/types';
-import { adminNuevoSocioTitularSchema, RelacionFamiliar } from '@/types';
+import type { Socio, AdminNuevoSocioTitularData, MiembroFamiliar, Adherente } from '@/types';
+import { adminNuevoSocioTitularSchema, RelacionFamiliar, EstadoSolicitudSocio, EstadoCambioFamiliares } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { addSocio, uploadFile } from '@/lib/firebase/firestoreService';
-import { generateId } from '@/lib/helpers';
+import { addSocio } from '@/lib/firebase/firestoreService';
+import { uploadFile } from '@/lib/firebase/storageService';
+import { generateKeywords, generateId } from '@/lib/helpers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, UserPlus, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
 import { format, parseISO, isValid, subYears, formatISO } from 'date-fns';
@@ -22,7 +23,10 @@ import { Separator } from '../ui/separator';
 import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FamiliarCard } from './FamiliarCard';
-import { FileInput } from '@/components/ui/file-input';
+import FileInput from '@/components/ui/file-input';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { doc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 
 export function AdminNuevoSocioForm() {
@@ -45,8 +49,7 @@ export function AdminNuevoSocioForm() {
       direccion: '',
       email: '',
       estadoSocio: 'Activo',
-      tipoGrupoFamiliar: undefined,
-      grupoFamiliar: [],
+      familiares: [],
       fotoUrl: null, 
       fotoPerfil: null,
       fotoDniFrente: null,
@@ -55,30 +58,16 @@ export function AdminNuevoSocioForm() {
     },
   });
 
-  const { fields: grupoFamiliarFields, append: appendFamiliar, remove: removeFamiliar, replace: replaceFamiliares } = useFieldArray({
+  const { fields: familiaresFields, append: appendFamiliar, remove: removeFamiliar, replace: replaceFamiliares } = useFieldArray({
     control: form.control,
-    name: "grupoFamiliar",
+    name: "familiares",
   });
-
-  const tipoGrupoFamiliarSeleccionado = form.watch('tipoGrupoFamiliar');
-
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'tipoGrupoFamiliar') {
-        replaceFamiliares([]);
-        if (value.tipoGrupoFamiliar === 'conyugeEHijos') {
-           appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined });
-        }
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form, replaceFamiliares, appendFamiliar]);
 
 
   const { mutate: addSocioMutation, isPending } = useMutation({
-    mutationFn: (socioData: any) => addSocio(generateId(), socioData, false),
-    onSuccess: (data) => {
-        toast({ title: 'Socio Creado', description: `El socio ${data.nombre} ${data.apellido} ha sido agregado.` });
+    mutationFn: (socioData: Socio) => addSocio(socioData),
+    onSuccess: (data, variables) => {
+        toast({ title: 'Socio Creado', description: `El socio ${variables.nombre} ${variables.apellido} ha sido agregado.` });
         queryClient.invalidateQueries({ queryKey: ['socios'] });
         router.push('/admin/gestion-socios');
     },
@@ -90,51 +79,101 @@ export function AdminNuevoSocioForm() {
 
 
   const onSubmit = async (data: AdminNuevoSocioTitularData) => {
-    const tempId = generateId(); // Use a temp ID for paths if no auth user
+    try {
+      // 1. Get the next sequential member number using httpsCallable
+      const functions = getFunctions();
+      const getNextSocioNumber = httpsCallable(functions, 'getNextSocioNumber');
+      const result = await getNextSocioNumber();
+      const numeroSocio = (result.data as { numeroSocio: string }).numeroSocio;
 
-    const uploadAndGetUrl = async (fileInput: File | string | null | undefined, pathSuffix: string): Promise<string | null> => {
-        if (fileInput instanceof File) {
-            return uploadFile(fileInput, `socios/${tempId}/${pathSuffix}`);
-        }
-        if (typeof fileInput === 'string') {
-            return fileInput; // It's already a URL
-        }
-        return null;
-    };
+      if (!numeroSocio) {
+        toast({ title: "Error Crítico", description: "No se pudo obtener un número de socio. No se puede continuar.", variant: "destructive" });
+        return;
+      }
 
-    const fotoPerfilUrl = await uploadAndGetUrl(data.fotoPerfil, 'fotoPerfil.jpg');
+      // 2. Generate a new unique ID for the socio document
+      const newSocioRef = doc(collection(db, 'socios'));
+      const socioId = newSocioRef.id;
 
-    const grupoFamiliarConUrls = await Promise.all(
-        (data.grupoFamiliar || []).map(async (familiar) => {
-            const familiarId = familiar.id || generateId();
-            const [perfil, frente, dorso, carnet] = await Promise.all([
-                uploadAndGetUrl(familiar.fotoPerfil, `familiares/${familiarId}_perfil.jpg`),
-                uploadAndGetUrl(familiar.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`),
-                uploadAndGetUrl(familiar.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`),
-                uploadAndGetUrl(familiar.fotoCarnet, `familiares/${familiarId}_carnet.jpg`),
-            ]);
-            return {
-                ...familiar,
-                id: familiarId,
-                fotoPerfil: perfil,
-                fotoDniFrente: frente,
-                fotoDniDorso: dorso,
-                fotoCarnet: carnet,
-            };
-        })
-    );
+      // 3. Use the unique socioId for storage paths
+      const uploadAndGetUrl = async (fileInput: File | string | null | undefined, pathSuffix: string): Promise<string | null> => {
+          if (fileInput instanceof File) {
+              return uploadFile(fileInput, `socios/${socioId}/${pathSuffix}`);
+          }
+          if (typeof fileInput === 'string') {
+              return fileInput; // It's already a URL
+          }
+          return null;
+      };
 
-    const socioDataForCreation = {
-        ...data,
-        fotoUrl: fotoPerfilUrl,
-        fotoPerfil: fotoPerfilUrl,
-        fotoDniFrente: await uploadAndGetUrl(data.fotoDniFrente, 'fotoDniFrente.jpg'),
-        fotoDniDorso: await uploadAndGetUrl(data.fotoDniDorso, 'fotoDniDorso.jpg'),
-        fotoCarnet: await uploadAndGetUrl(data.fotoCarnet, 'fotoCarnet.jpg'),
-        grupoFamiliar: grupoFamiliarConUrls,
-    };
+      const fotoPerfilUrl = await uploadAndGetUrl(data.fotoPerfil, 'fotoPerfil.jpg');
 
-    addSocioMutation(socioDataForCreation);
+      const familiaresConUrls = await Promise.all(
+          (data.familiares || []).map(async (familiar) => {
+              const familiarId = familiar.id || generateId();
+              const [perfil, frente, dorso, carnet] = await Promise.all([
+                  uploadAndGetUrl(familiar.fotoPerfil, `familiares/${familiarId}_perfil.jpg`),
+                  uploadAndGetUrl(familiar.fotoDniFrente, `familiares/${familiarId}_dniFrente.jpg`),
+                  uploadAndGetUrl(familiar.fotoDniDorso, `familiares/${familiarId}_dniDorso.jpg`),
+                  uploadAndGetUrl(familiar.fotoCarnet, `familiares/${familiarId}_carnet.jpg`),
+              ]);
+              return {
+                  ...familiar,
+                  id: familiarId,
+                  fotoPerfil: perfil,
+                  fotoDniFrente: frente,
+                  fotoDniDorso: dorso,
+                  fotoCarnet: carnet,
+              };
+          })
+      );
+
+      const adherentesConUrls = await Promise.all(
+          (data.adherentes || []).map(async (adherente) => {
+              const adherenteId = adherente.id || generateId();
+              const [perfil, frente, dorso] = await Promise.all([
+                  uploadAndGetUrl(adherente.fotoPerfil, `adherentes/${adherenteId}_perfil.jpg`),
+                  uploadAndGetUrl(adherente.fotoDniFrente, `adherentes/${adherenteId}_dniFrente.jpg`),
+                  uploadAndGetUrl(adherente.fotoDniDorso, `adherentes/${adherenteId}_dniDorso.jpg`),
+              ]);
+              return {
+                  ...adherente,
+                  id: adherenteId,
+                  fotoPerfil: perfil,
+                  fotoDniFrente: frente,
+                  fotoDniDorso: dorso,
+              };
+          })
+      );
+
+      const keywords = generateKeywords(data.nombre, data.apellido, data.dni, numeroSocio, familiaresConUrls as MiembroFamiliar[], adherentesConUrls as Adherente[]);
+
+      const socioDataForCreation: Socio = {
+          ...data,
+          id: socioId, // Use the generated unique ID
+          numeroSocio: numeroSocio,
+          searchableKeywords: keywords,
+          fotoUrl: fotoPerfilUrl,
+          fotoPerfil: fotoPerfilUrl,
+          fotoDniFrente: await uploadAndGetUrl(data.fotoDniFrente, 'fotoDniFrente.jpg'),
+          fotoDniDorso: await uploadAndGetUrl(data.fotoDniDorso, 'fotoDniDorso.jpg'),
+          fotoCarnet: await uploadAndGetUrl(data.fotoCarnet, 'fotoCarnet.jpg'),
+          familiares: familiaresConUrls,
+          adherentes: [], // Adherentes should be managed after creation
+          miembroDesde: new Date(),
+          role: 'socio' as const,
+          aptoMedico: { valido: false, razonInvalidez: 'Pendiente de revisión inicial' },
+          cuenta: { estadoCuenta: 'Al Dia', saldoActual: 0 },
+          documentos: [],
+          estadoSolicitud: EstadoSolicitudSocio.APROBADA,
+          ultimaRevisionMedica: undefined,
+      };
+
+      addSocioMutation(socioDataForCreation);
+    } catch (error) {
+      console.error("Error en el proceso de creación del socio:", error);
+      toast({ title: "Error General", description: "Ocurrió un error inesperado al crear el socio. Revise la consola para más detalles.", variant: "destructive" });
+    }
   };
   
   const fotoPerfilValue = form.watch('fotoPerfil');
@@ -223,7 +262,7 @@ export function AdminNuevoSocioForm() {
                       name="fotoPerfil"
                       render={({ field: { onChange, value, ...rest } }) => (
                         <FormItem>
-                          <FormLabel>Foto de Perfil</FormLabel>
+                          <FormLabel>Foto de Perfil (tipo selfie, solo rostro)</FormLabel>
                           <FormControl>
                             <FileInput onValueChange={onChange} value={value} placeholder="Foto de Perfil" accept="image/png,image/jpeg" {...rest} />
                           </FormControl>
@@ -274,40 +313,35 @@ export function AdminNuevoSocioForm() {
             </section>
             <Separator />
              <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Grupo Familiar (Opcional)</h3>
-                 <FormField
-                    control={form.control}
-                    name="tipoGrupoFamiliar"
-                    render={({ field }) => (
-                        <FormItem className="mb-6">
-                            <FormLabel className="flex items-center"><Users className="mr-1.5 h-4 w-4 text-muted-foreground"/>Tipo de Grupo Familiar</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ""}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccione un tipo de grupo (opcional)" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="conyugeEHijos">Cónyuge e Hijos/as</SelectItem>
-                                    <SelectItem value="padresMadres">Padres/Madres</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <h3 className="text-lg font-semibold mb-3 text-primary border-b pb-1">Familiares</h3>
                 <div className="space-y-6">
-                {grupoFamiliarFields.map((field, index) => (
-                    <FamiliarCard 
-                        key={field.id} 
-                        index={index} 
-                        remove={removeFamiliar} 
-                        tipoGrupoFamiliarSeleccionado={tipoGrupoFamiliarSeleccionado} 
-                        maxBirthDate={maxBirthDate} 
-                    />
-                ))}
-                {tipoGrupoFamiliarSeleccionado && (
-                    <Button type="button" variant="outline" onClick={() => appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: tipoGrupoFamiliarSeleccionado === 'conyugeEHijos' ? RelacionFamiliar.HIJO_A : RelacionFamiliar.PADRE_MADRE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null, aptoMedico: undefined })}>
+                    {familiaresFields.map((field, index) => (
+                        <FamiliarCard 
+                            key={field.id} 
+                            index={index} 
+                            remove={removeFamiliar} 
+                            maxBirthDate={maxBirthDate} 
+                        />
+                    ))}
+                </div>
+                <div className="flex items-center gap-4 mt-4">
+                    <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.CONYUGE, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null })}
+                        disabled={familiaresFields.some(f => f.relacion === RelacionFamiliar.CONYUGE)}
+                    >
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        {tipoGrupoFamiliarSeleccionado === 'conyugeEHijos' ? 'Agregar Hijo/a' : 'Agregar Padre/Madre'}
+                        Agregar Cónyuge
                     </Button>
-                )}
+                    <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => appendFamiliar({ id: generateId(), nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: RelacionFamiliar.HIJO_A, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null })}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Agregar Hijo/a
+                    </Button>
                 </div>
             </section>
 

@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserSidebar } from './UserSidebar';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { PanelLeft } from 'lucide-react';
+import { PanelLeft, Menu } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -59,17 +59,13 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
 
   
 
-  // Public routes (not logged in OR explicitly public paths) have a simple layout with a header
+  // Public routes (not logged in OR explicitly public paths) have a simple layout without a header
   if (!isLoggedIn || isPublicRoute) {
     return (
        <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow">
           {children}
         </main>
-        <footer className="bg-muted text-muted-foreground py-4 text-center text-sm">
-          © {new Date().getFullYear()} {siteConfig.name}. Todos los derechos reservados.
-        </footer>
         <WhatsAppBubble />
       </div>
     );
@@ -92,7 +88,7 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
         "flex flex-col transition-[padding-left] duration-300 ease-in-out",
         isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
       )}>
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-white px-4 sm:px-6 md:hidden">
           <Link href="/dashboard" className="flex items-center">
              <Image 
                 src="/logo-largo.jpg" 
@@ -101,20 +97,13 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
                 width={100} 
                 height={50}
                 className="h-auto"
-                style={{ width: 'auto' }}
                 priority
              />
           </Link>
           <Sheet>
             <SheetTrigger asChild>
-              <Button size="icon" variant="outline" className="rounded-full">
-                <Image 
-                  src={socio?.fotoPerfil || "/logo-chico.png"} 
-                  alt="User menu"
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover"
-                />
+              <Button size="icon" variant="outline" className="transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-px">
+                <Menu className="w-6 h-6 text-current" />
                 <span className="sr-only">Toggle Menu</span>
               </Button>
             </SheetTrigger>
@@ -130,6 +119,9 @@ export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
         </main>
       </div>
        <WhatsAppBubble />
+       <footer className="bg-primary text-white text-center p-4 mt-auto">
+         <p>© 2025 Mazallegro. Todos los derechos reservados. Creado por <a href="https://www.facebook.com/overalloficialagencia" target="_blank" className="text-white hover:underline">Over-all-Design</a></p>
+       </footer>
     </div>
   );
 }

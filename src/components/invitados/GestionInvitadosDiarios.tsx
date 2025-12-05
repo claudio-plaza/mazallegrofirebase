@@ -13,18 +13,29 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, generateId } from '@/lib/helpers';
-import { PlusCircle, Trash2, Users, Info, CalendarDays, Send, Edit, ListChecks, Clock } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Info, CalendarDays, Send, Edit, ListChecks, Clock, ChevronUp, ChevronDown, Plus, X, UserPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid, addDays, isBefore, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
+import { db } from '@/lib/firebase/config';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionAlertDialog, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { collection, getDocs, doc, getDoc, deleteDoc, writeBatch, Timestamp, increment } from 'firebase/firestore';
 
+interface InvitadoFrecuente {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  fechaNacimiento: Date;
+  ultimoUso?: Date;
+  vecesUsado: number;
+}
 
 const createDefaultInvitado = (): InvitadoDiario => ({
   id: generateId(),
@@ -39,11 +50,13 @@ const createDefaultInvitado = (): InvitadoDiario => ({
 export function GestionInvitadosDiarios() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
-  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading } = useAuth();
+  const { loggedInUserNumeroSocio, userName, isLoading: authIsLoading, user } = useAuth();
   const [maxBirthDate, setMaxBirthDate] = useState<string>('');
   const [minSelectableDate, setMinSelectableDate] = useState<string>('');
   const [maxSelectableDate, setMaxSelectableDate] = useState<string>('');
   const queryClient = useQueryClient();
+  const [invitadosFrecuentes, setInvitadosFrecuentes] = useState<InvitadoFrecuente[]>([]);
+  const [mostrarFrecuentes, setMostrarFrecuentes] = useState(true);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -60,15 +73,40 @@ export function GestionInvitadosDiarios() {
   const selectedDateISO = useMemo(() => formatISO(selectedDate, { representation: 'date' }), [selectedDate]);
   
   const { data: solicitudActual, isLoading: loading } = useQuery({
-      queryKey: ['solicitudInvitados', loggedInUserNumeroSocio, selectedDateISO],
-      queryFn: () => getSolicitudInvitadosDiarios(loggedInUserNumeroSocio!, selectedDateISO),
-      enabled: !!loggedInUserNumeroSocio && !authIsLoading,
+      queryKey: ['solicitudInvitados', user?.uid, selectedDateISO],
+      queryFn: () => getSolicitudInvitadosDiarios(user!.uid, selectedDateISO),
+      enabled: !!user && !authIsLoading,
   });
+
+  useEffect(() => {
+    const cargarInvitadosFrecuentes = async () => {
+      if (!user) return;
+      try {
+        const frecuentesRef = collection(db, 'socios', user.uid, 'invitados_frecuentes');
+        const frecuentesSnap = await getDocs(frecuentesRef);
+        const frecuentes = frecuentesSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          fechaNacimiento: doc.data().fechaNacimiento.toDate(),
+          ultimoUso: doc.data().ultimoUso?.toDate()
+        })) as InvitadoFrecuente[];
+        frecuentes.sort((a, b) => b.vecesUsado - a.vecesUsado);
+        setInvitadosFrecuentes(frecuentes);
+      } catch (error) {
+        console.error('Error al cargar invitados frecuentes:', error);
+      }
+    };
+    if (user) {
+      cargarInvitadosFrecuentes();
+    }
+  }, [user]);
 
   const { mutate: saveSolicitud, isPending: isSaving } = useMutation({
     mutationFn: (data: SolicitudInvitadosDiarios) => addOrUpdateSolicitudInvitadosDiarios(data),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['solicitudInvitados', loggedInUserNumeroSocio, selectedDateISO] });
+      const queryKey = ['solicitudInvitados', user?.uid, selectedDateISO];
+      queryClient.setQueryData(queryKey, variables);
+
       toast({
         title: variables.estado === EstadoSolicitudInvitados.ENVIADA ? 'Lista Enviada' : (variables.id ? 'Lista Actualizada' : 'Borrador Guardado'),
         description: `Tu lista de invitados para el ${formatDate(selectedDateISO)} ha sido actualizada.`,
@@ -84,7 +122,7 @@ export function GestionInvitadosDiarios() {
     resolver: zodResolver(solicitudInvitadosDiariosSchema),
     defaultValues: {
       id: generateId(),
-      idSocioTitular: loggedInUserNumeroSocio || '',
+      idSocioTitular: user?.uid || '',
       nombreSocioTitular: userName || '',
       fecha: selectedDateISO,
       listaInvitadosDiarios: [createDefaultInvitado()],
@@ -95,88 +133,145 @@ export function GestionInvitadosDiarios() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "listaInvitadosDiarios",
   });
   
   useEffect(() => {
-    if (loading || authIsLoading) return;
-    
+    if (loading || authIsLoading) {
+      return;
+    }
+
     if (solicitudActual) {
       form.reset({
         ...solicitudActual,
         fecha: selectedDateISO,
-        listaInvitadosDiarios: solicitudActual.listaInvitadosDiarios.length > 0 
-          ? solicitudActual.listaInvitadosDiarios.map(inv => ({
-              ...inv,
-              id: inv.id || generateId(),
-              fechaNacimiento: inv.fechaNacimiento,
-            }))
+        listaInvitadosDiarios: solicitudActual.listaInvitadosDiarios.length > 0
+          ? solicitudActual.listaInvitadosDiarios.map(inv => {
+              const rawDate = inv.fechaNacimiento as any;
+              let finalDate = new Date();
+              if (rawDate) {
+                if (typeof rawDate.seconds === 'number') {
+                  finalDate = new Date(rawDate.seconds * 1000);
+                } else {
+                  finalDate = new Date(rawDate);
+                }
+              }
+              return {
+                ...inv,
+                id: inv.id || generateId(),
+                fechaNacimiento: finalDate,
+              };
+            })
           : [createDefaultInvitado()],
       });
     } else {
       form.reset({
-          id: generateId(),
-          idSocioTitular: loggedInUserNumeroSocio || '',
-          nombreSocioTitular: userName || '',
-          fecha: selectedDateISO,
-          listaInvitadosDiarios: [createDefaultInvitado()],
-          estado: EstadoSolicitudInvitados.BORRADOR,
-          fechaCreacion: new Date(),
-          fechaUltimaModificacion: new Date(),
-          titularIngresadoEvento: false,
+        id: generateId(),
+        idSocioTitular: user?.uid || '',
+        nombreSocioTitular: userName || '',
+        fecha: selectedDateISO,
+        listaInvitadosDiarios: [createDefaultInvitado()],
+        estado: EstadoSolicitudInvitados.BORRADOR,
+        fechaCreacion: new Date(),
+        fechaUltimaModificacion: new Date(),
+        titularIngresadoEvento: false,
       });
     }
-  }, [solicitudActual, loading, authIsLoading, form, selectedDateISO, loggedInUserNumeroSocio, userName]);
+  }, [solicitudActual, loading, authIsLoading, selectedDateISO, user, userName, form]);
 
-
-  const onSubmit = (data: SolicitudInvitadosDiarios) => {
-    if (!loggedInUserNumeroSocio) {
-        toast({ title: "Error", description: "Usuario no identificado.", variant: "destructive"});
-        return;
+  const guardarComoFrecuentes = async (invitados: InvitadoDiario[]) => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+      for (const invitado of invitados) {
+        const invitadoId = `inv-${invitado.dni}`;
+        const invitadoRef = doc(db, 'socios', user.uid, 'invitados_frecuentes', invitadoId);
+        const invitadoDoc = await getDoc(invitadoRef);
+        if (invitadoDoc.exists()) {
+          batch.update(invitadoRef, {
+            ultimoUso: Timestamp.now(),
+            vecesUsado: increment(1),
+            nombre: invitado.nombre,
+            apellido: invitado.apellido,
+            fechaNacimiento: Timestamp.fromDate(invitado.fechaNacimiento)
+          });
+        } else {
+          batch.set(invitadoRef, {
+            nombre: invitado.nombre,
+            apellido: invitado.apellido,
+            dni: invitado.dni,
+            fechaNacimiento: Timestamp.fromDate(invitado.fechaNacimiento),
+            fechaCreacion: Timestamp.now(),
+            ultimoUso: Timestamp.now(),
+            vecesUsado: 1
+          });
+        }
+      }
+      await batch.commit();
+      console.log('✅ Invitados guardados como frecuentes');
+    } catch (error) {
+      console.error('Error al guardar invitados frecuentes:', error);
     }
+  };
+
+  const handleSave = async (targetState: EstadoSolicitudInvitados) => {
+    if (!user) {
+      toast({ title: "Error", description: "Usuario no identificado.", variant: "destructive"});
+      return;
+    }
+
+    const data = form.getValues();
+
+    const invitadosValidos = data.listaInvitadosDiarios.filter(invitado => {
+        const tieneNombre = invitado.nombre && invitado.nombre.trim() !== '';
+        const tieneApellido = invitado.apellido && invitado.apellido.trim() !== '';
+        const tieneDNI = invitado.dni && invitado.dni.trim() !== '';
+        return tieneNombre && tieneApellido && tieneDNI;
+    });
+
+    if (targetState === EstadoSolicitudInvitados.ENVIADA && invitadosValidos.length === 0) {
+      toast({ title: "Lista Vacía", description: "Debe agregar al menos un invitado con nombre, apellido y DNI para enviar la lista.", variant: "destructive" });
+      return;
+    }
+
+    const finalState = solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? EstadoSolicitudInvitados.ENVIADA : targetState;
 
     const dataToSave: SolicitudInvitadosDiarios = {
         ...data,
-        idSocioTitular: loggedInUserNumeroSocio,
+        idSocioTitular: user.uid,
+        numeroSocioTitular: loggedInUserNumeroSocio || '',
         nombreSocioTitular: userName || 'Socio',
         fecha: selectedDateISO, 
-        id: solicitudActual?.id || data.id || generateId(),
-        estado: solicitudActual?.estado || EstadoSolicitudInvitados.BORRADOR,
+        id: solicitudActual?.id || data.id,
+        estado: finalState,
         fechaCreacion: solicitudActual?.fechaCreacion || new Date(),
         fechaUltimaModificacion: new Date(),
-        listaInvitadosDiarios: data.listaInvitadosDiarios.map(inv => ({
-          ...inv,
-          id: inv.id || generateId(),
-        }))
+        listaInvitadosDiarios: invitadosValidos,
     };
+    
+    console.log('🔍 Usuario actual:', user);
+    console.log('🆔 UID del usuario:', user?.uid);
+    console.log('📋 Datos a enviar:', dataToSave);
+
     saveSolicitud(dataToSave);
+
+    if (targetState === EstadoSolicitudInvitados.ENVIADA) {
+      await guardarComoFrecuentes(invitadosValidos);
+    }
+  };
+
+  const onFormSubmit = () => {
+    handleSave(EstadoSolicitudInvitados.BORRADOR);
   };
 
   const handleConfirmarYEnviar = () => {
-    const currentData = form.getValues();
-     if (currentData.listaInvitadosDiarios.length === 0 || currentData.listaInvitadosDiarios.every(inv => !inv.nombre && !inv.apellido && !inv.dni)) {
-      toast({ title: "Lista Vacía", description: "Debe agregar al menos un invitado para enviar la lista.", variant: "destructive" });
-      return;
-    }
-    const dataToSave: SolicitudInvitadosDiarios = {
-      ...currentData,
-      idSocioTitular: loggedInUserNumeroSocio!,
-      nombreSocioTitular: userName!,
-      fecha: selectedDateISO,
-      id: solicitudActual?.id || currentData.id,
-      estado: EstadoSolicitudInvitados.ENVIADA,
-      fechaCreacion: solicitudActual?.fechaCreacion || new Date(),
-      fechaUltimaModificacion: new Date(),
-    };
-    saveSolicitud(dataToSave);
+    handleSave(EstadoSolicitudInvitados.ENVIADA);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const [year, month, day] = e.target.value.split('-').map(Number);
-    // Create date in local timezone by providing year, month (0-indexed), and day
-    // to avoid timezone issues with parseISO which assumes UTC.
     const newDate = new Date(year, month - 1, day);
     if (isValid(newDate)) {
         setSelectedDate(newDate);
@@ -185,32 +280,88 @@ export function GestionInvitadosDiarios() {
 
   const isEditable = useMemo(() => {
     const esFechaValidaParaEdicion = !isBefore(selectedDate, today) || isSameDay(selectedDate, today);
-    if (!esFechaValidaParaEdicion) return false; 
 
-    if (!solicitudActual) return true; 
+    if (!solicitudActual) {
+      return esFechaValidaParaEdicion;
+    }
+
+    if (!esFechaValidaParaEdicion) {
+      return false;
+    }
 
     const estadosBloqueados: EstadoSolicitudInvitados[] = [
-        EstadoSolicitudInvitados.PROCESADA,
         EstadoSolicitudInvitados.VENCIDA,
         EstadoSolicitudInvitados.CANCELADA_ADMIN,
         EstadoSolicitudInvitados.CANCELADA_SOCIO,
     ];
-
-    if (solicitudActual.estado === EstadoSolicitudInvitados.ENVIADA) return true;
 
     return !estadosBloqueados.includes(solicitudActual.estado);
   }, [solicitudActual, selectedDate, today]);
   
   const puedeEnviar = useMemo(() => {
     if (!isEditable) return false;
-    
+
+    if (solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA) {
+      return true;
+    }
+
     const isTodayOrFutureWithinLimit = !isBefore(selectedDate, today) && isBefore(selectedDate, addDays(today,6));
     
     return (solicitudActual?.estado === EstadoSolicitudInvitados.BORRADOR || !solicitudActual) && 
-           isTodayOrFutureWithinLimit &&
-           (isSameDay(selectedDate, today) || isBefore(today,selectedDate));
-  }, [solicitudActual, selectedDate, today, isEditable]);
+           isTodayOrFutureWithinLimit;
+  }, [solicitudActual, isEditable, selectedDate, today]);
 
+  const agregarInvitadoFrecuente = (inv: InvitadoFrecuente) => {
+    const currentInvitados = form.getValues('listaInvitadosDiarios');
+    const existe = currentInvitados.some(i => i.dni === inv.dni);
+    if (existe) {
+      toast({ title: 'Info', description: 'Este invitado ya está en la lista.' });
+      return;
+    }
+    const newInvitado = { ...createDefaultInvitado(), ...inv };
+    // Check if the first field is empty and replace it, otherwise append
+    if (fields.length === 1 && !fields[0].nombre && !fields[0].apellido && !fields[0].dni) {
+      replace([newInvitado]);
+    } else {
+      append(newInvitado);
+    }
+    toast({ title: 'Invitado Agregado', description: `${inv.nombre} ${inv.apellido} agregado a la lista.` });
+  };
+
+  const cargarTodosLosFrecuentes = () => {
+    const currentInvitados = form.getValues('listaInvitadosDiarios');
+    const nuevosInvitados = invitadosFrecuentes
+      .filter(inv => !currentInvitados.some(i => i.dni === inv.dni))
+      .map(inv => ({ ...createDefaultInvitado(), ...inv }));
+    if (nuevosInvitados.length > 0) {
+      append(nuevosInvitados);
+      toast({ title: 'Invitados Cargados', description: `${nuevosInvitados.length} invitados cargados.` });
+    } else {
+      toast({ title: 'Info', description: 'Todos los invitados frecuentes ya están en la lista.' });
+    }
+  };
+
+  const eliminarInvitadoFrecuente = async (invitadoId: string) => {
+    if (!user) return;
+    if (confirm('¿Eliminar este invitado de tus frecuentes?')) {
+      try {
+        await deleteDoc(doc(db, 'socios', user.uid, 'invitados_frecuentes', invitadoId));
+        setInvitadosFrecuentes(invitadosFrecuentes.filter(inv => inv.id !== invitadoId));
+        toast({ title: 'Éxito', description: 'Invitado eliminado de frecuentes.' });
+      } catch (error) {
+        console.error('Error al eliminar:', error);
+        toast({ title: 'Error', description: 'Error al eliminar invitado frecuente.', variant: 'destructive' });
+      }
+    }
+  };
+
+  const limpiarInvitadosActuales = () => {
+    if (fields.length === 0) return;
+    if (confirm('¿Limpiar la lista actual de invitados?')) {
+      replace([createDefaultInvitado()]);
+      toast({ title: 'Info', description: 'Lista limpiada.' });
+    }
+  };
 
   if (authIsLoading || (loading && !solicitudActual)) {
     return (
@@ -237,8 +388,7 @@ export function GestionInvitadosDiarios() {
 
   const submitButtonText = () => {
     if (isSaving) return 'Guardando...';
-    if (solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA && isEditable) return 'Agregar Más Invitados a Lista';
-    return solicitudActual ? 'Actualizar Borrador' : 'Guardar Borrador';
+    return solicitudActual?.id ? 'Actualizar Borrador' : 'Guardar Borrador';
   };
 
   return (
@@ -254,7 +404,7 @@ export function GestionInvitadosDiarios() {
           </CardDescription>
         </CardHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onFormSubmit)}>
             <CardContent className="p-6">
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -307,16 +457,63 @@ export function GestionInvitadosDiarios() {
                         )}
                     </Card>
                 )}
+
+                <Card className="mb-6">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-orange-500" />
+                        Invitados Frecuentes
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setMostrarFrecuentes(!mostrarFrecuentes)}>
+                        {mostrarFrecuentes ? <ChevronUp /> : <ChevronDown />}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 pt-2">Tus invitados más comunes. Haz clic para agregarlos a la lista de hoy.</p>
+                  </CardHeader>
+                  {mostrarFrecuentes && (
+                    <CardContent>
+                      {invitadosFrecuentes.length === 0 ? (
+                        <p className="text-center text-gray-500 py-4">No tienes invitados frecuentes aún. Se guardarán automáticamente al enviar listas.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {invitadosFrecuentes.map((inv) => (
+                            <Card key={inv.id} className="p-3 hover:shadow-md transition-shadow">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <p className="font-semibold">{inv.nombre} {inv.apellido}</p>
+                                  <p className="text-sm text-gray-600">DNI: {inv.dni}</p>
+                                  <p className="text-xs text-gray-500">Usado {inv.vecesUsado} {inv.vecesUsado === 1 ? 'vez' : 'veces'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => agregarInvitadoFrecuente(inv)} title="Agregar a la lista de hoy">
+                                    <Plus className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => eliminarInvitadoFrecuente(inv.id)} title="Eliminar de frecuentes">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                      {invitadosFrecuentes.length > 0 && (
+                        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                          <Button onClick={cargarTodosLosFrecuentes} className="flex-1" variant="outline">
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Cargar Todos los Frecuentes
+                          </Button>
+                          <Button onClick={limpiarInvitadosActuales} variant="ghost">
+                            <X className="w-4 h-4 mr-2" />
+                            Limpiar Lista
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
                 
-
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Importante</AlertTitle>
-                  <AlertDescription>
-                    Para que se habilite el ingreso de los invitados de esta lista, un socio responsable del grupo familiar (titular o familiar directo) debe registrar su ingreso en portería primero. Adicionalmente, los invitados deben abonar la entrada correspondiente y realizar la revisión médica si fuera necesario.
-                  </AlertDescription>
-                </Alert>
-
                 <Separator/>
 
                 <div>
@@ -383,7 +580,7 @@ export function GestionInvitadosDiarios() {
                                   <FormControl>
                                     <Input
                                       type="date"
-                                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                                      value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                                       onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)}
                                       max={maxBirthDate}
                                       min="1900-01-01"
@@ -426,30 +623,40 @@ export function GestionInvitadosDiarios() {
               </div>
             </CardContent>
             <CardFooter className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-              <Button 
-                type="submit" 
-                disabled={isSaving || !loggedInUserNumeroSocio || authIsLoading || !isEditable}
-              >
-                {submitButtonText()}
-              </Button>
+              {solicitudActual?.estado !== EstadoSolicitudInvitados.ENVIADA && (
+                <Button 
+                  type="submit" 
+                  disabled={isSaving || !loggedInUserNumeroSocio || authIsLoading || !isEditable}
+                >
+                  {submitButtonText()}
+                </Button>
+              )}
+
               {puedeEnviar && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="default" className="bg-green-600 hover:bg-green-700">
-                      <Send className="mr-2 h-4 w-4" /> Confirmar y Enviar Lista
+                      <Send className="mr-2 h-4 w-4" /> 
+                      {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? 'Actualizar Lista Enviada' : 'Confirmar y Enviar Lista'}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>¿Confirmar y Enviar Lista de Invitados?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? '¿Actualizar la Lista Enviada?' : '¿Confirmar y Enviar Lista de Invitados?'}
+                      </AlertDialogTitle>
                       <AlertDialogDescriptionAlertDialog>
-                        Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> estará confirmada. Podrás seguir agregando invitados si es necesario.
-                        Asegúrate de que todos los datos sean correctos.
+                        {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA
+                          ? 'Se guardarán los cambios en la lista ya enviada. Asegúrate de que todos los datos son correctos.'
+                          : <>Una vez enviada, la lista para el <strong>{formatDate(selectedDateISO)}</strong> estará confirmada. Podrás seguir agregando invitados si es necesario. Asegúrate de que todos los datos sean correctos.</>
+                        }
                       </AlertDialogDescriptionAlertDialog>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleConfirmarYEnviar} className="bg-green-600 hover:bg-green-700">Confirmar y Enviar</AlertDialogAction>
+                      <AlertDialogAction onClick={handleConfirmarYEnviar} className="bg-green-600 hover:bg-green-700">
+                        {solicitudActual?.estado === EstadoSolicitudInvitados.ENVIADA ? 'Confirmar y Actualizar' : 'Confirmar y Enviar'}
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

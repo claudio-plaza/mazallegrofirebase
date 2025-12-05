@@ -12,6 +12,7 @@ import type { Socio, Adherente, AptoMedicoInfo } from '@/types';
 import { EstadoAdherente, EstadoSolicitudAdherente } from '@/types';
 import { updateSocio } from '@/lib/firebase/firestoreService';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -28,6 +29,7 @@ interface GestionAdherentesDialogProps {
 }
 
 export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherentesUpdated }: GestionAdherentesDialogProps) {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentAdherentes, setCurrentAdherentes] = useState<Adherente[]>([]);
   const [motivoRechazoInput, setMotivoRechazoInput] = useState('');
@@ -46,31 +48,36 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
   if (!socio) return null;
 
   const handleUpdateAdherente = async (updatedAdherente: Adherente) => {
+    if (!socio) return false;
     const updatedAdherentesList = currentAdherentes.map(a => a.id === updatedAdherente.id ? updatedAdherente : a);
     try {
-      await updateSocio({ ...socio, adherentes: updatedAdherentesList });
+      await updateSocio(socio.id, { adherentes: updatedAdherentesList });
       setCurrentAdherentes(updatedAdherentesList);
+      queryClient.invalidateQueries({ queryKey: ['socios'] });
       onAdherentesUpdated();
       return true;
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo actualizar el adherente.", variant: "destructive" });
+      console.error("Error updating adherente:", error);
+      toast({ title: "Error", description: (error as Error).message || "No se pudo actualizar el adherente.", variant: "destructive" });
       return false;
     }
   };
 
   const handleRemoveAdherenteById = async (adherenteId?: string) => {
-    if (!adherenteId) return;
+    if (!adherenteId || !socio) return;
     const adherenteToRemove = currentAdherentes.find(a => a.id === adherenteId);
     if (!adherenteToRemove) return;
 
     const updatedAdherentesList = currentAdherentes.filter(a => a.id !== adherenteId);
     try {
-      await updateSocio({ ...socio, adherentes: updatedAdherentesList });
+      await updateSocio(socio.id, { adherentes: updatedAdherentesList });
       setCurrentAdherentes(updatedAdherentesList);
       toast({ title: "Adherente Eliminado", description: `${adherenteToRemove.nombre} ${adherenteToRemove.apellido} ha sido eliminado permanentemente.` });
+      queryClient.invalidateQueries({ queryKey: ['socios'] });
       onAdherentesUpdated();
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo eliminar el adherente.", variant: "destructive" });
+      console.error("Error removing adherente:", error);
+      toast({ title: "Error", description: (error as Error).message || "No se pudo eliminar el adherente.", variant: "destructive" });
     }
   };
 
@@ -93,6 +100,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
     });
     if (success) {
       toast({ title: "Solicitud Aprobada", description: `Adherente ${adherente.nombre} aprobado y activado.` });
+      onOpenChange(false);
     }
   };
 
@@ -115,6 +123,7 @@ export function GestionAdherentesDialog({ socio, open, onOpenChange, onAdherente
       toast({ title: "Solicitud Rechazada", description: `Solicitud para ${adherente.nombre} rechazada.` });
       setEditingRechazoAdherenteId(null);
       setMotivoRechazoInput('');
+      onOpenChange(false);
     }
   };
 

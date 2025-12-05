@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { subYears, parseISO, isValid, formatISO } from 'date-fns';
+import { subYears, parseISO, isValid, differenceInYears } from 'date-fns';
+import type { Timestamp } from 'firebase/firestore';
 
 const safeDate = z.preprocess((arg) => {
   if (typeof arg === 'string') {
@@ -21,7 +22,6 @@ export const MAX_PADRES = 2;
 export enum RelacionFamiliar {
   CONYUGE = "Conyuge",
   HIJO_A = "Hijo/a",
-  PADRE_MADRE = "Padre/Madre",
 }
 
 export enum EstadoValidacionFamiliar {
@@ -38,13 +38,6 @@ export enum EstadoSolicitudSocio {
   RECHAZADA = "Rechazada",
 }
 
-export enum EstadoCambioGrupoFamiliar {
-  NINGUNO = "Ninguno",
-  PENDIENTE = "Pendiente",
-  APROBADO = "Aprobado",
-  RECHAZADO = "Rechazado",
-}
-
 export enum EstadoAdherente {
   ACTIVO = "Activo",
   INACTIVO = "Inactivo",
@@ -53,8 +46,15 @@ export enum EstadoAdherente {
 export enum EstadoSolicitudAdherente {
   PENDIENTE = "Pendiente",
   APROBADO = "Aprobado",
-  RECHAZADO = "Rechazada",
+  RECHAZADO = "Rechazado",
   PENDIENTE_ELIMINACION = "Pendiente Eliminación",
+}
+
+export enum EstadoCambioFamiliares {
+  NINGUNO = "Ninguno",
+  PENDIENTE = "Pendiente",
+  APROBADO = "Aprobado",
+  RECHAZADO = "Rechazado",
 }
 
 export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
@@ -129,9 +129,9 @@ export interface Adherente {
   telefono?: string;
   direccion?: string;
   email?: string;
-  fotoDniFrente?: string | FileList | null;
-  fotoDniDorso?: string | FileList | null;
-  fotoPerfil?: string | FileList | null;
+  fotoDniFrente?: string | File | null;
+  fotoDniDorso?: string | File | null;
+  fotoPerfil?: string | File | null;
   estadoAdherente: EstadoAdherente;
   estadoSolicitud: EstadoSolicitudAdherente;
   motivoRechazo?: string | null;
@@ -155,17 +155,28 @@ export interface Socio {
   fotoDniDorso?: string | null;
   fotoCarnet?: string | null;
   estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
+  motivoInactivacion?: string | null;  // ✅ NUEVO: Por qué fue inactivado
+  fechaInactivacion?: Date | null;     // ✅ NUEVO: Cuándo fue inactivado
   aptoMedico: AptoMedicoInfo;
   miembroDesde: Date;
   ultimaRevisionMedica?: Date;
-  grupoFamiliar: MiembroFamiliar[];
+  familiares?: MiembroFamiliar[]; // Nuevo campo para familiares directos
   adherentes?: Adherente[];
   cuenta?: CuentaSocio;
   documentos?: DocumentoSocioGeneral[];
   estadoSolicitud?: EstadoSolicitudSocio;
   role: Extract<UserRole, 'socio'>;
-  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliar | null;
-  estadoCambioGrupoFamiliar?: EstadoCambioGrupoFamiliar;
+  searchableKeywords?: string[];
+  documentosCompletos?: boolean;
+
+  // Nuevos campos para cambios pendientes
+  cambiosPendientesFamiliares?: MiembroFamiliar[];
+  estadoCambioFamiliares?: 'Ninguno' | 'Pendiente' | 'Aprobado' | 'Rechazado';
+  motivoRechazoFamiliares?: string | null;
+  
+  // Mantener los viejos por compatibilidad temporal
+  cambiosPendientesGrupoFamiliar?: any;
+  estadoCambioGrupoFamiliar?: string;
   motivoRechazoCambioGrupoFamiliar?: string | null;
 }
 
@@ -181,30 +192,13 @@ export interface AdherenteRaw extends Omit<Adherente, 'fechaNacimiento' | 'aptoM
   aptoMedico: AptoMedicoInfoRaw;
 }
 
-export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'grupoFamiliar' | 'adherentes' | 'cambiosPendientesGrupoFamiliar'> {
+export interface SocioRaw extends Omit<Socio, 'fechaNacimiento' | 'miembroDesde' | 'ultimaRevisionMedica' | 'aptoMedico' | 'familiares' | 'adherentes'> {
   fechaNacimiento: string;
   miembroDesde: string;
   ultimaRevisionMedica?: string;
   aptoMedico: AptoMedicoInfoRaw;
-  grupoFamiliar: MiembroFamiliarRaw[];
+  familiares?: MiembroFamiliarRaw[]; // Nuevo campo para familiares directos
   adherentes?: AdherenteRaw[];
-  cambiosPendientesGrupoFamiliar?: CambiosPendientesGrupoFamiliarRaw | null;
-}
-
-export interface CambiosPendientesGrupoFamiliar {
-  tipoGrupoFamiliar?: "conyugeEHijos" | "padresMadres";
-  familiares?: {
-    conyuge?: MiembroFamiliar | null;
-    hijos?: MiembroFamiliar[];
-    padres?: MiembroFamiliar[];
-  }
-}
-export interface CambiosPendientesGrupoFamiliarRaw extends Omit<CambiosPendientesGrupoFamiliar, 'familiares'> {
-   familiares?: {
-    conyuge?: MiembroFamiliarRaw | null;
-    hijos?: MiembroFamiliarRaw[];
-    padres?: MiembroFamiliarRaw[];
-  }
 }
 
 
@@ -253,10 +247,14 @@ export const profileFileSchemaConfig: FileSchemaConfig = {
   mimeTypes: ["image/png", "image/jpeg"],
 };
 
-const fileSchema = z.union([
-  z.instanceof(File, { message: "Debe ser un archivo." }),
-  z.string().url({ message: "Debe ser una URL válida." }),
-]);
+const fileSchema = z.preprocess(
+  (val) => (val === "" ? null : val), // Convierte string vacío a null antes de validar
+  z.union([
+    z.instanceof(File, { message: "Debe ser un archivo." }),
+    z.string().startsWith("https://", { message: "Debe ser una URL válida." }),
+    z.null(),
+  ])
+);
 
 const fileValidation = (config: FileSchemaConfig) =>
   fileSchema.nullable().refine((file) => {
@@ -283,7 +281,7 @@ export const signupTitularSchema = z.object({
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   empresa: z.string().regex(/^[a-zA-Z\s]*$/, "Empresa solo debe contener letras y espacios.").optional(),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
-  direccion: z.string().min(5, "Dirección es requerida.").regex(/^[a-zA-Z0-9\s]+$/, "Dirección solo debe contener letras, números y espacios."),
+  direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
   password: z.string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres.')
@@ -371,10 +369,10 @@ export const familiarBaseSchema = z.object({
   fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
   fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
-  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
-  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
-  email: z.string().email("Email inválido.").optional().or(z.literal('')),
-  relacion: z.enum(Object.values(RelacionFamiliar) as [RelacionFamiliar, ...RelacionFamiliar[]]),
+  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')), 
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')), 
+  email: z.string().email("Email inválido.").optional().or(z.literal('')), 
+  relacion: z.nativeEnum(RelacionFamiliar), // Simplificado
   aptoMedico: z.custom<AptoMedicoInfo>().optional(),
   estadoValidacion: z.nativeEnum(EstadoValidacionFamiliar).optional(),
 });
@@ -386,25 +384,21 @@ export type ConyugeData = z.infer<typeof conyugeSchema>;
 
 export const hijoSchema = familiarBaseSchema.extend({
   relacion: z.literal(RelacionFamiliar.HIJO_A),
+  fechaNacimiento: safeDate
+    .refine(date => !!date, "La fecha de nacimiento es requerida.")
+    .refine(date => differenceInYears(new Date(), date) < 21, {
+      message: "Los hijos deben ser menores de 21 años."
+    }),
 });
 export type HijoData = z.infer<typeof hijoSchema>;
-
-export const padreSchema = familiarBaseSchema.extend({
-  relacion: z.literal(RelacionFamiliar.PADRE_MADRE),
-});
-export type PadreData = z.infer<typeof padreSchema>;
 
 export const familiaresDetallesSchema = z.object({
   conyuge: conyugeSchema.optional().nullable(),
   hijos: z.array(hijoSchema).max(MAX_HIJOS, `No puede agregar más de ${MAX_HIJOS} hijos.`).optional(),
-  padres: z.array(padreSchema).max(MAX_PADRES, `No puede agregar más de ${MAX_PADRES} padres.`).optional(),
 });
 export type FamiliaresDetallesData = z.infer<typeof familiaresDetallesSchema>;
 
 export const agregarFamiliaresSchema = z.object({
-  tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
-    required_error: "Debe seleccionar un tipo de grupo familiar.",
-  }),
   familiares: familiaresDetallesSchema,
 });
 export type AgregarFamiliaresData = z.infer<typeof agregarFamiliaresSchema>;
@@ -447,7 +441,9 @@ export const invitadoDiarioSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido."),
   apellido: z.string().min(1, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
-  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
+  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida.").refine(date => {
+    return differenceInYears(new Date(), date) >= 3;
+  }, { message: "El invitado debe ser mayor de 3 años." }),
   ingresado: z.boolean().default(false),
   metodoPago: z.enum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
@@ -459,6 +455,7 @@ export interface SolicitudInvitadosDiarios {
   id: string;
   idSocioTitular: string;
   nombreSocioTitular: string;
+  numeroSocioTitular: string;
   fecha: string; // ISO Date string YYYY-MM-DD
   listaInvitadosDiarios: InvitadoDiario[];
   estado: EstadoSolicitudInvitados;
@@ -480,6 +477,7 @@ export const solicitudInvitadosDiariosSchema = z.object({
   id: z.string().default(() => `invd-${Date.now().toString(36)}`),
   idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
   nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
+  numeroSocioTitular: z.string({ required_error: "Número de socio titular es requerido."}),
   fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }).refine(val => isValid(parseISO(val)), { message: "Fecha inválida."}),
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
     .min(1, "Debe agregar al menos un invitado."),
@@ -538,7 +536,7 @@ export const adminEditableFamiliarSchema = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
   fechaNacimiento: safeDate,
-  relacion: z.nativeEnum(RelacionFamiliar, { required_error: "Relación es requerida." }),
+  relacion: z.nativeEnum(RelacionFamiliar), // Simplificado
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
   email: z.string().email("Email inválido.").optional().or(z.literal('')),
   direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
@@ -547,37 +545,169 @@ export const adminEditableFamiliarSchema = z.object({
   fotoDniDorso: optionalFileField(dniFileSchemaConfig).nullable(),
   fotoCarnet: optionalFileField(profileFileSchemaConfig).nullable(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional(), 
+}).refine(data => {
+    if (data.relacion === RelacionFamiliar.HIJO_A) {
+        if (!data.fechaNacimiento) return true; // Dejar que la validación base maneje el campo requerido
+        return differenceInYears(new Date(), data.fechaNacimiento) < 21;
+    }
+    return true;
+}, {
+    message: "Los hijos deben ser menores de 21 años.",
+    path: ["fechaNacimiento"],
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
 
+export const adminEditableAdherenteSchema = z.object({
+  id: z.string().optional(),
+  nombre: z.string().min(2, "Nombre es requerido."),
+  apellido: z.string().min(2, "Apellido es requerido."),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos."),
+  fechaNacimiento: safeDate,
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
+  email: z.string().email("Email inválido.").optional().or(z.literal('')),
+  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
+  fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
+  fotoDniFrente: optionalFileField(dniFileSchemaConfig).nullable(),
+  fotoDniDorso: optionalFileField(dniFileSchemaConfig).nullable(),
+  estadoAdherente: z.nativeEnum(EstadoAdherente),
+  estadoSolicitud: z.nativeEnum(EstadoSolicitudAdherente),
+  motivoRechazo: z.string().optional().nullable(),
+  aptoMedico: z.custom<AptoMedicoInfo>(),
+});
+export type AdminEditableAdherenteData = z.infer<typeof adminEditableAdherenteSchema>;
 
-export const adminEditSocioTitularSchema = z.object({
+
+const adminEditSocioTitularObject = z.object({
   apellido: z.string().min(2, "Apellido es requerido."),
   nombre: z.string().min(2, "Nombre es requerido."),
   fechaNacimiento: safeDate.optional().refine(date => !date || date <= subYears(new Date(), 18), {
     message: "El titular debe ser mayor de 18 años."
   }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-  empresa: z.string().min(1, "Empresa / Sindicato es requerido."),
+  empresa: z.string().optional().or(z.literal('')),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
   estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
-  tipoGrupoFamiliar: z.enum(["conyugeEHijos", "padresMadres"], {
-    errorMap: (issue, ctx) => ({ message: "Debe seleccionar un tipo de grupo si va a agregar familiares." })
-  }).optional(),
-  grupoFamiliar: z.array(adminEditableFamiliarSchema).optional(),
-  fotoUrl: z.string().url("URL de foto inválida.").optional().nullable(),
+  motivoInactivacion: z.string().optional().nullable(),
+  fechaInactivacion: z.date().optional().nullable(),
+  familiares: z.array(adminEditableFamiliarSchema).optional(),
+  adherentes: z.array(adminEditableAdherenteSchema).optional(),
+  
+  fotoUrl: optionalFileField(profileFileSchemaConfig).nullable(),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
   fotoDniFrente: optionalFileField(dniFileSchemaConfig),
   fotoDniDorso: optionalFileField(dniFileSchemaConfig),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
 });
+
+export const adminEditSocioTitularSchema = adminEditSocioTitularObject.refine(
+  (data) => {
+    if (data.estadoSocio === 'Inactivo' && (!data.motivoInactivacion || data.motivoInactivacion.trim().length < 10)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Debes proporcionar un motivo de al menos 10 caracteres al inactivar la cuenta.",
+    path: ["motivoInactivacion"],
+  }
+);
 export type AdminEditSocioTitularData = z.infer<typeof adminEditSocioTitularSchema>;
 
-export const adminNuevoSocioTitularSchema = adminEditSocioTitularSchema.extend({
+export const adminNuevoSocioTitularSchema = adminEditSocioTitularObject.extend({
   fechaNacimiento: safeDate.refine(date => date <= subYears(new Date(), 18), {
     message: "El titular debe ser mayor de 18 años."
   }),
 });
 export type AdminNuevoSocioTitularData = z.infer<typeof adminNuevoSocioTitularSchema>;
+
+// Types for Control de Acceso
+export interface AptoMedicoDisplay {
+  status: 'Válido' | 'Vencido' | 'Pendiente' | 'Error' | 'No Aplica' | 'Sin datos' | 'N/A' | 'Inválido';
+  message: string;
+  colorClass: string;
+  fechaVencimiento?: string;
+  observaciones?: string;
+}
+
+export interface UltimoIngreso {
+  hora: string;
+  timestamp: Timestamp;
+}
+
+export interface EstadoResponsable {
+  hayResponsable: boolean;
+  responsable?: {
+    nombre: string;
+    apellido: string;
+    tipo: string;
+    hora: string;
+  };
+}
+
+// Sistema de Solicitudes de Cambio de Fotos
+export enum TipoFotoSolicitud {
+  FOTO_PERFIL = 'fotoPerfil',
+  FOTO_DNI_FRENTE = 'fotoDniFrente',
+  FOTO_DNI_DORSO = 'fotoDniDorso',
+  FOTO_CARNET = 'fotoCarnet',
+}
+
+export enum EstadoSolicitudCambioFoto {
+  PENDIENTE = 'Pendiente',
+  APROBADA = 'Aprobada',
+  RECHAZADA = 'Rechazada',
+}
+
+export interface SolicitudCambioFoto {
+  id: string;
+  socioId: string;
+  socioNombre: string;
+  socioNumero: string;
+  tipoPersona: 'Titular' | 'Familiar' | 'Adherente';
+  familiarId?: string;
+  tipoFoto: TipoFotoSolicitud;
+  fotoActualUrl: string | null;
+  fotoNuevaFile?: File; // Solo en el frontend
+  fotoNuevaUrl?: string; // URL temporal para preview
+  estado: EstadoSolicitudCambioFoto;
+  motivoRechazo?: string;
+  fechaSolicitud: Date;
+  fechaRespuesta?: Date;
+}
+
+export interface SolicitudCambioFotoRaw extends Omit<SolicitudCambioFoto, 'fechaSolicitud' | 'fechaRespuesta' | 'fotoNuevaFile'> {
+  fechaSolicitud: string;
+  fechaRespuesta?: string;
+}
+
+export const solicitudCambioFotoSchema = z.object({
+  id: z.string().default(() => `foto-${Date.now().toString(36)}`),
+  socioId: z.string(),
+  socioNombre: z.string(),
+  socioNumero: z.string(),
+  tipoPersona: z.enum(['Titular', 'Familiar', 'Adherente']),
+  familiarId: z.string().optional(),
+  tipoFoto: z.nativeEnum(TipoFotoSolicitud),
+  fotoActualUrl: z.string().nullable(),
+  fotoNuevaUrl: z.string().optional(),
+  estado: z.nativeEnum(EstadoSolicitudCambioFoto).default(EstadoSolicitudCambioFoto.PENDIENTE),
+  motivoRechazo: z.string().optional(),
+  fechaSolicitud: z.date().default(() => new Date()),
+  fechaRespuesta: z.date().optional(),
+});
+
+export interface RegistroAcceso {
+  id: string;
+  fecha: Date;
+  personaDNI: string;
+  personaNombre: string;
+  personaTipo: string;
+  registradoPorEmail: string;
+  socioTitularId: string;
+  socioTitularNumero: string;
+  tipoRegistro: 'entrada' | 'salida';
+  esInvitadoCumpleanos?: boolean;
+  metodoPago?: string;
+}

@@ -1,8 +1,6 @@
-feat(familiares, adherentes): Mejoras en UX y subida de archivos
+feat: Mejoras en registro y paginación
 
-Se realizan los siguientes cambios:
-
-- Se estandariza la subida de archivos en toda la aplicación, permitiendo solo los formatos `jpg`, `jpeg`, `png` y `pdf` para DNI, y solo formatos de imagen para fotos de perfil y carnet.
-- Se eliminan los campos "Empresa / Sindicato" y "foto carnet" del formulario de alta de adherentes para simplificar el proceso.
-- Se mejora la interfaz de usuario de la sección "Gestionar Grupo Familiar", añadiendo colores, iconos y una mejor distribución para facilitar la carga y edición de familiares.
-- Se agrega un botón "Volver a Inicio" en la sección de grupo familiar para mejorar la navegación en dispositivos móviles.
+- Se optimiza el flujo de registro para mostrar una pantalla de carga detallada, mejorando la experiencia de usuario y evitando que la página se recargue.
+- Se revierte la paginación del listado de socios al sistema "Cargar más" por incompatibilidad con la versión de la librería de Firebase.
+- Se corrige un bug que mostraba la contraseña en el campo de confirmación.
+- Se limpia y actualiza el archivo .gitignore para excluir correctamente las dependencias y archivos generados.

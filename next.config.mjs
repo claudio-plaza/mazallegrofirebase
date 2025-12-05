@@ -16,6 +16,7 @@ const nextConfig = {
     // ignoreDuringBuilds: true, // Removed to enforce linting during build
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -32,8 +33,7 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
-        port: '',
-        pathname: '/**',
+        pathname: '/v0/b/**',
       }
     ],
   },

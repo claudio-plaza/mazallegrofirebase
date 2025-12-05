@@ -5,6 +5,8 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { siteConfig } from '@/config/site';
 import { MainLayoutWrapper } from '@/components/layout/MainLayoutWrapper';
+import { Toaster } from 'sonner';
+
 
 const roboto = Roboto({ // Changed from inter to roboto
   subsets: ['latin'],
@@ -32,6 +34,17 @@ export default function RootLayout({
           <MainLayoutWrapper>
             {children}
           </MainLayoutWrapper>
+          <Toaster 
+            richColors 
+            position="top-center" 
+            toastOptions={{
+              classNames: {
+                toast: 'p-6',
+                title: 'text-lg',
+                description: 'text-base',
+              },
+            }} 
+          />
         </Providers>
       </body>
     </html>

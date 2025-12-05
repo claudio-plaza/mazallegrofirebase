@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { PreciosInvitadosConfig, PreciosInvitadosFormData } from '@/types';
 import { preciosInvitadosConfigSchema } from '@/types';
-import { getPreciosInvitados, updatePreciosInvitados } from '@/lib/firebase/firestoreService';
+import { getConfiguracionPrecios, updateConfiguracionPrecios } from '@/lib/firebase/firestoreService';
 import { DollarSign, Save } from 'lucide-react';
 
 export function ConfiguracionPreciosForm() {
@@ -26,15 +26,17 @@ export function ConfiguracionPreciosForm() {
 
   useEffect(() => {
     const fetchPrecios = async () => {
-      const precios = await getPreciosInvitados();
-      form.reset(precios);
+      const precios = await getConfiguracionPrecios();
+      if (precios) {
+        form.reset(precios);
+      }
     };
     fetchPrecios();
   }, [form]);
 
   const onSubmit = async (data: PreciosInvitadosFormData) => {
     try {
-      await updatePreciosInvitados(data);
+      await updateConfiguracionPrecios(data);
       toast({
         title: 'Precios Actualizados',
         description: 'La configuración de precios para invitados ha sido guardada.',

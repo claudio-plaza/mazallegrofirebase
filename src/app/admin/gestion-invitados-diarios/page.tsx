@@ -1,17 +1,15 @@
 
-import { AdminInvitadosDiariosDashboard } from '@/components/admin/AdminInvitadosDiariosDashboard';
-import { Metadata } from 'next';
-import { siteConfig } from '@/config/site';
+'use client';
 
-export const metadata: Metadata = {
-  title: `Gestión de Invitados Diarios - ${siteConfig.name} Admin`,
-  description: 'Revisa y descarga listas de invitados diarios por fecha.',
-};
+import { AdminInvitadosDiariosDashboard } from '@/components/admin/AdminInvitadosDiariosDashboard';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 
 export default function AdminGestionInvitadosDiariosPage() {
   return (
-    <div className="container mx-auto py-8">
-      <AdminInvitadosDiariosDashboard />
-    </div>
+    <RoleGuard allowedRoles={['admin']}>
+      <div className="container mx-auto py-8">
+        <AdminInvitadosDiariosDashboard />
+      </div>
+    </RoleGuard>
   );
 }

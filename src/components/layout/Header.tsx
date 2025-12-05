@@ -17,7 +17,7 @@ const Header = () => {
             data-ai-hint="company logo"
             width={100}
             height={50}
-            className="h-auto" 
+            className="object-contain"
             priority 
           />
         </Link>

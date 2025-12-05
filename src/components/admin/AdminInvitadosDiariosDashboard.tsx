@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { SolicitudInvitadosDiarios, InvitadoDiario, MetodoPagoInvitado } from '@/types';
+import type { SolicitudInvitadosDiarios, InvitadoDiario, MetodoPagoInvitado, RegistroAcceso } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -15,8 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-// Importar KEYS de firestoreService para usar la clave correcta
-import { getAllSolicitudesInvitadosDiarios as fetchAllSolicitudesInvitadosDiarios } from '@/lib/firebase/firestoreService';
+import { getAllSolicitudesInvitadosDiarios as fetchAllSolicitudesInvitadosDiarios, getRegistrosAccesoPorFecha } from '@/lib/firebase/firestoreService';
 
 
 interface StatsInvitadosDiarios {
@@ -27,38 +26,47 @@ interface StatsInvitadosDiarios {
   ingresaronPagaronEfectivo: number;
   ingresaronPagaronTransferencia: number;
   ingresaronPagaronCaja: number;
-  ingresaronMenoresGratis: number;
+  ingresaronMenoresGratis: number; // Se mantiene por si se quiere usar en el futuro
+}
+
+interface InvitadoConIngreso extends InvitadoDiario {
+  ingresado: boolean;
+  datosIngreso?: RegistroAcceso;
+}
+
+interface SolicitudConInvitadosDeIngreso extends Omit<SolicitudInvitadosDiarios, 'listaInvitadosDiarios'> {
+  listaInvitadosDiarios: InvitadoConIngreso[];
 }
 
 export function AdminInvitadosDiariosDashboard() {
   const [todasLasSolicitudes, setTodasLasSolicitudes] = useState<SolicitudInvitadosDiarios[]>([]);
+  const [registrosDelDia, setRegistrosDelDia] = useState<RegistroAcceso[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const loadData = async () => {
-        setLoading(true);
-        try {
-            const allSolicitudes = await fetchAllSolicitudesInvitadosDiarios();
-            setTodasLasSolicitudes(allSolicitudes);
-        } catch (error) {
-            toast({ title: "Error", description: "No se pudieron cargar las listas de invitados.", variant: "destructive"});
-            console.error("Error fetching daily guest lists:", error);
-        } finally {
-            setLoading(false);
+      setLoading(true);
+      try {
+        const allSolicitudes = await fetchAllSolicitudesInvitadosDiarios();
+        setTodasLasSolicitudes(allSolicitudes);
+
+        if (selectedDate) {
+          const registros = await getRegistrosAccesoPorFecha(selectedDate);
+          setRegistrosDelDia(registros.filter(r => r.personaTipo === 'invitado'));
+        } else {
+          setRegistrosDelDia([]);
         }
+      } catch (error) {
+        toast({ title: "Error", description: "No se pudieron cargar los datos de invitados.", variant: "destructive"});
+        console.error("Error fetching daily guest data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
-
-    // Listener para recargar si los datos cambian en otra parte
-    const handleDbUpdate = () => loadData();
-    window.addEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
-    return () => {
-        window.removeEventListener('firestore/solicitudesInvitadosDiariosUpdated', handleDbUpdate);
-    };
-
-  }, [toast]);
+  }, [selectedDate, toast]);
 
   const solicitudesFiltradas = useMemo(() => {
     if (!selectedDate) return [];
@@ -66,9 +74,26 @@ export function AdminInvitadosDiariosDashboard() {
     return todasLasSolicitudes.filter(s => s.fecha === selectedDateISO);
   }, [selectedDate, todasLasSolicitudes]);
 
+  const solicitudesConDatosDeIngreso = useMemo((): SolicitudConInvitadosDeIngreso[] => {
+    return solicitudesFiltradas.map(solicitud => {
+      const listaInvitadosDiarios = solicitud.listaInvitadosDiarios.map(invitado => {
+        const registro = registrosDelDia.find(r => r.personaDNI === invitado.dni);
+        return {
+          ...invitado,
+          ingresado: !!registro,
+          datosIngreso: registro
+        };
+      });
+      return {
+        ...solicitud,
+        listaInvitadosDiarios
+      };
+    });
+  }, [solicitudesFiltradas, registrosDelDia]);
+
   const estadisticasDia = useMemo((): StatsInvitadosDiarios => {
     const stats: StatsInvitadosDiarios = {
-      sociosConListas: solicitudesFiltradas.length,
+      sociosConListas: solicitudesConDatosDeIngreso.length,
       invitadosTotales: 0,
       invitadosIngresaronTotal: 0,
       ingresaronCumpleanos: 0,
@@ -78,22 +103,16 @@ export function AdminInvitadosDiariosDashboard() {
       ingresaronMenoresGratis: 0,
     };
 
-    solicitudesFiltradas.forEach(solicitud => {
+    solicitudesConDatosDeIngreso.forEach(solicitud => {
       stats.invitadosTotales += solicitud.listaInvitadosDiarios.length;
       solicitud.listaInvitadosDiarios.forEach(invitado => {
-        if (invitado.ingresado) {
+        if (invitado.ingresado && invitado.datosIngreso) {
           stats.invitadosIngresaronTotal++;
-          let edad = -1;
-          if (invitado.fechaNacimiento && isValid(new Date(invitado.fechaNacimiento))) {
-              edad = differenceInYears(new Date(), new Date(invitado.fechaNacimiento));
-          }
-
-          if (invitado.esDeCumpleanos) {
+          
+          if (invitado.datosIngreso.esInvitadoCumpleanos) {
             stats.ingresaronCumpleanos++;
-          } else if (edad !== -1 && edad < 3) {
-            stats.ingresaronMenoresGratis++;
           } else {
-            switch (invitado.metodoPago) {
+            switch (invitado.datosIngreso.metodoPago) {
               case 'Efectivo':
                 stats.ingresaronPagaronEfectivo++;
                 break;
@@ -109,15 +128,11 @@ export function AdminInvitadosDiariosDashboard() {
       });
     });
     return stats;
-  }, [solicitudesFiltradas]);
+  }, [solicitudesConDatosDeIngreso]);
 
   const handleDescargarListaInvitadosDiarios = () => {
-    if (solicitudesFiltradas.length === 0) {
-      toast({
-        title: "Lista de Invitados Diarios Vacía",
-        description: `No hay invitados registrados para el ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : 'día seleccionado'}.`,
-        variant: "default",
-      });
+    if (solicitudesConDatosDeIngreso.length === 0) {
+      toast({ title: "Lista Vacía", description: `No hay invitados para el ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : ''}.`, variant: "default" });
       return;
     }
 
@@ -126,36 +141,20 @@ export function AdminInvitadosDiariosDashboard() {
     reportContent += `- Socios con Listas: ${estadisticasDia.sociosConListas}\n`;
     reportContent += `- Invitados Totales Registrados: ${estadisticasDia.invitadosTotales}\n`;
     reportContent += `- Invitados que Ingresaron (Total): ${estadisticasDia.invitadosIngresaronTotal}\n`;
-    reportContent += `  - De Cumpleaños: ${estadisticasDia.ingresaronCumpleanos}\n`;
+    reportContent += `  - Gratis (Cumpleaños): ${estadisticasDia.ingresaronCumpleanos}\n`;
     reportContent += `  - Pagaron Efectivo: ${estadisticasDia.ingresaronPagaronEfectivo}\n`;
     reportContent += `  - Pagaron Transferencia: ${estadisticasDia.ingresaronPagaronTransferencia}\n`;
-    reportContent += `  - Pagaron Caja: ${estadisticasDia.ingresaronPagaronCaja}\n`;
-    reportContent += `  - Menores (Gratis): ${estadisticasDia.ingresaronMenoresGratis}\n\n`;
+    reportContent += `  - Pagaron Caja: ${estadisticasDia.ingresaronPagaronCaja}\n\n`;
     reportContent += "Detalle por Socio:\n";
 
-    solicitudesFiltradas.forEach(solicitud => {
+    solicitudesConDatosDeIngreso.forEach(solicitud => {
       reportContent += `\nSocio: ${solicitud.nombreSocioTitular} (N°: ${solicitud.idSocioTitular})\n`;
       reportContent += "Invitados:\n";
       if (solicitud.listaInvitadosDiarios.length > 0) {
         solicitud.listaInvitadosDiarios.forEach(inv => {
           let detalleIngreso = "Pendiente de Ingreso";
-          if (inv.ingresado) {
-            detalleIngreso = "Ingresó";
-            if (inv.esDeCumpleanos) {
-              detalleIngreso += " (Cumpleaños)";
-            } else {
-              let edad = -1;
-              if (inv.fechaNacimiento && isValid(new Date(inv.fechaNacimiento))) {
-                edad = differenceInYears(new Date(), new Date(inv.fechaNacimiento));
-              }
-              if (edad !== -1 && edad < 3) {
-                detalleIngreso += " (Menor - Gratuito)";
-              } else if (inv.metodoPago) {
-                detalleIngreso += ` (Pagó: ${inv.metodoPago})`;
-              } else {
-                detalleIngreso += " (Regular - Pago Pendiente/No especificado)";
-              }
-            }
+          if (inv.ingresado && inv.datosIngreso) {
+            detalleIngreso = `Ingresó (${inv.datosIngreso.metodoPago || 'Pago no especificado'})`;
           }
           reportContent += `- ${inv.nombre} ${inv.apellido} (DNI: ${inv.dni}) - ${detalleIngreso}\n`;
         });
@@ -166,94 +165,27 @@ export function AdminInvitadosDiariosDashboard() {
 
     console.log("Contenido del reporte para PDF:\n", reportContent);
 
-    // Comentario: Para generar un PDF real, necesitarías una biblioteca como jsPDF.
-    // Ejemplo conceptual (requiere instalar jsPDF y jspdf-autotable):
-    /*
-    if (typeof window !== 'undefined') {
-      import('jspdf').then(jsPDFModule => {
-        const jsPDF = jsPDFModule.default; // o jsPDFModule.jsPDF si es así la exportación
-        import('jspdf-autotable').then(() => { // Asegura que autotable esté cargado
-          const doc = new jsPDF();
-          doc.text("Reporte de Invitados Diarios", 14, 16);
-          doc.setFontSize(10);
-          doc.text(`Fecha: ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : 'N/A'}`, 14, 22);
-          
-          let currentY = 30;
-          const pageHeight = doc.internal.pageSize.height;
-          const margin = 10;
-
-          const addTextWithSplit = (text: string, x: number, y: number, maxWidth: number) => {
-            const lines = doc.splitTextToSize(text, maxWidth);
-            doc.text(lines, x, y);
-            return y + (lines.length * (doc.getLineHeight() / doc.internal.scaleFactor));
-          };
-          
-          currentY = addTextWithSplit(`Resumen del Día:\n- Socios con Listas: ${estadisticasDia.sociosConListas}\n- Invitados Totales Registrados: ${estadisticasDia.invitadosTotales}\n- Invitados que Ingresaron (Total): ${estadisticasDia.invitadosIngresaronTotal}\n  - De Cumpleaños: ${estadisticasDia.ingresaronCumpleanos}\n  - Pagaron Efectivo: ${estadisticasDia.ingresaronPagaronEfectivo}\n  - Pagaron Transferencia: ${estadisticasDia.ingresaronPagaronTransferencia}\n  - Pagaron Caja: ${estadisticasDia.ingresaronPagaronCaja}\n  - Menores (Gratis): ${estadisticasDia.ingresaronMenoresGratis}\n\nDetalle por Socio:`, 14, currentY, 180);
-
-          solicitudesFiltradas.forEach(solicitud => {
-            if (currentY > pageHeight - margin * 3) { // Espacio para footer y cabecera de nueva página
-              doc.addPage();
-              currentY = margin;
-            }
-            currentY = addTextWithSplit(`\nSocio: ${solicitud.nombreSocioTitular} (N°: ${solicitud.idSocioTitular})\nInvitados:`, 14, currentY, 180);
-            
-            if (solicitud.listaInvitadosDiarios.length > 0) {
-              solicitud.listaInvitadosDiarios.forEach(inv => {
-                 let detalleIngreso = "Pendiente de Ingreso";
-                  if (inv.ingresado) {
-                    detalleIngreso = "Ingresó";
-                    if (inv.esDeCumpleanos) detalleIngreso += " (Cumpleaños)";
-                    else {
-                      let edad = inv.fechaNacimiento ? differenceInYears(new Date(), new Date(inv.fechaNacimiento)) : -1;
-                      if (edad !== -1 && edad < 3) detalleIngreso += " (Menor - Gratuito)";
-                      else if (inv.metodoPago) detalleIngreso += ` (Pagó: ${inv.metodoPago})`;
-                      else detalleIngreso += " (Pago Pendiente/No especificado)";
-                    }
-                  }
-                currentY = addTextWithSplit(`- ${inv.nombre} ${inv.apellido} (DNI: ${inv.dni}) - ${detalleIngreso}`, 18, currentY, 170);
-              });
-            } else {
-              currentY = addTextWithSplit("- Sin invitados en esta lista.", 18, currentY, 170);
-            }
-          });
-          doc.save(`invitados_diarios_${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'general'}.pdf`);
-        }).catch(err => console.error("Error loading jspdf-autotable", err));
-      }).catch(err => console.error("Error loading jspdf", err));
-    }
-    */
-
-    toast({
-      title: "Descarga de Invitados (Simulada)",
-      description: `El contenido del reporte para el ${selectedDate ? formatDate(selectedDate, "dd/MM/yyyy") : ''} se ha mostrado en la consola. La descarga directa de PDF requiere una biblioteca adicional.`,
-      duration: 7000,
-    });
+    toast({ title: "Descarga (Simulada)", description: "El contenido del reporte se ha mostrado en la consola.", duration: 7000 });
   };
 
-  const getInvitadoBadge = (invitado: InvitadoDiario) => {
-    if (!invitado.ingresado) {
-        return <Badge variant="outline" className="text-xs">Pendiente de Ingreso</Badge>;
+  const getInvitadoBadge = (invitado: InvitadoConIngreso) => {
+    if (!invitado.ingresado || !invitado.datosIngreso) {
+        return <Badge variant="outline" className="text-xs">Pendiente</Badge>;
     }
     
-    let edad = -1;
-    if (invitado.fechaNacimiento && isValid(new Date(invitado.fechaNacimiento))) {
-        edad = differenceInYears(new Date(), new Date(invitado.fechaNacimiento));
-    }
+    const { metodoPago, esInvitadoCumpleanos } = invitado.datosIngreso;
 
-    if (invitado.esDeCumpleanos) {
-        return <Badge variant="secondary" className="text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> De Cumpleaños</Badge>;
+    if (esInvitadoCumpleanos) {
+        return <Badge variant="secondary" className="text-xs bg-pink-500 hover:bg-pink-600 text-white"><Gift className="mr-1 h-3 w-3" /> Gratis (Cumpleaños)</Badge>;
     }
-    if (edad !== -1 && edad < 3) {
-        return <Badge variant="secondary" className="text-xs bg-purple-500 hover:bg-purple-600 text-white"><Baby className="mr-1 h-3 w-3" /> Menor (Gratuito)</Badge>;
-    }
-    if (invitado.metodoPago) {
-        let icon = <CircleDollarSign className="mr-1 h-3 w-3" />;
-        let color = "bg-gray-500 hover:bg-gray-600";
-        if (invitado.metodoPago === 'Efectivo') { icon = <Banknote className="mr-1 h-3 w-3"/>; color = "bg-green-500 hover:bg-green-600"; }
-        if (invitado.metodoPago === 'Transferencia') { icon = <CreditCard className="mr-1 h-3 w-3"/>; color = "bg-blue-500 hover:bg-blue-600"; }
-        if (invitado.metodoPago === 'Caja') { icon = <Archive className="mr-1 h-3 w-3"/>; color = "bg-orange-500 hover:bg-orange-600"; }
-        return <Badge variant="default" className={`text-xs ${color} text-white`}>{icon} Pagó: {invitado.metodoPago}</Badge>;
-    }
-    return <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600 text-white">Ingresó (Pago no especificado)</Badge>;
+    
+    let icon = <CircleDollarSign className="mr-1 h-3 w-3" />;
+    let color = "bg-gray-500 hover:bg-gray-600";
+    if (metodoPago === 'Efectivo') { icon = <Banknote className="mr-1 h-3 w-3"/>; color = "bg-green-500 hover:bg-green-600"; }
+    if (metodoPago === 'Transferencia') { icon = <CreditCard className="mr-1 h-3 w-3"/>; color = "bg-blue-500 hover:bg-blue-600"; }
+    if (metodoPago === 'Caja') { icon = <Archive className="mr-1 h-3 w-3"/>; color = "bg-orange-500 hover:bg-orange-600"; }
+    
+    return <Badge variant="default" className={`text-xs ${color} text-white`}>{icon} {metodoPago}</Badge>;
   };
 
 
@@ -287,15 +219,15 @@ export function AdminInvitadosDiariosDashboard() {
             </div>
             <Button
               onClick={handleDescargarListaInvitadosDiarios}
-              disabled={loading || !selectedDate || solicitudesFiltradas.length === 0}
+              disabled={loading || !selectedDate || solicitudesConDatosDeIngreso.length === 0}
               className="w-full sm:w-auto mt-2 sm:mt-0 self-end sm:self-center"
             >
               <Download className="mr-2 h-4 w-4" />
-              {loading ? 'Cargando...' : 'Descargar Lista de Invitados (PDF)'}
+              {loading ? 'Cargando...' : 'Descargar Lista (TXT)'}
             </Button>
           </div>
 
-          {loading && <p className="text-center py-4">Cargando listas de invitados...</p>}
+          {loading && <p className="text-center py-4">Cargando datos...</p>}
 
           {!loading && !selectedDate && (
             <div className="text-center py-10 px-6 border border-dashed rounded-md mt-6">
@@ -305,7 +237,7 @@ export function AdminInvitadosDiariosDashboard() {
             </div>
           )}
 
-          {!loading && selectedDate && solicitudesFiltradas.length === 0 && (
+          {!loading && selectedDate && solicitudesConDatosDeIngreso.length === 0 && (
             <div className="text-center py-10 px-6 border border-dashed rounded-md mt-6">
                 <Users2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-xl font-medium text-foreground">No hay invitados registrados</p>
@@ -313,22 +245,21 @@ export function AdminInvitadosDiariosDashboard() {
             </div>
           )}
 
-          {!loading && selectedDate && solicitudesFiltradas.length > 0 && (
+          {!loading && selectedDate && solicitudesConDatosDeIngreso.length > 0 && (
             <>
               <Card className="mt-6 bg-muted/30">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Resumen del Día: {formatDate(selectedDate, "dd 'de' MMMM")}</CardTitle>
+                  <CardTitle className="text-lg">Resumen de Ingresos: {formatDate(selectedDate, "dd 'de' MMMM")}</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3 text-sm">
                   <div><strong>Socios con Listas:</strong> {estadisticasDia.sociosConListas}</div>
-                  <div><strong>Invitados Totales:</strong> {estadisticasDia.invitadosTotales}</div>
+                  <div><strong>Invitados en Listas:</strong> {estadisticasDia.invitadosTotales}</div>
                   <div><strong>Ingresaron (Total):</strong> {estadisticasDia.invitadosIngresaronTotal}</div>
                   <Separator className="col-span-full my-1" />
-                  <div className="flex items-center"><Gift className="mr-1.5 h-4 w-4 text-pink-500"/><strong>Ingr. Cumpleaños:</strong> {estadisticasDia.ingresaronCumpleanos}</div>
+                  <div className="flex items-center"><Gift className="mr-1.5 h-4 w-4 text-pink-500"/><strong>Gratis (Cumpleaños):</strong> {estadisticasDia.ingresaronCumpleanos}</div>
                   <div className="flex items-center"><Banknote className="mr-1.5 h-4 w-4 text-green-500"/><strong>Pagaron Efectivo:</strong> {estadisticasDia.ingresaronPagaronEfectivo}</div>
                   <div className="flex items-center"><CreditCard className="mr-1.5 h-4 w-4 text-blue-500"/><strong>Pagaron Transfer.:</strong> {estadisticasDia.ingresaronPagaronTransferencia}</div>
                   <div className="flex items-center"><Archive className="mr-1.5 h-4 w-4 text-orange-500"/><strong>Pagaron Caja:</strong> {estadisticasDia.ingresaronPagaronCaja}</div>
-                  <div className="flex items-center col-span-full sm:col-span-1"><Baby className="mr-1.5 h-4 w-4 text-purple-500"/><strong>Ingr. Menores (Gratis):</strong> {estadisticasDia.ingresaronMenoresGratis}</div>
                 </CardContent>
               </Card>
 
@@ -345,7 +276,7 @@ export function AdminInvitadosDiariosDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {solicitudesFiltradas.map(solicitud => (
+                      {solicitudesConDatosDeIngreso.map(solicitud => (
                         <TableRow key={solicitud.id}>
                           <TableCell className="font-medium align-top">
                             {solicitud.nombreSocioTitular}

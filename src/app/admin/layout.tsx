@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { AdminSidebar } from '@/components/layout/AdminSidebar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { PanelLeft } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminLayout({
   children,
@@ -16,6 +17,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { userRole } = useAuth();
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -33,37 +36,36 @@ export default function AdminLayout({
         "flex flex-col transition-[padding-left] duration-300 ease-in-out",
         isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
       )}>
-        {/* Mobile Header: Appears only on small screens */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 md:hidden">
-          {/* Sheet component for the mobile sidebar */}
-          <Sheet>
+        
+        {/* Mobile Header from Log */}
+        <div className="lg:hidden fixed top-4 left-4 z-50">
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button size="icon" variant="outline">
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="h-10 w-10 bg-white shadow-lg"
+              >
+                <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
-              {/* The mobile sidebar is not collapsible, it's always expanded inside the sheet */}
-              <AdminSidebar isExpanded={true} className="flex h-full w-full" />
+            <SheetContent side="left" className="p-0 w-72">
+              {!userRole ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <AdminSidebar 
+                  isExpanded={true}
+                  className="flex h-full w-full" 
+                />
+              )}
             </SheetContent>
           </Sheet>
-          {/* Mobile Header Logo */}
-          <Link href="/" className="flex items-center">
-             <Image 
-                src="/logo-largo.jpg" 
-                alt="[Tu Logo]"
-                data-ai-hint="company logo"
-                width={100} 
-                height={50}
-                className="h-auto"
-                priority
-             />
-          </Link>
-        </header>
+        </div>
 
         {/* Main Content Area */}
-        <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-8 sm:p-6 lg:p-8">
+        <main className="flex flex-1 flex-col gap-4 p-4 sm:gap-8 sm:p-6 lg:p-8 pt-20 lg:pt-8">
           {children}
         </main>
       </div>

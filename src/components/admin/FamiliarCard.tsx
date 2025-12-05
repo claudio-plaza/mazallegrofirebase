@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo } from 'react';
@@ -13,21 +12,20 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RelacionFamiliar } from '@/types';
 import { getEncryptedImageUrl } from '@/lib/helpers';
-import { FileInput } from '@/components/ui/file-input';
+import FileInput from '@/components/ui/file-input';
 
 interface FamiliarCardProps {
   index: number;
   remove: (index: number) => void;
-  tipoGrupoFamiliarSeleccionado: 'conyugeEHijos' | 'padresMadres' | undefined;
   maxBirthDate: string;
 }
 
-export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, maxBirthDate }: FamiliarCardProps) {
+export function FamiliarCard({ index, remove, maxBirthDate }: FamiliarCardProps) {
   const { control, watch } = useFormContext();
 
-  const fotoPerfilFamiliarValue = watch(`grupoFamiliar.${index}.fotoPerfil`);
-  const nombre = watch(`grupoFamiliar.${index}.nombre`);
-  const apellido = watch(`grupoFamiliar.${index}.apellido`);
+  const fotoPerfilFamiliarValue = watch(`familiares.${index}.fotoPerfil`);
+  const nombre = watch(`familiares.${index}.nombre`);
+  const apellido = watch(`familiares.${index}.apellido`);
 
   const fotoPerfilFamiliarActual = useMemo(() => {
     if (fotoPerfilFamiliarValue instanceof File) {
@@ -48,10 +46,10 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
         </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField control={control} name={`grupoFamiliar.${index}.nombre`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Nombre</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
-          <FormField control={control} name={`grupoFamiliar.${index}.apellido`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Apellido</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
-          <FormField control={control} name={`grupoFamiliar.${index}.dni`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">DNI</FormLabel> <FormControl><Input type="number" {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
-          <FormField control={control} name={`grupoFamiliar.${index}.fechaNacimiento`} render={({ field: formField }) => (
+          <FormField control={control} name={`familiares.${index}.nombre`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Nombre</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={control} name={`familiares.${index}.apellido`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">Apellido</FormLabel> <FormControl><Input {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={control} name={`familiares.${index}.dni`} render={({ field: formField }) => ( <FormItem> <FormLabel className="text-xs">DNI</FormLabel> <FormControl><Input type="number" {...formField} className="h-9 text-sm"/></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={control} name={`familiares.${index}.fechaNacimiento`} render={({ field: formField }) => (
               <FormItem> 
                   <FormLabel className="text-xs">Fecha Nac.</FormLabel> 
                   <FormControl>
@@ -66,17 +64,14 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
                   <FormMessage /> 
               </FormItem> 
           )}/>
-          <FormField control={control} name={`grupoFamiliar.${index}.relacion`} render={({ field: formField }) => (
+          <FormField control={control} name={`familiares.${index}.relacion`} render={({ field: formField }) => (
               <FormItem>
                   <FormLabel className="text-xs">Relación</FormLabel>
                   <Select onValueChange={formField.onChange} value={formField.value}>
                       <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Seleccione relación" /></SelectTrigger></FormControl>
                       <SelectContent>
                           {Object.values(RelacionFamiliar).map(rel => (
-                              <SelectItem key={rel} value={rel} disabled={
-                                  (tipoGrupoFamiliarSeleccionado === 'conyugeEHijos' && rel === RelacionFamiliar.PADRE_MADRE) ||
-                                  (tipoGrupoFamiliarSeleccionado === 'padresMadres' && (rel === RelacionFamiliar.CONYUGE || rel === RelacionFamiliar.HIJO_A))
-                              }>{rel}</SelectItem>
+                              <SelectItem key={rel} value={rel}>{rel}</SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
@@ -96,10 +91,10 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <FormField
             control={control}
-            name={`grupoFamiliar.${index}.fotoPerfil`}
+            name={`familiares.${index}.fotoPerfil`}
             render={({ field: { onChange, value, ...rest } }) => (
               <FormItem>
-                <FormLabel className="text-xs">Foto Perfil</FormLabel>
+                <FormLabel className="text-xs">Foto Perfil (tipo selfie, solo rostro)</FormLabel>
                 <FormControl>
                   <FileInput onValueChange={onChange} value={value} placeholder={`Foto Perfil Familiar ${index + 1}`} accept="image/png,image/jpeg" {...rest} />
                 </FormControl>
@@ -109,7 +104,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
           />
           <FormField
             control={control}
-            name={`grupoFamiliar.${index}.fotoDniFrente`}
+            name={`familiares.${index}.fotoDniFrente`}
             render={({ field: { onChange, value, ...rest } }) => (
               <FormItem>
                 <FormLabel className="text-xs">DNI Frente</FormLabel>
@@ -122,7 +117,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
           />
           <FormField
             control={control}
-            name={`grupoFamiliar.${index}.fotoDniDorso`}
+            name={`familiares.${index}.fotoDniDorso`}
             render={({ field: { onChange, value, ...rest } }) => (
               <FormItem>
                 <FormLabel className="text-xs">DNI Dorso</FormLabel>
@@ -135,7 +130,7 @@ export function FamiliarCard({ index, remove, tipoGrupoFamiliarSeleccionado, max
           />
           <FormField
             control={control}
-            name={`grupoFamiliar.${index}.fotoCarnet`}
+            name={`familiares.${index}.fotoCarnet`}
             render={({ field: { onChange, value, ...rest } }) => (
               <FormItem>
                 <FormLabel className="text-xs">Foto Carnet</FormLabel>

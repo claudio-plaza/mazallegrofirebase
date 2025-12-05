@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Socio } from '@/types';
 import { getSocioByNumeroSocioOrDNI } from '@/lib/firebase/firestoreService';
@@ -17,19 +18,18 @@ import { Button } from '../ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { EstadoCambioGrupoFamiliar } from '@/types';
+import { EstadoCambioFamiliares, TipoFotoSolicitud } from '@/types';
+import { SolicitarCambioFotoDialog } from './SolicitarCambioFotoDialog';
+import { Label } from '@/components/ui/label';
+import { EliminarCuentaDialog } from './EliminarCuentaDialog';
+
 
 
 export function VistaPerfilSocio() {
-  const { loggedInUserNumeroSocio, isLoading: authLoading } = useAuth();
+  const { socio, isLoading: authLoading } = useAuth();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   
-  const { data: socio, isLoading: isSocioLoading } = useQuery({
-    queryKey: ['socio', loggedInUserNumeroSocio],
-    queryFn: () => getSocioByNumeroSocioOrDNI(loggedInUserNumeroSocio!),
-    enabled: !!loggedInUserNumeroSocio && !authLoading,
-  });
-
-  const loading = authLoading || isSocioLoading;
+  const loading = authLoading;
 
   if (loading) {
     return (
@@ -116,7 +116,7 @@ export function VistaPerfilSocio() {
         </CardHeader>
         <CardContent className="p-6 sm:p-8 space-y-8">
 
-            {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.PENDIENTE && (
+            {socio.estadoCambioGrupoFamiliar === EstadoCambioFamiliares.PENDIENTE && (
                 <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-700">
                     <MailQuestion className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud Pendiente</AlertTitle>
@@ -125,12 +125,12 @@ export function VistaPerfilSocio() {
                     </AlertDescription>
                 </Alert>
             )}
-            {socio.estadoCambioGrupoFamiliar === EstadoCambioGrupoFamiliar.RECHAZADO && (
+            {socio.estadoCambioGrupoFamiliar === EstadoCambioFamiliares.RECHAZADO && (
                  <Alert variant="destructive" className="mt-4">
                     <XSquare className="h-5 w-5" />
                     <AlertTitle className="font-semibold">Solicitud de Cambio Rechazada</AlertTitle>
                     <AlertDescription>
-                        Su última solicitud de cambio de grupo familiar fue rechazada. Motivo: {socio.motivoRechazoCambioGrupoFamiliar || "No especificado"}.
+                        Su última solicitud de cambio de grupo familiar fue rechazada. Motivo: {socio.motivoRechazoFamiliares || "No especificado"}.
                         Puede realizar una nueva solicitud desde &quot;Gestionar Grupo Familiar&quot;.
                     </AlertDescription>
                 </Alert>
@@ -191,12 +191,83 @@ export function VistaPerfilSocio() {
                 </div>
             </ProfileSection>
 
-            {socio.grupoFamiliar && socio.grupoFamiliar.length > 0 && (
+            <Separator />
+
+            <ProfileSection title="Mis Documentos Fotográficos" icon={UserSquare2}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                        <Label>Foto de Perfil</Label>
+                        {socio.fotoPerfil ? (
+                            <Image src={getEncryptedImageUrl(socio.fotoPerfil)} alt="Foto de perfil" width={100} height={100} className="rounded" />
+                        ) : (
+                            <div className="w-24 h-24 bg-muted rounded flex items-center justify-center text-xs">Sin foto</div>
+                        )}
+                        <SolicitarCambioFotoDialog
+                            socioId={socio.id}
+                            socioNombre={`${socio.nombre} ${socio.apellido}`}
+                            socioNumero={socio.numeroSocio}
+                            tipoPersona="Titular"
+                            fotoActualUrl={socio.fotoPerfil || null}
+                            tipoFotoInicial={TipoFotoSolicitud.FOTO_PERFIL}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>DNI Frente</Label>
+                        {socio.fotoDniFrente ? (
+                            <Image src={getEncryptedImageUrl(socio.fotoDniFrente)} alt="DNI Frente" width={100} height={100} className="rounded" />
+                        ) : (
+                            <div className="w-24 h-24 bg-muted rounded flex items-center justify-center text-xs">Sin foto</div>
+                        )}
+                        <SolicitarCambioFotoDialog
+                            socioId={socio.id}
+                            socioNombre={`${socio.nombre} ${socio.apellido}`}
+                            socioNumero={socio.numeroSocio}
+                            tipoPersona="Titular"
+                            fotoActualUrl={socio.fotoDniFrente || null}
+                            tipoFotoInicial={TipoFotoSolicitud.FOTO_DNI_FRENTE}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>DNI Dorso</Label>
+                        {socio.fotoDniDorso ? (
+                            <Image src={getEncryptedImageUrl(socio.fotoDniDorso)} alt="DNI Dorso" width={100} height={100} className="rounded" />
+                        ) : (
+                            <div className="w-24 h-24 bg-muted rounded flex items-center justify-center text-xs">Sin foto</div>
+                        )}
+                        <SolicitarCambioFotoDialog
+                            socioId={socio.id}
+                            socioNombre={`${socio.nombre} ${socio.apellido}`}
+                            socioNumero={socio.numeroSocio}
+                            tipoPersona="Titular"
+                            fotoActualUrl={socio.fotoDniDorso || null}
+                            tipoFotoInicial={TipoFotoSolicitud.FOTO_DNI_DORSO}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Foto Carnet</Label>
+                        {socio.fotoCarnet ? (
+                            <Image src={getEncryptedImageUrl(socio.fotoCarnet)} alt="Foto Carnet" width={100} height={100} className="rounded" />
+                        ) : (
+                            <div className="w-24 h-24 bg-muted rounded flex items-center justify-center text-xs">Sin foto</div>
+                        )}
+                        <SolicitarCambioFotoDialog
+                            socioId={socio.id}
+                            socioNombre={`${socio.nombre} ${socio.apellido}`}
+                            socioNumero={socio.numeroSocio}
+                            tipoPersona="Titular"
+                            fotoActualUrl={socio.fotoCarnet || null}
+                            tipoFotoInicial={TipoFotoSolicitud.FOTO_CARNET}
+                        />
+                    </div>
+                </div>
+            </ProfileSection>
+
+            {socio.familiares && socio.familiares.length > 0 && (
                 <>
                 <Separator />
                 <ProfileSection title="Grupo Familiar Aprobado" icon={Users}>
                     <Accordion type="multiple" className="w-full">
-                    {socio.grupoFamiliar.map((familiar, index) => {
+                    {socio.familiares.map((familiar, index) => {
                         const aptoStatusFamiliar = getAptoMedicoStatus(familiar.aptoMedico, familiar.fechaNacimiento);
                         const fotoFamiliar = getEncryptedImageUrl(familiar.fotoPerfil);
                         return (
@@ -256,7 +327,7 @@ export function VistaPerfilSocio() {
 
             <Separator />
             <div className="text-center pt-4">
-                 <Link href="/perfil" passHref>
+                 <Link href="/mi-perfil/grupo-familiar" passHref>
                     <Button variant="secondary" size="lg">
                         <Users className="mr-2 h-5 w-5" /> Gestionar Grupo Familiar
                     </Button>
@@ -272,8 +343,23 @@ export function VistaPerfilSocio() {
                 </AlertDescription>
             </Alert>
 
+            <Separator />
+
+            <ProfileSection title="Zona de Peligro" icon={AlertTriangle}>
+                <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-lg space-y-3">
+                    <h4 className="font-semibold text-destructive">Eliminar Cuenta</h4>
+                    <p className="text-sm text-destructive/80">
+                        La eliminación de tu cuenta es una acción permanente e irreversible. Se borrarán todos tus datos, los de tu grupo familiar y tu historial en el club.
+                    </p>
+                    <Button variant="destructive" onClick={() => setIsDeleteOpen(true)}>
+                        Solicitar eliminación de mi cuenta
+                    </Button>
+                </div>
+            </ProfileSection>
+
         </CardContent>
       </Card>
+      <EliminarCuentaDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} />
     </div>
   );
 }

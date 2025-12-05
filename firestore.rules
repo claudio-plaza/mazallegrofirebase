@@ -1,46 +1,146 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Regla General: Por defecto, nadie puede acceder a nada.
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isPortero() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'portero';
+    }
+    
+    function isMedico() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'medico';
+    }
+    
+    function isSocioOwner(socioId) {
+      return isAuthenticated() && request.auth.uid == socioId;
+    }
+    
+    match /adminUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId && request.resource.data.role == 'socio');
+      allow update, delete: if isAdmin();
+    }
+    
+    match /socios/{socioId} {
+      allow get: if isAdmin() || isMedico() || isPortero() || isSocioOwner(socioId);
+      allow list: if isAdmin() || isMedico() || isPortero();
+      
+      // ✅ Permitir crear sin URLs de imágenes (pero con campos esenciales)
+      allow create: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == socioId && 
+        request.resource.data.estadoSocio == 'Pendiente' &&
+        // Validar campos esenciales, NO imágenes
+        request.resource.data.keys().hasAll(['nombre', 'apellido', 'dni', 'email', 'numeroSocio', 'id'])
+      );
+      
+      // ✅ Permitir que el socio actualice sus URLs de imágenes
+      allow update: if isAdmin() || 
+        (isPortero() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoIngreso'])) ||
+        (isMedico() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aptitudMedica', 'fechaAptitudMedica', 'aptoMedico'])) || 
+        (isSocioOwner(socioId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentes', 'invitadosFrecuentes'])) ||
+        // ✅ NUEVA LÍNEA: Permitir actualizar imágenes
+        (isSocioOwner(socioId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fotoPerfil', 'fotoUrl', 'fotoDniFrente', 'fotoDniDorso', 'documentosCompletos', 'updatedAt', 'fotoCarnet']));
+      
+      allow delete: if isAdmin();
+      
+      match /familiares/{familiarId} {
+        allow read: if isAdmin() || isSocioOwner(socioId);
+        allow create: if isAdmin() || isSocioOwner(socioId);
+        allow update, delete: if isAdmin();
+      }
+      
+      match /aptosmedicos/{aptoId} {
+        allow read: if isAdmin() || isMedico() || isSocioOwner(socioId);
+        allow create, update: if isAdmin() || isMedico();
+        allow delete: if isAdmin();
+      }
+      
+      match /invitados_frecuentes/{invitadoId} {
+        allow read, create, update: if isAdmin() || isSocioOwner(socioId);
+        allow delete: if isAdmin();
+      }
+    }
+    
+    match /adherentes/{adherenteId} {
+      allow read: if isAdmin() || isMedico() || isPortero() || (isAuthenticated() && resource.data.socioTitularId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.socioTitularId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+    
+    match /solicitudesCambioFoto/{solicitudId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.socioId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.socioId == request.auth.uid && request.resource.data.estado == 'Pendiente';
+      allow update, delete: if isAdmin();
+    }
+    
+    match /solicitudesInvitadosDiarios/{solicitudId} {
+      allow read: if isAdmin() || isPortero() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.idSocioTitular == request.auth.uid;
+      allow update: if isAdmin() || isPortero() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /registros_acceso/{registroId} {
+      allow read, create: if isAdmin() || isPortero() || isMedico();
+      allow update, delete: if isAdmin();
+    }
+    
+    match /solicitudes_foto/{solicitudId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.socioId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.socioId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+    
+    match /cambios_grupo_familiar/{cambioId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.socioId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.socioId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+    
+    match /cambiosGrupoFamiliarPendientes/{solicitudId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.socioId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.socioId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+    
+    match /novedades/{novedadId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /counters/{counterId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /estadisticasIngresos/{statId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() || isPortero();
+    }
+    
+    // =======================================
+    // COLECCIÓN: revisionesMedicas (HISTORIAL)
+    // =======================================
+    match /revisionesMedicas/{revisionId} {
+      allow read: if isAdmin() || isMedico();
+      allow create: if isAdmin() || isMedico();
+      allow update, delete: if isAdmin();
+    }
+    
     match /{document=**} {
       allow read, write: if false;
     }
-
-    // Socios:
-    // - PERMITE CREAR (signup): Cualquiera puede crear un nuevo documento de socio si el ID del documento coincide con su propio ID de usuario (uid).
-    //   Esto es crucial para el registro. El `request.auth.uid` es el ID del usuario que se acaba de crear en Firebase Auth.
-    // - PERMITE LEER, ACTUALIZAR, BORRAR: Solo el propio socio puede leer, actualizar o borrar su propio documento.
-    match /socios/{userId} {
-      allow create: if request.auth.uid == userId;
-      allow read, update, delete: if request.auth.uid == userId;
-    }
-
-    // AdminUsers:
-    // - PERMITE LEER: Cualquier usuario autenticado puede intentar leer la colección de administradores.
-    //   Esto es útil para que el AuthContext pueda verificar si un usuario es admin, medico, etc.
-    match /adminUsers/{userId} {
-      allow read: if request.auth != null;
-    }
-
-    // Config, Novedades, etc. (Colecciones públicas o semi-públicas)
-    // - PERMITE LEER: Cualquier usuario autenticado puede leer la configuración y las novedades.
-    // - PERMITE ESCRIBIR: Nadie (excepto desde la consola de Firebase o con reglas de admin más específicas) puede escribir.
-    match /config/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false; // Proteger la configuración
-    }
-
-    match /novedades/{novedadId} {
-      allow read: if request.auth != null;
-      allow write: if false; // Solo admins deberían poder escribir aquí (se podría añadir una regla más específica)
-    }
-
-    // Agrega aquí más reglas para otras colecciones como 'revisionesMedicas', 'solicitudesInvitadosDiarios', etc.
-    // Por ejemplo, para revisiones, podrías permitir que el médico escriba y el socio lea las suyas.
-    // match /revisionesMedicas/{revisionId} {
-    //   allow read: if resource.data.socioId == request.auth.uid;
-    //   allow create: if get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'medico';
-    // }
   }
 }

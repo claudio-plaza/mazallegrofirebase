@@ -31,6 +31,18 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
     userRole && feature.roles.includes(userRole)
   );
 
+  
+  // Find the most specific active feature
+  const activeFeature = accessibleFeatures
+    .filter(feature => pathname.startsWith(feature.href))
+    .reduce((bestMatch, current) => {
+      if (!bestMatch || current.href.length > bestMatch.href.length) {
+        return current;
+      }
+      return bestMatch;
+    }, null as (typeof accessibleFeatures[0]) | null);
+
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside className={cn("flex flex-col bg-secondary text-secondary-foreground border-r border-secondary-foreground/20", className)}>
@@ -47,7 +59,6 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
                   width={120} 
                   height={60}
                   className="h-auto" 
-                  style={{ width: 'auto' }}
                   priority 
               />
             ) : (
@@ -64,30 +75,38 @@ export function UserSidebar({ className, isExpanded, onToggle }: UserSidebarProp
           </Link>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
-          {accessibleFeatures.map((feature) => (
-            <Tooltip key={feature.id}>
-              <TooltipTrigger asChild>
-                <Link href={feature.href} passHref>
-                  <Button
-                    variant={pathname === feature.href || (feature.id === 'mi-perfil-vista' && pathname.startsWith('/mi-perfil')) ? 'default' : 'ghost'}
-                    className={cn(
-                      "w-full text-sm h-11",
-                      pathname.startsWith(feature.href) 
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                        : "hover:bg-primary/20 hover:text-secondary-foreground",
-                      isExpanded ? "justify-start" : "justify-center p-0"
-                    )}
+          {accessibleFeatures.map((feature) => {
+            const isActive = activeFeature && activeFeature.id === feature.id;
+            const isExternalLink = feature.href.startsWith('http://') || feature.href.startsWith('https://');
+            return (
+              <Tooltip key={feature.id}>
+                <TooltipTrigger asChild>
+                  <Link 
+                    href={feature.href} 
+                    passHref
+                    {...(isExternalLink && { target: "_blank", rel: "noopener noreferrer" })}
                   >
-                    <feature.icon className={cn("h-5 w-5", isExpanded && "mr-3")} />
-                    <span className={cn(!isExpanded && "sr-only")}>{feature.title}</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className={cn(isExpanded && "hidden")}>
-                <p>{feature.title}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+                    <Button
+                      variant={isActive ? 'default' : 'ghost'}
+                      className={cn(
+                        "w-full text-sm h-11",
+                        isActive
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                          : "hover:bg-primary/20 hover:text-secondary-foreground",
+                        isExpanded ? "justify-start" : "justify-center p-0"
+                      )}
+                    >
+                      <feature.icon className={cn("h-5 w-5", isExpanded && "mr-3")} />
+                      <span className={cn(!isExpanded && "sr-only")}>{feature.title}</span>
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className={cn(isExpanded && "hidden")}>
+                  <p>{feature.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </nav>
         <div className="p-2 border-t border-secondary-foreground/20 mt-auto">
            <Tooltip>

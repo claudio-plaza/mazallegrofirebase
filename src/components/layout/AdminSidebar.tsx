@@ -47,7 +47,6 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
                   data-ai-hint="company logo"
                   width={120} 
                   height={60}
-                  className="h-auto" 
                   priority 
               />
             ) : (
@@ -69,7 +68,7 @@ export function AdminSidebar({ className, isExpanded, onToggle }: AdminSidebarPr
               <TooltipTrigger asChild>
                 <Link href={feature.href} passHref>
                   <Button
-                    variant={pathname.startsWith(feature.href) ? 'secondary' : 'ghost'}
+                    variant={pathname === feature.href ? 'secondary' : 'ghost'}
                     className={cn(
                       "w-full text-sm h-11",
                       isExpanded ? "justify-start" : "justify-center p-0"

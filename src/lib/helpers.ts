@@ -1,7 +1,28 @@
 
+import { Timestamp } from 'firebase/firestore';
 import { format, parseISO, isAfter, isEqual, isValid, differenceInDays, differenceInYears, getMonth, getDate as getDayOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { AptoMedicoInfo } from '@/types';
+import type { AptoMedicoInfo, MiembroFamiliar, Adherente, AptoMedicoDisplay } from '@/types'; // Import AptoMedicoDisplay
+
+export const parseAnyDate = (dateInput: any): Date | null => {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date && isValid(dateInput)) {
+    return dateInput;
+  }
+  if (typeof dateInput === 'string') {
+    const parsed = parseISO(dateInput);
+    if (isValid(parsed)) return parsed;
+  }
+  if (dateInput.seconds !== undefined && dateInput.nanoseconds !== undefined) {
+    try {
+      const date = new Timestamp(dateInput.seconds, dateInput.nanoseconds).toDate();
+      if (isValid(date)) return date;
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+};
 
 export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM/yyyy'): string => {
   if (!dateInput) return 'N/A';
@@ -13,7 +34,7 @@ export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM
       date = parseISO(dateInput);
     } else {
       // This case should not be reached if TypeScript is doing its job with the string | Date union type
-      console.error("formatDate received an invalid type:", dateInput);
+      console.error("formatDate received an invalid type:", typeof dateInput, dateInput);
       return 'Entrada inválida';
     }
     
@@ -25,7 +46,7 @@ export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM
   }
 };
 
-export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNacimiento?: string | Date): { status: string; message: string; colorClass: string } => {
+export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNacimiento?: string | Date): AptoMedicoDisplay => {
   if (fechaNacimiento) {
     try {
       const birthDate = typeof fechaNacimiento === 'string' ? parseISO(fechaNacimiento) : fechaNacimiento;
@@ -56,17 +77,21 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNac
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0); 
 
-    let fechaVencimientoDate: Date;
-    if (aptoMedico.fechaVencimiento instanceof Date) {
-      fechaVencimientoDate = aptoMedico.fechaVencimiento;
-    } else if (typeof aptoMedico.fechaVencimiento === 'string') {
-      fechaVencimientoDate = parseISO(aptoMedico.fechaVencimiento);
+    let fechaVencimientoDate: Date | null = null;
+    const fv = aptoMedico.fechaVencimiento as any;
+
+    if (fv instanceof Date) {
+      fechaVencimientoDate = fv;
+    } else if (typeof fv === 'string') {
+      fechaVencimientoDate = parseISO(fv);
+    } else if (fv && typeof fv.seconds === 'number' && typeof fv.nanoseconds === 'number') {
+      fechaVencimientoDate = new Timestamp(fv.seconds, fv.nanoseconds).toDate();
     } else {
-      console.error("Invalid type for aptoMedico.fechaVencimiento:", aptoMedico.fechaVencimiento);
+      console.error("Invalid type for aptoMedico.fechaVencimiento:", fv);
       return { status: 'Error', message: 'Formato de fecha de vencimiento interno inválido.', colorClass: 'text-red-600 bg-red-100' };
     }
     
-    if (!isValid(fechaVencimientoDate)) {
+    if (!fechaVencimientoDate || !isValid(fechaVencimientoDate)) {
         return { status: 'Error', message: 'Fecha de vencimiento inválida tras procesar.', colorClass: 'text-red-600 bg-red-100' };
     }
 
@@ -141,10 +166,100 @@ export const esFechaRestringidaParaCumpleanos = (fecha: Date): boolean => {
 
 export const getEncryptedImageUrl = (path: string | undefined | null): string => {
   if (!path) {
-    // Return a path to a default/placeholder image
-    return '/placeholder.png'; 
+    return '/logo-chico.png';
   }
-  // Remove any leading slashes from the path to prevent double slashes in the URL
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-  return `/api/images/${cleanPath}`;
+
+  let finalPath: string;
+
+  try {
+    const url = new URL(path);
+    const pathname = url.pathname;
+    const match = pathname.match(/\/o\/(.*)/);
+    
+    if (match && match[1]) {
+      const storagePath = match[1];
+      const decodedPath = decodeURIComponent(storagePath);
+      finalPath = `/api/images/${decodedPath}`;
+    } else {
+      finalPath = '/logo-chico.png';
+    }
+  } catch (error) {
+    console.warn('[getEncryptedImageUrl] Path is not a full URL, treating as direct path:', path);
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    finalPath = `/api/images/${cleanPath}`;
+  }
+
+  if (finalPath === '/placeholder.png') {
+    return finalPath;
+  }
+
+  // Agregar timestamp para cache busting
+  const separator = finalPath.includes('?') ? '&' : '?';
+  return `${finalPath}${separator}_t=${Date.now()}`;
+};
+
+
+
+export const convertTimestampToDate = (data: any): any => {
+  if (data instanceof Timestamp) {
+    return data.toDate();
+  }
+  if (typeof data === 'object' && data !== null) {
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        data[key] = convertTimestampToDate(data[key]);
+      }
+    }
+  }
+  return data;
+};
+
+export const generateKeywords = (
+  nombre: string,
+  apellido: string,
+  dni: string,
+  numeroSocio: string,
+  grupoFamiliar?: MiembroFamiliar[], // Nuevo parámetro
+  adherentes?: Adherente[] // Nuevo parámetro
+): string[] => {
+  const keywords = new Set<string>();
+
+  // Keywords for the main socio
+  const addSocioKeywords = (n: string, a: string, d: string, ns: string) => {
+    const nombreNorm = normalizeText(n);
+    const apellidoNorm = normalizeText(a);
+    const dniNorm = normalizeText(d);
+    const numeroSocioNorm = normalizeText(ns);
+
+    keywords.add(nombreNorm);
+    keywords.add(apellidoNorm);
+    keywords.add(dniNorm);
+    keywords.add(numeroSocioNorm);
+
+    nombreNorm.split(' ').forEach(part => keywords.add(part));
+    apellidoNorm.split(' ').forEach(part => keywords.add(part));
+    keywords.add(`${nombreNorm} ${apellidoNorm}`);
+  };
+
+  addSocioKeywords(nombre, apellido, dni, numeroSocio);
+
+  // Keywords for family members
+  if (grupoFamiliar && grupoFamiliar.length > 0) {
+    grupoFamiliar.forEach(fam => {
+      if (fam.nombre && fam.apellido && fam.dni) {
+        addSocioKeywords(fam.nombre, fam.apellido, fam.dni, ''); // No numeroSocio for family
+      }
+    });
+  }
+
+  // Keywords for adherentes
+  if (adherentes && adherentes.length > 0) {
+    adherentes.forEach(adh => {
+      if (adh.nombre && adh.apellido && adh.dni) {
+        addSocioKeywords(adh.nombre, adh.apellido, adh.dni, ''); // No numeroSocio for adherentes
+      }
+    });
+  }
+
+  return Array.from(keywords).filter(Boolean);
 };

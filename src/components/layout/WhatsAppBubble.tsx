@@ -48,7 +48,7 @@ export function WhatsAppBubble() {
                 className="group flex items-center justify-between rounded-md border border-input bg-transparent px-4 py-3 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 <div>
-                  <p className="font-medium text-foreground">Contacto General</p>
+                  <p className="font-medium text-foreground">Atención al Socio</p>
                   <p className="text-xs text-muted-foreground">{contactNumber}</p>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground" />

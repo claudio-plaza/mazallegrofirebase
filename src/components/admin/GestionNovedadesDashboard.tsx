@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,7 +16,7 @@ import type { Novedad, NovedadFormData } from '@/types';
 import { novedadSchema, TipoNovedad } from '@/types';
 import { getNovedades, addNovedad, updateNovedad, deleteNovedad } from '@/lib/firebase/firestoreService';
 import { formatDate } from '@/lib/helpers';
-import { PlusCircle, Edit, Trash2, ListChecks, Megaphone, CalendarDays, Info, AlertTriangleIcon as AlertTriangleLucide } from 'lucide-react'; // Renamed AlertTriangleIcon to avoid conflict
+import { PlusCircle, Edit, Trash2, ListChecks, Megaphone, CalendarDays, Info, AlertTriangleIcon as AlertTriangleLucide } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatISO, parseISO, isValid } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -47,6 +46,7 @@ export function GestionNovedadesDashboard() {
       const data = await getNovedades();
       setNovedades(data);
     } catch (error) {
+      console.error("Error al cargar novedades:", error);
       toast({ title: "Error", description: "No se pudieron cargar las novedades.", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -55,36 +55,27 @@ export function GestionNovedadesDashboard() {
 
   useEffect(() => {
     loadNovedades();
-    const handleNovedadesUpdated = () => loadNovedades();
-    window.addEventListener('firestore/novedadesUpdated', handleNovedadesUpdated);
-    return () => {
-        window.removeEventListener('firestore/novedadesUpdated', handleNovedadesUpdated);
-    };
   }, [loadNovedades]);
 
   const onSubmit = async (data: NovedadFormData) => {
     try {
-      let savedNovedad;
       const processedData = {
         ...data,
         fechaVencimiento: data.fechaVencimiento ? (isValid(new Date(data.fechaVencimiento)) ? new Date(data.fechaVencimiento) : null) : null,
       };
 
       if (editingNovedad) {
-        // Asegurarse de que fechaCreacion no se pierda al actualizar
-        const dataToUpdate = { 
-            ...editingNovedad, 
-            ...processedData, 
-            fechaCreacion: editingNovedad.fechaCreacion 
-        };
-        savedNovedad = await updateNovedad(dataToUpdate);
-        toast({ title: "Novedad Actualizada", description: `La novedad &quot;${savedNovedad?.titulo}&quot; ha sido actualizada.` });
+        const dataToUpdate = { ...editingNovedad, ...processedData };
+        await updateNovedad(dataToUpdate);
+        toast({ title: "Novedad Actualizada", description: `La novedad "${data.titulo}" ha sido actualizada.` });
       } else {
-        const { id, fechaCreacion, ...dataToAdd } = processedData; // Excluir campos autogenerados o que no deben enviarse
-        savedNovedad = await addNovedad(dataToAdd);
-        toast({ title: "Novedad Creada", description: `La novedad &quot;${savedNovedad?.titulo}&quot; ha sido creada.` });
+        const dataToAdd = { ...processedData, fechaCreacion: new Date() };
+        await addNovedad(dataToAdd);
+        toast({ title: "Novedad Creada", description: `La novedad "${data.titulo}" ha sido creada.` });
       }
-      loadNovedades();
+      
+      await loadNovedades();
+      
       setIsFormOpen(false);
       setEditingNovedad(null);
       form.reset({ titulo: '', contenido: '', fechaVencimiento: null, activa: true, tipo: TipoNovedad.INFO });
@@ -109,7 +100,6 @@ export function GestionNovedadesDashboard() {
         fechaVencimiento: null,
         activa: true,
         tipo: TipoNovedad.INFO,
-        // id y fechaCreacion se manejarán en el backend/servicio
       });
     }
     setIsFormOpen(true);
@@ -119,7 +109,7 @@ export function GestionNovedadesDashboard() {
     try {
       await deleteNovedad(novedadId);
       toast({ title: "Novedad Eliminada", description: "La novedad ha sido eliminada." });
-      loadNovedades();
+      await loadNovedades();
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la novedad.", variant: "destructive" });
     }
@@ -164,48 +154,50 @@ export function GestionNovedadesDashboard() {
           <ScrollArea className="h-[500px] w-full">
             <div className="space-y-3 pr-2">
               {novedades.map((novedad) => (
-                <Card key={novedad.id} className="bg-card hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-lg">{novedad.titulo}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        {getTipoBadge(novedad.tipo)}
-                        <Badge variant={novedad.activa ? 'default' : 'outline'} className={novedad.activa ? 'bg-green-500' : 'border-red-500 text-red-600'}>
-                          {novedad.activa ? 'Activa' : 'Inactiva'}
-                        </Badge>
+                novedad && novedad.id && (
+                  <Card key={novedad.id} className="bg-card hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <CardTitle className="text-lg">{novedad.titulo || 'Sin título'}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          {getTipoBadge(novedad.tipo)}
+                          <Badge variant={novedad.activa ? 'default' : 'outline'} className={novedad.activa ? 'bg-green-500' : 'border-red-500 text-red-600'}>
+                            {novedad.activa ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Creada: {formatDate(novedad.fechaCreacion, "dd/MM/yy HH:mm")}
-                      {novedad.fechaVencimiento && ` - Vence: ${formatDate(novedad.fechaVencimiento, "dd/MM/yy HH:mm")}`}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="pt-0 pb-3">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{novedad.contenido}</p>
-                  </CardContent>
-                  <CardFooter className="flex justify-end gap-2 pt-2 pb-3 px-6">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenForm(novedad)}>
-                      <Edit className="mr-2 h-4 w-4" /> Editar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
-                          <AlertDialogDescriptionComponent>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente la novedad &quot;{novedad.titulo}&quot;.
-                          </AlertDialogDescriptionComponent>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(novedad.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </CardFooter>
-                </Card>
+                      <p className="text-xs text-muted-foreground">
+                        {novedad.fechaCreacion ? `Creada: ${formatDate(novedad.fechaCreacion, "dd/MM/yy HH:mm")}` : ''}
+                        {novedad.fechaVencimiento && ` - Vence: ${formatDate(novedad.fechaVencimiento, "dd/MM/yy HH:mm")}`}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2">{novedad.contenido}</p>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2 pt-2 pb-3 px-6">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenForm(novedad)}>
+                        <Edit className="mr-2 h-4 w-4" /> Editar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
+                            <AlertDialogDescriptionComponent>
+                              Esta acción no se puede deshacer. Se eliminará permanentemente la novedad &quot;{novedad.titulo}&quot;.
+                            </AlertDialogDescriptionComponent>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(novedad.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardFooter>
+                  </Card>
+                )
               ))}
             </div>
           </ScrollArea>

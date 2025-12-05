@@ -1,13 +1,11 @@
-
 'use client';
 
 import type { UserRole, Socio } from '@/types';
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { getSocioById, getAdminUserById } from '@/lib/firebase/firestoreService';
+import { getSocio, getUserRole } from '@/lib/firebase/firestoreService';
 import { logoutUser as performLogout } from '@/lib/auth';
-import { toast } from '@/hooks/use-toast';
 
 export interface AuthContextType {
   isLoggedIn: boolean;
@@ -18,6 +16,7 @@ export interface AuthContextType {
   loggedInUserNumeroSocio: string | null;
   isLoading: boolean;
   logout: () => void;
+  refreshSocio: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,73 +34,81 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    let unsubscribe: () => void = () => {};
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        try {
+          const socioProfile = await getSocio(firebaseUser.uid);
 
-    if (auth) { 
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        setIsLoading(true);
-        if (firebaseUser) {
-          setUser(firebaseUser);
-          console.log("Firebase Auth UID for logged-in user:", firebaseUser.uid);
-          try {
-            const socioProfile = await getSocioById(firebaseUser.uid);
-
-            if (socioProfile) {
-              setSocio(socioProfile);
-              setUserRole(socioProfile.role);
-              setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
-              setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
+          if (socioProfile) {
+            setUserRole('socio');
+            setSocio(socioProfile);
+            setUserName(`${socioProfile.nombre} ${socioProfile.apellido}`);
+            setLoggedInUserNumeroSocio(socioProfile.numeroSocio);
+          } else {
+            const adminUser = await getUserRole(firebaseUser.uid);
+            if (adminUser && adminUser.role) {
+              setUserRole(adminUser.role);
+              setUserName(adminUser.name);
+              setSocio(null);
+              setLoggedInUserNumeroSocio(null);
             } else {
-              const adminUser = await getAdminUserById(firebaseUser.uid);
-              if (adminUser) {
-                setUserRole(adminUser.role);
-                setUserName(adminUser.name);
-                setLoggedInUserNumeroSocio(null);
-              } else {
-                console.warn(
-                  `User with UID ${firebaseUser.uid} and email ${firebaseUser.email} is authenticated but has no profile in 'socios' or 'adminUsers' collections. Assign a role in Firestore to grant access.`
-                );
-                setUserRole(null);
-                setUserName(firebaseUser.displayName || firebaseUser.email);
-                setLoggedInUserNumeroSocio(null);
-              }
+              console.warn(`User ${firebaseUser.uid} is authenticated but has no profile in 'socios' or 'adminUsers'.`);
+              setUserRole(null);
+              setUserName(firebaseUser.displayName || firebaseUser.email);
+              setSocio(null);
+              setLoggedInUserNumeroSocio(null);
             }
-          } catch (error) {
-            console.error("AuthContext: Failed to fetch user profile from Firestore.", error);
-            toast({
-                title: "Error de Permisos o Conexión",
-                description: "No se pudo cargar tu perfil. Esto puede deberse a un problema de conexión o a que las reglas de seguridad de Firestore no permiten el acceso. Contacte al administrador.",
-                variant: "destructive",
-                duration: 10000,
-            });
-            setUserRole(null);
-            setUserName(firebaseUser.displayName || firebaseUser.email);
-            setLoggedInUserNumeroSocio(null);
           }
-        } else {
-          setUser(null);
+        } catch (error) {
+          console.error("AuthContext: Error fetching user data.", error);
           setUserRole(null);
-          setUserName(null);
+          setUserName(firebaseUser.displayName || firebaseUser.email);
+          setSocio(null);
           setLoggedInUserNumeroSocio(null);
         }
-        setIsLoading(false);
-      });
-    }
+      } else {
+        setUser(null);
+        setUserRole(null);
+        setUserName(null);
+        setSocio(null);
+        setLoggedInUserNumeroSocio(null);
+      }
+      setIsLoading(false);
+    });
 
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (user && socio && (socio as any).documentosCompletos === false) {
+      // Si está en cualquier ruta que NO sea subir-documentos, redirigir
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/dashboard/subir-documentos') {
+        window.location.href = '/dashboard/subir-documentos';
+      }
+    }
+  }, [user, socio]);
+
   const logout = async () => {
     await performLogout();
-    // onAuthStateChanged will handle the state updates
   };
 
-  if (isLoading) {
-    return <div>Cargando...</div>; // Or a more sophisticated loading spinner
-  }
+  const refreshSocio = async () => {
+    if (user?.uid && userRole === 'socio') {
+      try {
+        const socioData = await getSocio(user.uid);
+        setSocio(socioData);
+        if(socioData) setLoggedInUserNumeroSocio(socioData.numeroSocio);
+      } catch (error) {
+        console.error('Error refreshing socio:', error);
+      }
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: !!user, user, userRole, userName, socio, loggedInUserNumeroSocio, isLoading, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn: !!user, user, userRole, userName, socio, loggedInUserNumeroSocio, isLoading, logout, refreshSocio }}>
       {children}
     </AuthContext.Provider>
   );
