@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { subYears } from 'date-fns';
+import { subYears, format } from 'date-fns';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -30,10 +30,12 @@ Al registrarse y utilizar la aplicación de Mazallegro, el socio declara haber l
 const signupSchema = z.object({
   nombre: z.string().min(2, "Nombre es requerido.").regex(/^[a-zA-Z\s'-]+$/, "Nombre solo debe contener letras, espacios, apóstrofes o guiones."),
   apellido: z.string().min(2, "Apellido es requerido.").regex(/^[a-zA-Z\s'-]+$/, "Apellido solo debe contener letras, espacios, apóstrofes o guiones."),
-  fechaNacimiento: z.string().refine((val) => val, { message: 'La fecha de nacimiento es requerida.' }).refine((val) => {
-    const birthDate = new Date(val);
+  fechaNacimiento: z.date({
+    required_error: "La fecha de nacimiento es requerida.",
+    invalid_type_error: "Formato de fecha inválido.",
+  }).refine((date) => {
     const eighteenYearsAgo = subYears(new Date(), 18);
-    return birthDate <= eighteenYearsAgo;
+    return date <= eighteenYearsAgo;
   }, { message: "Debes ser mayor de 18 años." }),
   dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números."),
@@ -67,6 +69,7 @@ function LoadingOverlay({ message }: { message: string }) {
 }
 
 export default function SignupPage() {
+  console.log("DEBUG: Componente SignupPage cargado. Versión con logs de depuración."); 
   const [pasoActual, setPasoActual] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -80,7 +83,7 @@ export default function SignupPage() {
     defaultValues: {
       nombre: '',
       apellido: '',
-      fechaNacimiento: '',
+      fechaNacimiento: undefined, // Añadido para inicializar el campo
       dni: '',
       empresaSindicato: '',
       telefono: '',
@@ -121,6 +124,12 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupFormData) => {
     setLoading(true);
+
+    if (!data.fechaNacimiento) {
+      toast.error("La fecha de nacimiento es requerida.");
+      setLoading(false);
+      return;
+    }
     try {
       setLoadingMessage('Creando tu usuario...');
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
@@ -142,7 +151,7 @@ export default function SignupPage() {
         email: data.email,
         telefono: data.telefono,
         direccion: data.direccion,
-        fechaNacimiento: Timestamp.fromDate(new Date(`${data.fechaNacimiento}T12:00:00`)),
+        fechaNacimiento: Timestamp.fromDate(data.fechaNacimiento),
         empresa: data.empresaSindicato || "",
         estadoSocio: "Pendiente",
         estadoClub: "Inactivo",
@@ -158,6 +167,10 @@ export default function SignupPage() {
         adherentes: [],
         aptoMedico: null
       };
+
+      console.log('socioData antes de enviar:', JSON.stringify(socioData, null, 2));
+      console.log('fechaNacimiento tipo:', typeof socioData.fechaNacimiento);
+      console.log('fechaNacimiento valor:', socioData.fechaNacimiento);
 
       const createSocioProfile = httpsCallable(functions, 'createSocioProfile');
       await createSocioProfile({ socioData });
@@ -194,7 +207,28 @@ export default function SignupPage() {
                     <FormField control={form.control} name="nombre" render={({ field }) => (<FormItem><FormLabel>Nombre(s) *</FormLabel><FormControl><Input placeholder="Juan" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="apellido" render={({ field }) => (<FormItem><FormLabel>Apellido(s) *</FormLabel><FormControl><Input placeholder="Pérez" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   </div>
-                  <FormField control={form.control} name="fechaNacimiento" render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField 
+                    control={form.control} 
+                    name="fechaNacimiento" 
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de Nacimiento *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => {
+                              const dateValue = e.target.value;
+                              // Añadir T12:00:00 para evitar problemas de zona horaria que puedan resultar en el día anterior
+                              const date = dateValue ? new Date(`${dateValue}T12:00:00`) : null;
+                              field.onChange(date);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} 
+                  />
                   <FormField control={form.control} name="dni" render={({ field }) => (<FormItem><FormLabel>Número de DNI *</FormLabel><FormControl><Input placeholder="Sin puntos" maxLength={8} {...field} onChange={e => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="telefono" render={({ field }) => (<FormItem><FormLabel>Teléfono *</FormLabel><FormControl><Input placeholder="261..." {...field} onChange={e => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email *</FormLabel><FormControl><Input type="email" placeholder="tu@correo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />

@@ -24,24 +24,21 @@ export const parseAnyDate = (dateInput: any): Date | null => {
   return null;
 };
 
-export const formatDate = (dateInput?: string | Date, formatStr: string = 'dd/MM/yyyy'): string => {
-  if (!dateInput) return 'N/A';
-  try {
-    let date: Date;
-    if (dateInput instanceof Date) {
-      date = dateInput;
-    } else if (typeof dateInput === 'string') {
-      date = parseISO(dateInput);
-    } else {
-      // This case should not be reached if TypeScript is doing its job with the string | Date union type
-      console.error("formatDate received an invalid type:", typeof dateInput, dateInput);
-      return 'Entrada inválida';
+export const formatDate = (dateInput?: any, formatStr: string = 'dd/MM/yyyy'): string => {
+  const date = parseAnyDate(dateInput);
+  
+  if (!date) {
+    // Log an error only if there was some input but it was invalid
+    if (dateInput) {
+      console.error("formatDate could not parse input:", dateInput);
     }
-    
-    if (!isValid(date)) return 'Fecha inválida';
+    return 'N/A';
+  }
+  
+  try {
     return format(date, formatStr, { locale: es });
   } catch (error) {
-    console.error("Error formatting date:", dateInput, error);
+    console.error("Error formatting date:", date, error);
     return 'Error fecha';
   }
 };

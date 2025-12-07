@@ -14,19 +14,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import type { Socio, RevisionMedica, AptoMedicoInfo, TipoPersona } from '@/types';
+import type { RevisionMedica, AptoMedicoInfo, TipoPersona, SolicitudInvitadosDiarios } from '@/types';
 import { normalizeText, parseAnyDate } from '@/lib/helpers';
 import { addDays, format, formatISO, parseISO, differenceInYears, isValid } from 'date-fns';
-import { CheckCircle2, Search, User, XCircle, CalendarDays, Check, X, AlertTriangle, UserRound } from 'lucide-react';
+import { CheckCircle2, Search, XCircle, CalendarDays, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { siteConfig } from '@/config/site';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getSocio, addRevisionMedica, updateSocio } from '@/lib/firebase/firestoreService';
-import { collection, addDoc, Timestamp, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { getSocio, addRevisionMedica, updateSocio, verificarIngresoHoy, getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 
 const revisionSchema = z.object({
   fechaRevision: z.date({ required_error: 'La fecha de revisión es obligatoria.' }),
@@ -73,19 +70,13 @@ export function NuevaRevisionDialog({
   const { toast } = useToast();
   const { user, userName: medicoName } = useAuth();
   const [isUnderThree, setIsUnderThree] = useState(false);
+  const [isCheckingEntry, setIsCheckingEntry] = useState(false);
+  const [hasEnteredToday, setHasEnteredToday] = useState<boolean | null>(null);
 
   const form = useForm<RevisionFormValues>({
     resolver: zodResolver(revisionSchema),
     defaultValues: { fechaRevision: new Date(), resultado: undefined, observaciones: '' },
   });
-
-  useEffect(() => {
-    if (searchedPerson?.fechaNacimiento && isValid(searchedPerson.fechaNacimiento)) {
-      setIsUnderThree(differenceInYears(new Date(), searchedPerson.fechaNacimiento) < 3);
-    } else {
-      setIsUnderThree(false);
-    }
-  }, [searchedPerson]);
 
   useEffect(() => {
     if (open) {
@@ -97,15 +88,46 @@ export function NuevaRevisionDialog({
         setSearchTerm('');
       }
       setSearchMessage('');
+      setHasEnteredToday(null);
+      setIsCheckingEntry(false);
       form.reset({ fechaRevision: new Date(), resultado: undefined, observaciones: '' });
     }
   }, [open, personaPreseleccionada, form]);
+
+  useEffect(() => {
+    if (searchedPerson?.fechaNacimiento && isValid(searchedPerson.fechaNacimiento)) {
+        setIsUnderThree(differenceInYears(new Date(), searchedPerson.fechaNacimiento) < 3);
+    } else {
+        setIsUnderThree(false);
+    }
+
+    if (searchedPerson) {
+        setIsCheckingEntry(true);
+        setHasEnteredToday(null);
+        verificarIngresoHoy(searchedPerson.dni)
+            .then(haIngresado => {
+                setHasEnteredToday(haIngresado);
+            })
+            .catch(error => {
+                console.error("Error verificando ingreso:", error);
+                setHasEnteredToday(false); // Asumir que no ingresó si hay error
+                toast({ title: "Error", description: "No se pudo verificar el ingreso de la persona.", variant: "destructive" });
+            })
+            .finally(() => {
+                setIsCheckingEntry(false);
+            });
+    } else {
+        setHasEnteredToday(null);
+    }
+  }, [searchedPerson, toast]);
+
 
   const handleSearchSocio = async () => {
     if (!searchTerm.trim()) { setSearchMessage('Ingrese un término de búsqueda.'); return; }
     setIsSearching(true);
     setSearchedPerson(null);
     setSearchMessage('');
+    setHasEnteredToday(null);
 
     try {
       const functions = getFunctions();
@@ -142,6 +164,7 @@ export function NuevaRevisionDialog({
   const onSubmit = async (data: RevisionFormValues) => {
     if (!searchedPerson || !user) { toast({ title: 'Error', description: 'Debe seleccionar una persona y estar autenticado.', variant: 'destructive' }); return; }
     if (isUnderThree) { toast({ title: 'Acción no permitida', description: 'No se puede registrar revisión para menores de 3 años.', variant: 'destructive' }); return; }
+    if (!hasEnteredToday) { toast({ title: 'Acción no permitida', description: 'La persona debe registrar su ingreso hoy para poder ser revisada.', variant: 'destructive' }); return; }
 
     const esApto = data.resultado === 'Apto';
     const titularId = searchedPerson.tipo === 'Socio Titular' ? searchedPerson.id : searchedPerson.socioTitularId;
@@ -151,7 +174,6 @@ export function NuevaRevisionDialog({
       return;
     }
 
-    // Construir el objeto aptoMedico que se guardará en el documento principal
     const aptoDataPrincipal: AptoMedicoInfo = {
       valido: esApto,
       fechaEmision: data.fechaRevision,
@@ -159,27 +181,61 @@ export function NuevaRevisionDialog({
       ...(!esApto && { razonInvalidez: data.observaciones || 'No apto por revisión médica' }),
     };
 
-    try {
-      // Si la persona es el titular, la actualización es simple
-      if (searchedPerson.tipo === 'Socio Titular') {
-        await updateSocio(titularId, { aptoMedico: aptoDataPrincipal });
-      } else {
-        // Si es un familiar o adherente, necesitamos leer, modificar y luego escribir el array completo
-        const socioDoc = await getSocio(titularId);
-        if (!socioDoc) throw new Error("No se encontró el documento del socio titular para actualizar.");
+    const revisionLog: Omit<RevisionMedica, 'id'> = {
+      socioId: searchedPerson.id,
+      socioNombre: searchedPerson.nombreCompleto,
+      idSocioAnfitrion: titularId,
+      tipoPersona: searchedPerson.tipo,
+      fechaRevision: data.fechaRevision,
+      resultado: data.resultado,
+      observaciones: data.observaciones || '',
+      fechaVencimientoApto: aptoDataPrincipal.fechaVencimiento,
+      medicoId: user.uid,
+      medicoResponsable: medicoName || user.email || 'No identificado',
+    };
 
-        if (searchedPerson.tipo === 'Familiar' && socioDoc.familiares) {
-          const familiaresActualizados = socioDoc.familiares.map(f =>
-            f.dni === searchedPerson.dni ? { ...f, aptoMedico: aptoDataPrincipal } : f
-          );
-          await updateSocio(titularId, { familiares: familiaresActualizados });
-        } else if (searchedPerson.tipo === 'Adherente' && socioDoc.adherentes) {
-          const adherentesActualizados = socioDoc.adherentes.map(a =>
-            a.dni === searchedPerson.dni ? { ...a, aptoMedico: aptoDataPrincipal } : a
-          );
-          await updateSocio(titularId, { adherentes: adherentesActualizados });
-        }
-      }
+    try {
+      const promises = [];
+      promises.push(addRevisionMedica(revisionLog));
+      const updateSocioPromise = (async () => {
+        if (searchedPerson.tipo === 'Socio Titular') {
+          await updateSocio(titularId, { aptoMedico: aptoDataPrincipal });
+        } else {
+          const socioDoc = await getSocio(titularId);
+          if (!socioDoc) throw new Error("No se encontró el documento del socio titular para actualizar.");
+
+          if (searchedPerson.tipo === 'Familiar' && socioDoc.familiares) {
+            const familiaresActualizados = socioDoc.familiares.map(f =>
+              f.dni === searchedPerson.dni ? { ...f, aptoMedico: aptoDataPrincipal } : f
+            );
+            await updateSocio(titularId, { familiares: familiaresActualizados });
+                    } else if (searchedPerson.tipo === 'Adherente' && socioDoc.adherentes) {
+                      const adherentesActualizados = socioDoc.adherentes.map(a =>
+                        a.dni === searchedPerson.dni ? { ...a, aptoMedico: aptoDataPrincipal } : a
+                      );
+                      await updateSocio(titularId, { adherentes: adherentesActualizados });
+                    } else if (searchedPerson.tipo === 'Invitado Diario') {
+                      if (!searchedPerson.socioTitularId || !searchedPerson.fechaVisitaInvitado) {
+                          throw new Error("Faltan datos del socio titular o fecha de visita para invitado diario.");
+                      }
+                      const fechaVisitaISO = formatISO(searchedPerson.fechaVisitaInvitado, { representation: 'date' });
+                      let solicitud = await getSolicitudInvitadosDiarios(searchedPerson.socioTitularId, fechaVisitaISO);
+          
+                      if (!solicitud) {
+                          throw new Error("No se encontró la solicitud de invitados para este día.");
+                      }
+          
+                      const invitadosActualizados = solicitud.listaInvitadosDiarios.map(inv =>
+                          inv.dni === searchedPerson.dni ? { ...inv, aptoMedico: aptoDataPrincipal } : inv
+                      );
+                      solicitud.listaInvitadosDiarios = invitadosActualizados;
+                      await addOrUpdateSolicitudInvitadosDiarios(solicitud);
+                    }
+                  }
+                })();
+                
+                promises.push(updateSocioPromise);
+      await Promise.all(promises);
 
       toast({ title: 'Revisión Guardada', description: `El estado de apto médico para ${searchedPerson.nombreCompleto} ha sido actualizado.` });
       onRevisionGuardada();
@@ -220,9 +276,20 @@ export function NuevaRevisionDialog({
           </Alert>
         )}
 
+        {isCheckingEntry && <p className="text-sm text-center text-muted-foreground">Verificando ingreso...</p>}
+
+        {hasEnteredToday === false && searchedPerson && !isUnderThree && (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                    Esta persona no ha registrado su ingreso al club el día de hoy. No se puede realizar la revisión médica.
+                </AlertDescription>
+            </Alert>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <fieldset disabled={isUnderThree || !searchedPerson} className="space-y-4">
+            <fieldset disabled={isUnderThree || !searchedPerson || !hasEnteredToday || isCheckingEntry} className="space-y-4">
               <FormField control={form.control} name="fechaRevision" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fecha de Revisión</FormLabel>
@@ -252,7 +319,7 @@ export function NuevaRevisionDialog({
             </fieldset>
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-              <Button type="submit" disabled={!searchedPerson || form.formState.isSubmitting}>
+              <Button type="submit" disabled={!searchedPerson || form.formState.isSubmitting || !hasEnteredToday || isCheckingEntry}>
                 {form.formState.isSubmitting ? "Guardando..." : "Guardar Revisión"}
               </Button>
             </DialogFooter>

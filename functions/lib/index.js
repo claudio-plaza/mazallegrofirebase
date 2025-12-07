@@ -44,6 +44,7 @@ const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const cors_1 = __importDefault(require("cors"));
+const admin = __importStar(require("firebase-admin"));
 // Internal services for lazy initialization
 const services_1 = require("./services");
 // =================================================================
@@ -334,10 +335,13 @@ exports.registrarIngreso = (0, https_1.onRequest)({ region: "us-central1" }, (re
 // =================================================================
 // CALLABLE FUNCTIONS
 // =================================================================
-exports.createSocioProfile = (0, https_1.onCall)({ cors: true, region: "us-central1" }, async (request) => {
+exports.createSocioProfile = (0, https_1.onCall)({ cors: ["http://localhost:3002", "https://clubzenith.web.app", "https://mazallegro.com"], region: "us-central1" }, async (request) => {
     var _a;
     const uid = (_a = request.auth) === null || _a === void 0 ? void 0 : _a.uid;
     const socioData = request.data.socioData;
+    logger.log('socioData recibido:', JSON.stringify(socioData));
+    logger.log('fechaNacimiento recibido:', socioData.fechaNacimiento);
+    logger.log('fechaNacimiento tipo:', typeof socioData.fechaNacimiento);
     if (!uid) {
         logger.error("createSocioProfile error: User is not authenticated.");
         throw new https_1.HttpsError("unauthenticated", "La operación requiere autenticación.");
@@ -350,6 +354,18 @@ exports.createSocioProfile = (0, https_1.onCall)({ cors: true, region: "us-centr
         logger.error(`createSocioProfile error: Authenticated user ${uid} cannot create data for user ${socioData.id}.`);
         throw new https_1.HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
     }
+    // Convertir fechas serializadas a Timestamps reales de Firestore
+    const convertToTimestamp = (field) => {
+        if (field && typeof field === 'object' && 'seconds' in field) {
+            // Necesitamos una instancia de admin.firestore.Timestamp, no de cliente
+            return admin.firestore.Timestamp.fromMillis(field.seconds * 1000);
+        }
+        return field;
+    };
+    socioData.fechaNacimiento = convertToTimestamp(socioData.fechaNacimiento);
+    socioData.createdAt = convertToTimestamp(socioData.createdAt);
+    socioData.updatedAt = convertToTimestamp(socioData.updatedAt);
+    socioData.miembroDesde = convertToTimestamp(socioData.miembroDesde);
     try {
         logger.log(`Creating profile for user: ${uid}`);
         await (0, services_1.getDb)().collection("socios").doc(uid).set(socioData);

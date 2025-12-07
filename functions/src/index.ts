@@ -5,6 +5,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import cors from 'cors';
+import * as admin from 'firebase-admin';
 
 // Internal services for lazy initialization
 import { getDb, getAlgoliaIndex, getAuth, getStorage } from './services';
@@ -356,9 +357,13 @@ export const registrarIngreso = onRequest({ region: "us-central1" }, (req, res) 
 // CALLABLE FUNCTIONS
 // =================================================================
 
-export const createSocioProfile = onCall({ cors: true, region: "us-central1" }, async (request) => {
+export const createSocioProfile = onCall({ cors: ["http://localhost:3002", "https://clubzenith.web.app", "https://mazallegro.com"], region: "us-central1" }, async (request) => {
   const uid = request.auth?.uid;
   const socioData = request.data.socioData;
+
+  logger.log('socioData recibido:', JSON.stringify(socioData));
+  logger.log('fechaNacimiento recibido:', socioData.fechaNacimiento);
+  logger.log('fechaNacimiento tipo:', typeof socioData.fechaNacimiento);
 
   if (!uid) {
     logger.error("createSocioProfile error: User is not authenticated.");
@@ -372,6 +377,21 @@ export const createSocioProfile = onCall({ cors: true, region: "us-central1" }, 
       logger.error(`createSocioProfile error: Authenticated user ${uid} cannot create data for user ${socioData.id}.`);
       throw new HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
   }
+
+  // Convertir fechas serializadas a Timestamps reales de Firestore
+  const convertToTimestamp = (field: any) => {
+    if (field && typeof field === 'object' && 'seconds' in field) {
+      // Necesitamos una instancia de admin.firestore.Timestamp, no de cliente
+
+      return admin.firestore.Timestamp.fromMillis(field.seconds * 1000);
+    }
+    return field;
+  };
+
+  socioData.fechaNacimiento = convertToTimestamp(socioData.fechaNacimiento);
+  socioData.createdAt = convertToTimestamp(socioData.createdAt);
+  socioData.updatedAt = convertToTimestamp(socioData.updatedAt);
+  socioData.miembroDesde = convertToTimestamp(socioData.miembroDesde);
 
   try {
     logger.log(`Creating profile for user: ${uid}`);

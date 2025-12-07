@@ -55,13 +55,13 @@ const adherentesCollection = collection(db, 'adherentes');
 export async function getPaginatedSocios(
   pageSize: number, 
   lastVisible?: DocumentSnapshot, 
-  options?: { estado?: 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion' }
+  options?: { estado?: 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion', order?: 'asc' | 'desc' }
 ) {
   const queryConstraints = [];
   if (options?.estado && options.estado !== 'Todos') {
     queryConstraints.push(where('estadoSocio', '==', options.estado));
   }
-  queryConstraints.push(orderBy('numeroSocio'));
+  queryConstraints.push(orderBy('numeroSocio', options?.order || 'asc'));
   queryConstraints.push(limit(pageSize));
   if (lastVisible) {
     queryConstraints.push(startAfter(lastVisible));

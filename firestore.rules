@@ -48,7 +48,7 @@ service cloud.firestore {
       // ✅ Permitir que el socio actualice sus URLs de imágenes
       allow update: if isAdmin() || 
         (isPortero() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoIngreso'])) ||
-        (isMedico() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aptitudMedica', 'fechaAptitudMedica', 'aptoMedico'])) || 
+        (isMedico() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aptitudMedica', 'fechaAptitudMedica', 'aptoMedico', 'familiares', 'adherentes'])) || 
         (isSocioOwner(socioId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentes', 'invitadosFrecuentes'])) ||
         // ✅ NUEVA LÍNEA: Permitir actualizar imágenes
         (isSocioOwner(socioId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fotoPerfil', 'fotoUrl', 'fotoDniFrente', 'fotoDniDorso', 'documentosCompletos', 'updatedAt', 'fotoCarnet']));
@@ -86,9 +86,9 @@ service cloud.firestore {
     }
     
     match /solicitudesInvitadosDiarios/{solicitudId} {
-      allow read: if isAdmin() || isPortero() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
+      allow read: if isAdmin() || isPortero() || isMedico() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.idSocioTitular == request.auth.uid;
-      allow update: if isAdmin() || isPortero() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
+      allow update: if isAdmin() || isPortero() || isMedico() || (isAuthenticated() && resource.data.idSocioTitular == request.auth.uid);
       allow delete: if isAdmin();
     }
     

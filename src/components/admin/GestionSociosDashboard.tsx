@@ -36,6 +36,7 @@ export function GestionSociosDashboard() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoSocioFiltro>('Todos');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Nuevo estado para el orden
   const [selectedSocioForAdherentes, setSelectedSocioForAdherentes] = useState<Socio | null>(null);
   const [isAdherentesDialogOpen, setIsAdherentesDialogOpen] = useState(false);
   const [selectedSocioForRevision, setSelectedSocioForRevision] = useState<Socio | null>(null);
@@ -50,11 +51,11 @@ export function GestionSociosDashboard() {
   const [isError, setIsError] = useState(false);
   const solicitudesFamiliaresCount = useSolicitudesFamiliaresCount();
 
-  const fetchSocios = useCallback(async (filtro: EstadoSocioFiltro, startingDoc?: DocumentSnapshot) => {
+  const fetchSocios = useCallback(async (filtro: EstadoSocioFiltro, startingDoc?: DocumentSnapshot, order?: 'asc' | 'desc') => {
     setLoading(true);
     if (!startingDoc) setIsInitialLoading(true);
     try {
-      const { socios: newSocios, lastVisible: newLastVisible } = await getPaginatedSocios(PAGE_SIZE, startingDoc, { estado: filtro });
+      const { socios: newSocios, lastVisible: newLastVisible } = await getPaginatedSocios(PAGE_SIZE, startingDoc, { estado: filtro, order });
       setSocios(prev => startingDoc ? [...prev, ...newSocios] : newSocios);
       setLastVisible(newLastVisible);
       setHasMore(newSocios.length === PAGE_SIZE);
@@ -67,17 +68,17 @@ export function GestionSociosDashboard() {
       setLoading(false);
       setIsInitialLoading(false);
     }
-  }, [toast]);
+  }, [toast]); // order se usa en la llamada a getPaginatedSocios, pero no es una dependencia directa de fetchSocios en sí.
 
   useEffect(() => {
     setSocios([]);
     setLastVisible(undefined);
     setHasMore(true);
-    fetchSocios(filtroEstado);
-  }, [filtroEstado, fetchSocios]);
+    fetchSocios(filtroEstado, undefined, sortOrder); // Pasar sortOrder
+  }, [filtroEstado, fetchSocios, sortOrder]); // Añadir sortOrder a las dependencias
 
   const handleLoadMore = () => {
-    if (hasMore && !loading) fetchSocios(filtroEstado, lastVisible);
+    if (hasMore && !loading) fetchSocios(filtroEstado, lastVisible, sortOrder);
   };
 
   const { mutate: updateSocioMutation } = useMutation({
@@ -246,6 +247,16 @@ export function GestionSociosDashboard() {
                   {(['Todos', 'Activo', 'Inactivo', 'Pendiente Validacion'] as EstadoSocioFiltro[]).map(estado => (
                     <SelectItem key={estado} value={estado}>{estado}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowRight className="h-4 w-4 text-muted-foreground" /> {/* Icono de flecha para indicar orden */}
+              <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Ordenar por..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">N° Socio (más recientes)</SelectItem>
+                  <SelectItem value="asc">N° Socio (más antiguos)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

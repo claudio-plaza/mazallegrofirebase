@@ -623,14 +623,7 @@ export function GestionInvitadosDiarios() {
               </div>
             </CardContent>
             <CardFooter className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-              {solicitudActual?.estado !== EstadoSolicitudInvitados.ENVIADA && (
-                <Button 
-                  type="submit" 
-                  disabled={isSaving || !loggedInUserNumeroSocio || authIsLoading || !isEditable}
-                >
-                  {submitButtonText()}
-                </Button>
-              )}
+  
 
               {puedeEnviar && (
                 <AlertDialog>

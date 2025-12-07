@@ -350,6 +350,7 @@ export interface RevisionMedica {
   resultado: 'Apto' | 'No Apto';
   fechaVencimientoApto?: Date;
   observaciones?: string;
+  medicoId?: string; // Añadido para guardar el UID del médico
   medicoResponsable?: string;
 }
 
