@@ -52,8 +52,29 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
   const { user, refreshSocio } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isEditMode = !!familiarToEdit;
   const [familiares, setFamiliares] = useState<FamiliarFormData[]>([]);
+
+  const handleEnviarClick = async () => {
+    const isValid = await form.trigger();
+    
+    if (!isValid) {
+      toast({
+        title: "Formulario incompleto",
+        description: "Por favor completa todos los campos requeridos marcados en rojo.",
+        variant: "destructive"
+      });
+      
+      const firstError = document.querySelector('[data-invalid="true"], .text-destructive');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
+    setShowConfirmDialog(true);
+  };
 
   const form = useForm<FamiliarFormData>({ resolver: zodResolver(familiarDialogSchema) });
 
@@ -213,6 +234,7 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
       await refreshSocio();
       onClose();
     } catch (error: any) {
+      setShowConfirmDialog(false); // Cerrar diálogo para que vea el error
       console.error("Error al enviar la solicitud:", error);
       toast({ title: "Error al enviar", description: error.message || "Ocurrió un error desconocido.", variant: "destructive" });
     } finally {
@@ -296,27 +318,31 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
               {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button disabled={isSubmitting}>
-                  {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Recuerda agregar a todos los integrantes de tu grupo familiar antes de enviar la solicitud, ya que sólo puedes enviar UNA solicitud hasta que sea aprobada o denegada por el administrador.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Agregar otro familiar</AlertDialogCancel>
-                  <AlertDialogAction onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
-                    {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <>
+              <Button 
+                type="button"
+                onClick={handleEnviarClick}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
+              </Button>
+              <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Recuerda agregar a todos los integrantes de tu grupo familiar antes de enviar la solicitud, ya que sólo puedes enviar UNA solicitud hasta que sea aprobada o denegada por el administrador.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Agregar otro familiar</AlertDialogCancel>
+                    <AlertDialogAction onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+                      {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
