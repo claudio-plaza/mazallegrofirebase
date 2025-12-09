@@ -1,8 +1,8 @@
 'use client';
 
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
   sendEmailVerification,
@@ -25,7 +25,7 @@ export const loginUser = async (email: string, passwordInput: string) => {
     return userCredential.user;
   } catch (error: any) {
     console.error("Firebase login error:", error); // Log completo del error
-    
+
     // Mensaje de error más específico
     let description = 'Email o contraseña incorrectos. Por favor, intente de nuevo.';
     if (error.code) {
@@ -46,7 +46,7 @@ export const signupUser = async (data: SignupTitularData) => {
 
   try {
     console.log('DEBUG: Iniciando registro...');
-    
+
     // FIX 2: Normalizar email ANTES de cualquier operación
     const normalizedEmail = data.email.trim().toLowerCase();
 
@@ -182,9 +182,20 @@ export const sendPasswordReset = async (email: string) => {
     return true;
   } catch (error: any) {
     console.error("Firebase password reset error:", error);
+
+    let mensajeError = 'No se pudo enviar el correo de restablecimiento. Por favor, intente de nuevo.';
+
+    if (error.code === 'auth/user-not-found') {
+      mensajeError = 'No existe ninguna cuenta registrada con este correo electrónico.';
+    } else if (error.code === 'auth/invalid-email') {
+      mensajeError = 'El formato del correo electrónico no es válido.';
+    } else if (error.code === 'auth/too-many-requests') {
+      mensajeError = 'Demasiados intentos. Por favor intente más tarde.';
+    }
+
     toast({
       title: 'Error',
-      description: 'No se pudo enviar el correo de restablecimiento. Por favor, intente de nuevo.',
+      description: mensajeError,
       variant: 'destructive',
     });
     return false;

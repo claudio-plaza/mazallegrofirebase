@@ -55,6 +55,7 @@ export enum EstadoCambioFamiliares {
   PENDIENTE = "Pendiente",
   APROBADO = "Aprobado",
   RECHAZADO = "Rechazado",
+  PARCIAL = "Parcial",
 }
 
 export type MetodoPagoInvitado = 'Efectivo' | 'Transferencia' | 'Caja';
@@ -118,6 +119,10 @@ export interface MiembroFamiliar {
   fotoCarnet?: string | null;
   estadoValidacion?: EstadoValidacionFamiliar;
   aptoMedico?: AptoMedicoInfo;
+  estadoAprobacion?: 'pendiente' | 'aprobado' | 'rechazado';
+  motivoRechazo?: string;
+  fechaDecision?: Timestamp;
+  decidoPor?: string; // UID del admin
 }
 
 export interface Adherente {
@@ -154,7 +159,7 @@ export interface Socio {
   fotoDniFrente?: string | null;
   fotoDniDorso?: string | null;
   fotoCarnet?: string | null;
-  estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente Validacion';
+  estadoSocio: 'Activo' | 'Inactivo' | 'Pendiente';
   motivoInactivacion?: string | null;  // ✅ NUEVO: Por qué fue inactivado
   fechaInactivacion?: Date | null;     // ✅ NUEVO: Cuándo fue inactivado
   aptoMedico: AptoMedicoInfo;
@@ -173,7 +178,7 @@ export interface Socio {
   cambiosPendientesFamiliares?: MiembroFamiliar[];
   estadoCambioFamiliares?: 'Ninguno' | 'Pendiente' | 'Aprobado' | 'Rechazado';
   motivoRechazoFamiliares?: string | null;
-  
+
   // Mantener los viejos por compatibilidad temporal
   cambiosPendientesGrupoFamiliar?: any;
   estadoCambioGrupoFamiliar?: string;
@@ -183,7 +188,7 @@ export interface Socio {
 
 // Raw interfaces for DB storage (dates as strings)
 export interface MiembroFamiliarRaw extends Omit<MiembroFamiliar, 'fechaNacimiento' | 'aptoMedico'> {
-  fechaNacimiento: string; 
+  fechaNacimiento: string;
   aptoMedico?: AptoMedicoInfoRaw;
 }
 
@@ -333,7 +338,7 @@ export interface PersonaParaIngreso {
   tipo: TipoPersona;
   fotoUrl?: string | null;
   aptoMedico?: AptoMedicoInfo | null;
-  estadoSocio?: 'Activo' | 'Inactivo' | 'Pendiente Validacion'; // Solo para socio titular
+  estadoSocio?: 'Activo' | 'Inactivo' | 'Pendiente'; // Solo para socio titular
   relacion?: RelacionFamiliar; // Solo para familiares
   esDeCumpleanos?: boolean; // Solo para invitados
   ingresado?: boolean; // Solo para invitados
@@ -370,9 +375,9 @@ export const familiarBaseSchema = z.object({
   fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
   fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
-  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')), 
-  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')), 
-  email: z.string().email("Email inválido.").optional().or(z.literal('')), 
+  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
+  email: z.string().email("Email inválido.").optional().or(z.literal('')),
   relacion: z.nativeEnum(RelacionFamiliar), // Simplificado
   aptoMedico: z.custom<AptoMedicoInfo>().optional(),
   estadoValidacion: z.nativeEnum(EstadoValidacionFamiliar).optional(),
@@ -387,8 +392,8 @@ export const hijoSchema = familiarBaseSchema.extend({
   relacion: z.literal(RelacionFamiliar.HIJO_A),
   fechaNacimiento: safeDate
     .refine(date => !!date, "La fecha de nacimiento es requerida.")
-    .refine(date => differenceInYears(new Date(), date) < 21, {
-      message: "Los hijos deben ser menores de 21 años."
+    .refine(date => differenceInYears(new Date(), date) < 22, {
+      message: "Los hijos deben ser menores de 22 años."
     }),
 });
 export type HijoData = z.infer<typeof hijoSchema>;
@@ -448,7 +453,7 @@ export const invitadoDiarioSchema = z.object({
   ingresado: z.boolean().default(false),
   metodoPago: z.enum(['Efectivo', 'Transferencia', 'Caja']).nullable().optional(),
   aptoMedico: z.custom<AptoMedicoInfo>().optional().nullable(),
-  esDeCumpleanos: z.boolean().optional(), 
+  esDeCumpleanos: z.boolean().optional(),
 });
 
 
@@ -476,10 +481,10 @@ export interface SolicitudInvitadosDiariosRaw extends Omit<SolicitudInvitadosDia
 
 export const solicitudInvitadosDiariosSchema = z.object({
   id: z.string().default(() => `invd-${Date.now().toString(36)}`),
-  idSocioTitular: z.string({ required_error: "ID del socio titular es requerido."}),
-  nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido."}),
-  numeroSocioTitular: z.string({ required_error: "Número de socio titular es requerido."}),
-  fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }).refine(val => isValid(parseISO(val)), { message: "Fecha inválida."}),
+  idSocioTitular: z.string({ required_error: "ID del socio titular es requerido." }),
+  nombreSocioTitular: z.string({ required_error: "Nombre del socio titular es requerido." }),
+  numeroSocioTitular: z.string({ required_error: "Número de socio titular es requerido." }),
+  fecha: z.string({ required_error: "La fecha es obligatoria (ISO date string)." }).refine(val => isValid(parseISO(val)), { message: "Fecha inválida." }),
   listaInvitadosDiarios: z.array(invitadoDiarioSchema)
     .min(1, "Debe agregar al menos un invitado."),
   estado: z.nativeEnum(EstadoSolicitudInvitados).default(EstadoSolicitudInvitados.BORRADOR),
@@ -491,16 +496,16 @@ export const solicitudInvitadosDiariosSchema = z.object({
 
 
 export const adherenteFormSchema = z.object({
-    nombre: z.string().min(2, "Nombre es requerido."),
-    apellido: z.string().min(2, "Apellido es requerido."),
-    fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
-    dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
-    telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
-    direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
-    email: z.string().email("Email inválido.").optional().or(z.literal('')),
-    fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
-    fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
-    fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
+  nombre: z.string().min(2, "Nombre es requerido."),
+  apellido: z.string().min(2, "Apellido es requerido."),
+  fechaNacimiento: safeDate.refine(date => !!date, "La fecha de nacimiento es requerida."),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI debe tener 7 u 8 dígitos numéricos."),
+  telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres numéricos.").regex(/^\d+$/, "Teléfono solo debe contener números.").optional().or(z.literal('')),
+  direccion: z.string().min(5, "Dirección es requerida.").optional().or(z.literal('')),
+  email: z.string().email("Email inválido.").optional().or(z.literal('')),
+  fotoDniFrente: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (frente)."),
+  fotoDniDorso: requiredFileField(dniFileSchemaConfig, "Se requiere foto del DNI (dorso)."),
+  fotoPerfil: requiredFileField(profileFileSchemaConfig, "Se requiere foto de perfil."),
 
 });
 export type AdherenteFormData = z.infer<typeof adherenteFormSchema>;
@@ -545,16 +550,16 @@ export const adminEditableFamiliarSchema = z.object({
   fotoDniFrente: optionalFileField(dniFileSchemaConfig).nullable(),
   fotoDniDorso: optionalFileField(dniFileSchemaConfig).nullable(),
   fotoCarnet: optionalFileField(profileFileSchemaConfig).nullable(),
-  aptoMedico: z.custom<AptoMedicoInfo>().optional(), 
+  aptoMedico: z.custom<AptoMedicoInfo>().optional(),
 }).refine(data => {
-    if (data.relacion === RelacionFamiliar.HIJO_A) {
-        if (!data.fechaNacimiento) return true; // Dejar que la validación base maneje el campo requerido
-        return differenceInYears(new Date(), data.fechaNacimiento) < 21;
-    }
-    return true;
+  if (data.relacion === RelacionFamiliar.HIJO_A) {
+    if (!data.fechaNacimiento) return true; // Dejar que la validación base maneje el campo requerido
+    return differenceInYears(new Date(), data.fechaNacimiento) < 22;
+  }
+  return true;
 }, {
-    message: "Los hijos deben ser menores de 21 años.",
-    path: ["fechaNacimiento"],
+  message: "Los hijos deben ser menores de 22 años.",
+  path: ["fechaNacimiento"],
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
 
@@ -589,12 +594,12 @@ const adminEditSocioTitularObject = z.object({
   telefono: z.string().min(10, "Teléfono debe tener al menos 10 caracteres.").regex(/^\d+$/, "Teléfono solo debe contener números."),
   direccion: z.string().min(5, "Dirección es requerida."),
   email: z.string().email("Email inválido."),
-  estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente Validacion'], { required_error: "El estado del socio es requerido."}),
+  estadoSocio: z.enum(['Activo', 'Inactivo', 'Pendiente'], { required_error: "El estado del socio es requerido." }),
   motivoInactivacion: z.string().optional().nullable(),
   fechaInactivacion: z.date().optional().nullable(),
   familiares: z.array(adminEditableFamiliarSchema).optional(),
   adherentes: z.array(adminEditableAdherenteSchema).optional(),
-  
+
   fotoUrl: optionalFileField(profileFileSchemaConfig).nullable(),
   fotoPerfil: optionalFileField(profileFileSchemaConfig).nullable(),
   fotoDniFrente: optionalFileField(dniFileSchemaConfig),

@@ -7,11 +7,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FileText, Check, X } from 'lucide-react';
+import { cn } from '@/lib/utils'; // Importar cn
 
 interface FamiliarChangeCardProps {
   familiar: MiembroFamiliar;
   changeType: 'NUEVO' | 'MODIFICADO' | 'ELIMINADO';
+  onApproveFamiliar: (familiarId: string) => void;
+  onRejectFamiliar: (familiarId: string) => void;
+  isProcessing?: boolean;
 }
 
 // Helper component for displaying an image in a modal
@@ -64,8 +68,8 @@ function FullDataDialog({ familiar }: { familiar: MiembroFamiliar }) {
 }
 
 
-export function FamiliarChangeCard({ familiar, changeType }: FamiliarChangeCardProps) {
-  const getBadgeClass = () => {
+export function FamiliarChangeCard({ familiar, changeType, onApproveFamiliar, onRejectFamiliar, isProcessing }: FamiliarChangeCardProps) {
+  const getChangeBadgeClass = () => {
     switch (changeType) {
       case 'NUEVO':
         return 'bg-green-100 text-green-800';
@@ -76,12 +80,41 @@ export function FamiliarChangeCard({ familiar, changeType }: FamiliarChangeCardP
     }
   };
 
+  const getStatusBadgeClass = () => {
+    switch (familiar.estadoAprobacion) {
+      case 'aprobado':
+        return 'bg-green-500';
+      case 'rechazado':
+        return 'bg-red-500';
+      default:
+        return 'hidden';
+    }
+  };
+
+  const getStatusBadgeText = () => {
+    switch (familiar.estadoAprobacion) {
+      case 'aprobado':
+        return 'APROBADO';
+      case 'rechazado':
+        return 'RECHAZADO';
+      default:
+        return '';
+    }
+  };
+
+  const isDecisionMade = familiar.estadoAprobacion === 'aprobado' || familiar.estadoAprobacion === 'rechazado';
+
   return (
-    <Card className="overflow-hidden flex flex-col">
+    <Card className={cn(
+      "overflow-hidden flex flex-col relative",
+      familiar.estadoAprobacion === 'aprobado' && "border-green-500 bg-green-50",
+      familiar.estadoAprobacion === 'rechazado' && "border-red-500 bg-red-50"
+    )}>
+      <Badge className={cn("absolute top-2 right-2", getStatusBadgeClass())}>{getStatusBadgeText()}</Badge>
       <CardHeader className="p-4 bg-muted/50">
         <div className="flex items-center justify-between">
             <CardTitle className="text-base">{familiar.nombre} {familiar.apellido}</CardTitle>
-            <Badge className={getBadgeClass()}>{changeType}</Badge>
+            <Badge className={getChangeBadgeClass()}>{changeType}</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-4 space-y-4 flex-1">
@@ -118,9 +151,35 @@ export function FamiliarChangeCard({ familiar, changeType }: FamiliarChangeCardP
                 ) : <p className="text-xs text-muted-foreground">No subido</p>}
             </div>
         </div>
+
+        {familiar.estadoAprobacion === 'rechazado' && familiar.motivoRechazo && (
+            <p className="text-sm text-red-600 mt-2">
+                <strong>Motivo:</strong> {familiar.motivoRechazo}
+            </p>
+        )}
       </CardContent>
       <div className="p-4 pt-0">
         <FullDataDialog familiar={familiar} />
+        <div className="flex gap-2 mt-4">
+            <Button 
+                variant="outline" 
+                className="flex-1 border-green-500 text-green-600 hover:bg-green-50"
+                onClick={() => familiar.id && onApproveFamiliar(familiar.id)}
+                disabled={isDecisionMade || isProcessing}
+            >
+                <Check className="w-4 h-4 mr-2" />
+                Aprobar
+            </Button>
+            <Button 
+                variant="outline"
+                className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
+                onClick={() => familiar.id && onRejectFamiliar(familiar.id)}
+                disabled={isDecisionMade || isProcessing}
+            >
+                <X className="w-4 h-4 mr-2" />
+                Rechazar
+            </Button>
+        </div>
       </div>
     </Card>
   );

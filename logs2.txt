@@ -1,0 +1,41 @@
+🚨 ERROR CORS PERSISTENTE - El frontend usa fetch() en lugar de httpsCallable()
+
+El error es:
+"Access to fetch at 'https://us-central1-clubzenith.cloudfunctions.net/processFamiliarRequests' 
+has been blocked by CORS policy"
+
+PROBLEMA: La función updateFamiliarRequest en firestoreService.ts usa fetch() directo.
+Las funciones onCall de Firebase DEBEN llamarse con httpsCallable(), no con fetch().
+
+SOLUCIÓN:
+
+1. **Abre src/lib/firebase/firestoreService.ts**
+
+2. **Busca la función updateFamiliarRequest** y REEMPLÁZALA completamente con:
+```typescript
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+export async function updateFamiliarRequest(
+  socioId: string, 
+  data: { familiaresDecisiones: any[] }
+): Promise<void> {
+  const functions = getFunctions();
+  const processFamiliarRequests = httpsCallable(functions, 'processFamiliarRequests');
+  
+  const result = await processFamiliarRequests({
+    socioId,
+    familiaresDecisiones: data.familiaresDecisiones
+  });
+  
+  console.log('✅ Resultado de processFamiliarRequests:', result.data);
+}
+```
+
+3. **Verifica que el import de getFunctions esté al inicio del archivo:**
+```typescript
+import { getFunctions, httpsCallable } from 'firebase/functions';
+```
+
+4. **Ejecuta npm run typecheck para verificar**
+
+Implementa estos cambios ahora.

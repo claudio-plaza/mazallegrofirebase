@@ -1,14 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSolicitudesFamiliares } from '@/hooks/useSolicitudesFamiliares';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, UserCheck } from 'lucide-react';
-import type { Socio } from '@/types';
+import type { MiembroFamiliar, Socio } from '@/types';
 import { FamiliarChangeCard } from './FamiliarChangeCard';
-import { updateSocio } from '@/lib/firebase/firestoreService';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -19,72 +18,176 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea'; // Usar Textarea en lugar de Input para el motivo de rechazo
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Importar para httpsCallable
+import { useAuth } from '@/hooks/useAuth'; // Importar useAuth
+import { Timestamp } from 'firebase/firestore'; // Importar Timestamp
 
-// Helper to categorize changes
-const processFamiliarChanges = (socio: Socio) => {
-  const actuales = socio.familiares || [];
-  const pendientes = socio.cambiosPendientesFamiliares || [];
 
-  const added = pendientes.filter(p => !actuales.some(a => a.id === p.id));
-  const removed = actuales.filter(a => !pendientes.some(p => p.id === a.id));
-  const modified = pendientes.filter(p => {
-    const original = actuales.find(a => a.id === p.id);
-    // A simple JSON.stringify check for modification.
-    return original && JSON.stringify(original) !== JSON.stringify(p);
-  });
-
-  return { added, modified, removed };
-};
 
 
 export function GestionSolicitudesFamiliaresDashboard() {
   const { solicitudes, loading } = useSolicitudesFamiliares();
   const { toast } = useToast();
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const { user } = useAuth(); // Obtener el usuario autenticado
+  const currentAdminUid = user?.uid; // UID del admin que toma la decisión
 
-  const handleApprove = async (socio: Socio) => {
-    setProcessingId(socio.id);
-    try {
-      await updateSocio(socio.id, {
-        familiares: socio.cambiosPendientesFamiliares,
-        estadoCambioFamiliares: 'Aprobado',
-        cambiosPendientesFamiliares: [],
-        motivoRechazoFamiliares: null,
+  const [localFamiliaresPendientes, setLocalFamiliaresPendientes] = useState<{ [socioId: string]: MiembroFamiliar[] }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estado para el diálogo de rechazo individual
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  const [familiarToRejectInfo, setFamiliarToRejectInfo] = useState<{ socioId: string; familiarId: string; familiarNombre: string; familiarApellido: string } | null>(null);
+  const [rejectionReasonIndividual, setRejectionReasonIndividual] = useState('');
+
+  useEffect(() => {
+    // Inicializar el estado local con los familiares pendientes de cada solicitud
+    if (solicitudes.length > 0) {
+      const initialLocalState: { [socioId: string]: MiembroFamiliar[] } = {};
+      solicitudes.forEach(socio => {
+        initialLocalState[socio.id] = (socio.cambiosPendientesFamiliares || []).map(f => ({
+          ...f,
+          // Asegurarse de que cada familiar tiene un estado inicial 'pendiente' si no lo tiene
+          estadoAprobacion: f.estadoAprobacion || 'pendiente'
+        }));
       });
-      toast({ title: "Solicitud Aprobada", description: `Los familiares de ${socio.nombre} ${socio.apellido} han sido actualizados.` });
-    } catch (error) {
-      console.error("Error approving request:", error);
-      toast({ title: "Error", description: "No se pudo aprobar la solicitud.", variant: "destructive" });
-    } finally {
-      setProcessingId(null);
+      setLocalFamiliaresPendientes(initialLocalState);
+    }
+  }, [solicitudes]);
+
+  const handleApproveFamiliar = (socioId: string, familiarId: string) => {
+    setLocalFamiliaresPendientes(prev => ({
+      ...prev,
+      [socioId]: prev[socioId].map(f =>
+        f.id === familiarId
+          ? { ...f, estadoAprobacion: 'aprobado', motivoRechazo: undefined, fechaDecision: Timestamp.now(), decidoPor: currentAdminUid }
+          : f
+      )
+    }));
+  };
+
+  const handleRejectFamiliar = (socioId: string, familiarId: string) => {
+    const familiar = localFamiliaresPendientes[socioId]?.find(f => f.id === familiarId);
+    if (familiar) {
+      setFamiliarToRejectInfo({ socioId, familiarId, familiarNombre: familiar.nombre, familiarApellido: familiar.apellido });
+      setShowRejectionDialog(true);
     }
   };
 
-  const handleReject = async (socio: Socio) => {
-    if (!rejectionReason) {
+  const confirmRejectFamiliar = () => {
+    if (!familiarToRejectInfo || !rejectionReasonIndividual.trim()) {
       toast({ title: "Error", description: "Debe proporcionar un motivo de rechazo.", variant: "destructive" });
       return;
     }
-    setProcessingId(socio.id);
+
+    setLocalFamiliaresPendientes(prev => ({
+      ...prev,
+      [familiarToRejectInfo.socioId]: prev[familiarToRejectInfo.socioId].map(f =>
+        f.id === familiarToRejectInfo.familiarId
+          ? {
+              ...f,
+              estadoAprobacion: 'rechazado',
+              motivoRechazo: rejectionReasonIndividual.trim(),
+              fechaDecision: Timestamp.now(),
+              decidoPor: currentAdminUid
+            }
+          : f
+      )
+    }));
+
+    // Resetear y cerrar diálogo
+    setShowRejectionDialog(false);
+    setFamiliarToRejectInfo(null);
+    setRejectionReasonIndividual('');
+  };
+
+  const handleApproveAll = (socioId: string) => {
+    setLocalFamiliaresPendientes(prev => ({
+      ...prev,
+      [socioId]: prev[socioId].map(f => ({
+        ...f,
+        estadoAprobacion: 'aprobado',
+        motivoRechazo: undefined,
+        fechaDecision: Timestamp.now(),
+        decidoPor: currentAdminUid
+      }))
+    }));
+  };
+
+  const handleRejectAll = (socioId: string) => {
+    const socio = solicitudes.find(s => s.id === socioId);
+    if (!socio) return;
+
+    setFamiliarToRejectInfo({ socioId, familiarId: 'all', familiarNombre: 'todos', familiarApellido: 'los familiares' });
+    setShowRejectionDialog(true);
+    // La confirmación manejará el update de todos los familiares
+  };
+
+  const confirmRejectAll = () => {
+    if (!familiarToRejectInfo || !rejectionReasonIndividual.trim()) {
+      toast({ title: "Error", description: "Debe proporcionar un motivo de rechazo.", variant: "destructive" });
+      return;
+    }
+
+    setLocalFamiliaresPendientes(prev => ({
+      ...prev,
+      [familiarToRejectInfo.socioId]: prev[familiarToRejectInfo.socioId].map(f => ({
+        ...f,
+        estadoAprobacion: 'rechazado',
+        motivoRechazo: rejectionReasonIndividual.trim(),
+        fechaDecision: Timestamp.now(),
+        decidoPor: currentAdminUid
+      }))
+    }));
+
+    setShowRejectionDialog(false);
+    setFamiliarToRejectInfo(null);
+    setRejectionReasonIndividual('');
+  };
+
+  const handleSaveDecisions = async (socioId: string) => {
+    if (!currentAdminUid) {
+      toast({ title: "Error de Autenticación", description: "No se pudo identificar al administrador.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+
+    const familiaresDelSocio = localFamiliaresPendientes[socioId];
+    if (!familiaresDelSocio || familiaresDelSocio.length === 0) {
+      toast({ title: "Advertencia", description: "No hay familiares para procesar.", variant: "default" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const allDecided = familiaresDelSocio.every(f => f.estadoAprobacion === 'aprobado' || f.estadoAprobacion === 'rechazado');
+    if (!allDecided) {
+      toast({ title: "Advertencia", description: "Debe aprobar o rechazar a todos los familiares antes de guardar.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const functions = getFunctions();
+    const processFamiliarRequests = httpsCallable(functions, 'processFamiliarRequests');
+
     try {
-      await updateSocio(socio.id, {
-        estadoCambioFamiliares: 'Rechazado',
-        cambiosPendientesFamiliares: [],
-        motivoRechazoFamiliares: rejectionReason,
+      const result = await processFamiliarRequests({
+        socioId,
+        familiaresDecisiones: familiaresDelSocio
       });
-      toast({ title: "Solicitud Rechazada", variant: "destructive" });
-    } catch (error) {
-      console.error("Error rejecting request:", error);
-      toast({ title: "Error", description: "No se pudo rechazar la solicitud.", variant: "destructive" });
+      
+      console.log('✅ Resultado de processFamiliarRequests:', result.data);
+
+      toast({ title: "Decisiones Guardadas", description: "Las decisiones sobre los familiares han sido guardadas.", });
+      // refetch() eliminado ya que useSolicitudesFamiliares usa onSnapshot (realtime)
+    } catch (error: any) {
+      console.error("Error saving decisions:", error);
+      toast({ title: "Error", description: error.message || "No se pudieron guardar las decisiones.", variant: "destructive" });
     } finally {
-      setProcessingId(null);
-      setRejectionReason('');
+      setIsSubmitting(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -110,65 +213,129 @@ export function GestionSolicitudesFamiliaresDashboard() {
   return (
     <div className="mt-6 space-y-6">
       {solicitudes.map((socio) => {
-        const { added, modified, removed } = processFamiliarChanges(socio);
-        const isProcessing = processingId === socio.id;
+        const familiaresDeEsteSocio = localFamiliaresPendientes[socio.id] || [];
+        const allDecided = familiaresDeEsteSocio.every(f => f.estadoAprobacion === 'aprobado' || f.estadoAprobacion === 'rechazado');
+        
+        // Determinar qué familiares son "added" o "modified" para mostrarlos
+        const actuales = socio.familiares || [];
+        const addedModified = familiaresDeEsteSocio.filter(p => 
+          !actuales.some(a => a.id === p.id) || 
+          (actuales.find(a => a.id === p.id) && JSON.stringify(actuales.find(a => a.id === p.id)) !== JSON.stringify(p))
+        );
+
+        const removed = actuales.filter(a => !familiaresDeEsteSocio.some(p => p.id === a.id));
 
         return (
           <Card key={socio.id}>
             <CardHeader>
-              <CardTitle>Solicitud de: {socio.nombre} {socio.apellido}</CardTitle>
-              <CardDescription>
-                Número de Socio: {socio.numeroSocio} | DNI: {socio.dni}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">Familiares Propuestos ({socio.cambiosPendientesFamiliares?.length || 0})</h3>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {added.map(f => <FamiliarChangeCard key={f.id} familiar={f} changeType="NUEVO" />)}
-                  {modified.map(f => <FamiliarChangeCard key={f.id} familiar={f} changeType="MODIFICADO" />)}
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Solicitud de: {socio.nombre} {socio.apellido}</CardTitle>
+                  <CardDescription>
+                    Número de Socio: {socio.numeroSocio} | DNI: {socio.dni}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleApproveAll(socio.id)} 
+                    disabled={isSubmitting || familiaresDeEsteSocio.every(f => f.estadoAprobacion === 'aprobado')}
+                  >
+                    Aprobar Todos
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleRejectAll(socio.id)} 
+                    disabled={isSubmitting || familiaresDeEsteSocio.every(f => f.estadoAprobacion === 'rechazado')}
+                  >
+                    Rechazar Todos
+                  </Button>
                 </div>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {addedModified.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Familiares Propuestos ({addedModified.length})</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {addedModified.map(f => (
+                      <FamiliarChangeCard 
+                        key={f.id} 
+                        familiar={f} 
+                        changeType={actuales.some(a => a.id === f.id) ? "MODIFICADO" : "NUEVO"} 
+                        onApproveFamiliar={(familiarId) => handleApproveFamiliar(socio.id, familiarId)}
+                        onRejectFamiliar={(familiarId) => handleRejectFamiliar(socio.id, familiarId)}
+                        isProcessing={isSubmitting}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               {removed.length > 0 && (
                 <div>
                   <h3 className="font-semibold mb-2">Familiares a Eliminar ({removed.length})</h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {removed.map(f => <FamiliarChangeCard key={f.id} familiar={f} changeType="ELIMINADO" />)}
+                    {removed.map(f => (
+                      <FamiliarChangeCard 
+                        key={f.id} 
+                        familiar={f} 
+                        changeType="ELIMINADO" 
+                        onApproveFamiliar={(familiarId) => handleApproveFamiliar(socio.id, familiarId)}
+                        onRejectFamiliar={(familiarId) => handleRejectFamiliar(socio.id, familiarId)}
+                        isProcessing={isSubmitting}
+                      />
+                    ))}
                   </div>
                 </div>
               )}
+              {familiaresDeEsteSocio.length === 0 && (
+                 <p className="text-muted-foreground">No hay familiares pendientes en esta solicitud.</p>
+              )}
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={isProcessing}>Rechazar</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Rechazar Solicitud</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Por favor, ingrese el motivo del rechazo. Este será visible para el socio.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <Input 
-                    placeholder="Ej: La foto del DNI no es legible."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                  />
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleReject(socio)} disabled={!rejectionReason}>Confirmar Rechazo</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button onClick={() => handleApprove(socio)} disabled={isProcessing}>
-                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Aprobar
+              <Button 
+                onClick={() => handleSaveDecisions(socio.id)} 
+                disabled={isSubmitting || !allDecided || familiaresDeEsteSocio.length === 0}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Guardar Decisiones
               </Button>
             </CardFooter>
           </Card>
         );
       })}
+
+      {/* Diálogo de Rechazo Individual/Masivo */}
+      <AlertDialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechazar {familiarToRejectInfo?.familiarNombre} {familiarToRejectInfo?.familiarApellido}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Por favor indica el motivo del rechazo. El socio verá este mensaje.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea 
+            placeholder="Ej: DNI ilegible, foto de perfil no cumple requisitos..."
+            value={rejectionReasonIndividual}
+            onChange={(e) => setRejectionReasonIndividual(e.target.value)}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowRejectionDialog(false);
+              setFamiliarToRejectInfo(null);
+              setRejectionReasonIndividual('');
+            }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={familiarToRejectInfo?.familiarId === 'all' ? confirmRejectAll : confirmRejectFamiliar}
+              disabled={!rejectionReasonIndividual.trim()}
+            >
+              Confirmar Rechazo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

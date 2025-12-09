@@ -31,145 +31,145 @@ const extractCommonData = (person: any) => {
 // =================================================================
 
 export const onSocioWrite = onDocumentWritten({
-    document: "socios/{socioId}",
-    region: "us-central1"
+  document: "socios/{socioId}",
+  region: "us-central1"
 }, async (event) => {
-    const index = getAlgoliaIndex();
-    const socioId = event.params.socioId;
+  const index = getAlgoliaIndex();
+  const socioId = event.params.socioId;
 
-    if (!event.data) {
-        logger.log("No data associated with the event, skipping.");
-        return;
-    }
+  if (!event.data) {
+    logger.log("No data associated with the event, skipping.");
+    return;
+  }
 
-    // Handle DELETE
-    if (!event.data.after.exists) {
-      const socioDeleted = event.data.before.data();
-      if (!socioDeleted) return;
-      
-      const objectIDsToDelete: string[] = [socioId];
-      if (socioDeleted.adherentes) {
-        socioDeleted.adherentes.forEach((adh: {dni?: string}) => {
-          if (adh.dni) objectIDsToDelete.push(`${socioId}-${adh.dni}`);
-        });
-      }
-      if (socioDeleted.familiares) { // Corrected from grupoFamiliar
-        socioDeleted.familiares.forEach((fam: {dni?: string}) => {
-          if (fam.dni) objectIDsToDelete.push(`${socioId}-${fam.dni}`);
-        });
-      }
-      
-      try {
-        await index.deleteObjects(objectIDsToDelete);
-        logger.log(`Algolia: Deleted ${objectIDsToDelete.length} records for socioId: ${socioId}`);
-      } catch (error) {
-        logger.error(`Error deleting objects from Algolia for socioId: ${socioId}`, error);
-      }
-      return;
-    }
+  // Handle DELETE
+  if (!event.data.after.exists) {
+    const socioDeleted = event.data.before.data();
+    if (!socioDeleted) return;
 
-    // Handle CREATE / UPDATE
-    const socioData = event.data.after.data();
-    if (!socioData) return;
-    
-    const records: object[] = [];
-    records.push({
-      objectID: socioId,
-      type: "Socio Titular",
-      numeroSocio: socioData.numeroSocio || "",
-      ...extractCommonData(socioData),
-    });
-
-    if (socioData.adherentes) {
-      socioData.adherentes.forEach((adherente: any) => {
-        if (!adherente.dni) return;
-        records.push({
-          objectID: `${socioId}-${adherente.dni}`,
-          type: "Adherente",
-          socioTitularId: socioId,
-          socioTitularNombre: `${socioData.nombre} ${socioData.apellido}`.trim(),
-          ...extractCommonData(adherente),
-        });
+    const objectIDsToDelete: string[] = [socioId];
+    if (socioDeleted.adherentes) {
+      socioDeleted.adherentes.forEach((adh: { dni?: string }) => {
+        if (adh.dni) objectIDsToDelete.push(`${socioId}-${adh.dni}`);
       });
     }
-
-    if (socioData.familiares) { // Corrected from grupoFamiliar
-      socioData.familiares.forEach((familiar: any) => {
-        if (!familiar.dni) return;
-        records.push({
-          objectID: `${socioId}-${familiar.dni}`,
-          type: "Familiar",
-          socioTitularId: socioId,
-          socioTitularNombre: `${socioData.nombre} ${socioData.apellido}`.trim(),
-          ...extractCommonData(familiar),
-        });
+    if (socioDeleted.familiares) { // Corrected from grupoFamiliar
+      socioDeleted.familiares.forEach((fam: { dni?: string }) => {
+        if (fam.dni) objectIDsToDelete.push(`${socioId}-${fam.dni}`);
       });
     }
 
     try {
-      await index.saveObjects(records);
-      logger.log(`Algolia: Synced ${records.length} records for socioId: ${socioId}`);
+      await index.deleteObjects(objectIDsToDelete);
+      logger.log(`Algolia: Deleted ${objectIDsToDelete.length} records for socioId: ${socioId}`);
     } catch (error) {
-      logger.error(`Error saving objects to Algolia for socioId: ${socioId}`, error);
+      logger.error(`Error deleting objects from Algolia for socioId: ${socioId}`, error);
     }
+    return;
+  }
+
+  // Handle CREATE / UPDATE
+  const socioData = event.data.after.data();
+  if (!socioData) return;
+
+  const records: object[] = [];
+  records.push({
+    objectID: socioId,
+    type: "Socio Titular",
+    numeroSocio: socioData.numeroSocio || "",
+    ...extractCommonData(socioData),
+  });
+
+  if (socioData.adherentes) {
+    socioData.adherentes.forEach((adherente: any) => {
+      if (!adherente.dni) return;
+      records.push({
+        objectID: `${socioId}-${adherente.dni}`,
+        type: "Adherente",
+        socioTitularId: socioId,
+        socioTitularNombre: `${socioData.nombre} ${socioData.apellido}`.trim(),
+        ...extractCommonData(adherente),
+      });
+    });
+  }
+
+  if (socioData.familiares) { // Corrected from grupoFamiliar
+    socioData.familiares.forEach((familiar: any) => {
+      if (!familiar.dni) return;
+      records.push({
+        objectID: `${socioId}-${familiar.dni}`,
+        type: "Familiar",
+        socioTitularId: socioId,
+        socioTitularNombre: `${socioData.nombre} ${socioData.apellido}`.trim(),
+        ...extractCommonData(familiar),
+      });
+    });
+  }
+
+  try {
+    await index.saveObjects(records);
+    logger.log(`Algolia: Synced ${records.length} records for socioId: ${socioId}`);
+  } catch (error) {
+    logger.error(`Error saving objects to Algolia for socioId: ${socioId}`, error);
+  }
 });
 
 export const onInvitadoWrite = onDocumentWritten({
-    document: "solicitudesInvitadosDiarios/{solicitudId}",
-    region: "us-central1"
+  document: "solicitudesInvitadosDiarios/{solicitudId}",
+  region: "us-central1"
 }, async (event) => {
-    const index = getAlgoliaIndex();
-    const solicitudId = event.params.solicitudId;
+  const index = getAlgoliaIndex();
+  const solicitudId = event.params.solicitudId;
 
-    if (!event.data) {
-        logger.log("No data associated with the event for onInvitadoWrite, skipping.");
-        return;
+  if (!event.data) {
+    logger.log("No data associated with the event for onInvitadoWrite, skipping.");
+    return;
+  }
+
+  // Handle DELETE
+  if (!event.data.after.exists) {
+    const solicitudDeleted = event.data.before.data();
+    if (!solicitudDeleted || !solicitudDeleted.listaInvitadosDiarios) return;
+
+    const objectIDsToDelete = solicitudDeleted.listaInvitadosDiarios.map((inv: { dni: string; }) => `${solicitudDeleted.idSocioTitular}-${inv.dni}-${solicitudDeleted.fecha}`);
+
+    try {
+      await index.deleteObjects(objectIDsToDelete);
+      logger.log(`Algolia: Deleted ${objectIDsToDelete.length} guest records for solicitudId: ${solicitudId}`);
+    } catch (error) {
+      logger.error(`Error deleting guest objects from Algolia for solicitudId: ${solicitudId}`, error);
     }
+    return;
+  }
 
-    // Handle DELETE
-    if (!event.data.after.exists) {
-        const solicitudDeleted = event.data.before.data();
-        if (!solicitudDeleted || !solicitudDeleted.listaInvitadosDiarios) return;
+  // Handle CREATE / UPDATE
+  const solicitudData = event.data.after.data();
+  if (!solicitudData || !solicitudData.listaInvitadosDiarios) return;
 
-        const objectIDsToDelete = solicitudDeleted.listaInvitadosDiarios.map((inv: {dni: string; }) => `${solicitudDeleted.idSocioTitular}-${inv.dni}-${solicitudDeleted.fecha}`);
-        
-        try {
-            await index.deleteObjects(objectIDsToDelete);
-            logger.log(`Algolia: Deleted ${objectIDsToDelete.length} guest records for solicitudId: ${solicitudId}`);
-        } catch (error) {
-            logger.error(`Error deleting guest objects from Algolia for solicitudId: ${solicitudId}`, error);
-        }
-        return;
+  const socioTitularSnapshot = await getDb().collection('socios').doc(solicitudData.idSocioTitular).get();
+  const socioTitularData = socioTitularSnapshot.data();
+  const socioTitularNombre = socioTitularData ? `${socioTitularData.nombre} ${socioTitularData.apellido}`.trim() : "N/A";
+
+  const records = solicitudData.listaInvitadosDiarios.map((invitado: any) => {
+    if (!invitado.dni) return null;
+    return {
+      objectID: `${solicitudData.idSocioTitular}-${invitado.dni}-${solicitudData.fecha}`,
+      type: "Invitado Diario",
+      socioTitularId: solicitudData.idSocioTitular,
+      socioTitularNombre: socioTitularNombre,
+      fechaVisita: solicitudData.fecha,
+      ...extractCommonData(invitado),
+    };
+  }).filter((p: any): p is object => p !== null);
+
+  if (records.length > 0) {
+    try {
+      await index.saveObjects(records);
+      logger.log(`Algolia: Synced ${records.length} guest records for solicitudId: ${solicitudId}`);
+    } catch (error) {
+      logger.error(`Error saving guest objects to Algolia for solicitudId: ${solicitudId}`, error);
     }
-
-    // Handle CREATE / UPDATE
-    const solicitudData = event.data.after.data();
-    if (!solicitudData || !solicitudData.listaInvitadosDiarios) return;
-
-    const socioTitularSnapshot = await getDb().collection('socios').doc(solicitudData.idSocioTitular).get();
-    const socioTitularData = socioTitularSnapshot.data();
-    const socioTitularNombre = socioTitularData ? `${socioTitularData.nombre} ${socioTitularData.apellido}`.trim() : "N/A";
-
-    const records = solicitudData.listaInvitadosDiarios.map((invitado: any) => {
-        if (!invitado.dni) return null;
-        return {
-            objectID: `${solicitudData.idSocioTitular}-${invitado.dni}-${solicitudData.fecha}`,
-            type: "Invitado Diario",
-            socioTitularId: solicitudData.idSocioTitular,
-            socioTitularNombre: socioTitularNombre,
-            fechaVisita: solicitudData.fecha,
-            ...extractCommonData(invitado),
-        };
-    }).filter((p: any): p is object => p !== null);
-
-    if (records.length > 0) {
-        try {
-            await index.saveObjects(records);
-            logger.log(`Algolia: Synced ${records.length} guest records for solicitudId: ${solicitudId}`);
-        } catch (error) {
-            logger.error(`Error saving guest objects to Algolia for solicitudId: ${solicitudId}`, error);
-        }
-    }
+  }
 });
 
 // =================================================================
@@ -256,46 +256,46 @@ export const backfillAlgolia = onRequest({ region: "us-central1" }, (req, res) =
           });
         }
       }
-      
+
       // Backfill Invitados Diarios
       const solicitudesSnapshot = await getDb().collection("solicitudesInvitadosDiarios").get();
       logger.log(`Found ${solicitudesSnapshot.size} solicitudes de invitados in Firestore.`);
       const socioNameCache = new Map<string, string>();
       for (const doc of solicitudesSnapshot.docs) {
-          const solicitudData = doc.data();
-          if (!solicitudData.listaInvitadosDiarios || !solicitudData.idSocioTitular) continue;
-          let socioTitularNombre = socioNameCache.get(solicitudData.idSocioTitular);
-          if (!socioTitularNombre) {
-              const socioTitularSnapshot = await getDb().collection('socios').doc(solicitudData.idSocioTitular).get();
-              const socioTitularData = socioTitularSnapshot.data();
-              socioTitularNombre = socioTitularData ? `${socioTitularData.nombre} ${socioTitularData.apellido}`.trim() : "N/A";
-              socioNameCache.set(solicitudData.idSocioTitular, socioTitularNombre);
-          }
-          solicitudData.listaInvitadosDiarios.forEach((invitado: any) => {
-              if (!invitado.dni) return;
-              records.push({
-                  objectID: `${solicitudData.idSocioTitular}-${invitado.dni}-${solicitudData.fecha}`,
-                  type: "Invitado Diario",
-                  socioTitularId: solicitudData.idSocioTitular,
-                  socioTitularNombre: socioTitularNombre,
-                  fechaVisita: solicitudData.fecha,
-                  ...extractCommonData(invitado),
-              });
+        const solicitudData = doc.data();
+        if (!solicitudData.listaInvitadosDiarios || !solicitudData.idSocioTitular) continue;
+        let socioTitularNombre = socioNameCache.get(solicitudData.idSocioTitular);
+        if (!socioTitularNombre) {
+          const socioTitularSnapshot = await getDb().collection('socios').doc(solicitudData.idSocioTitular).get();
+          const socioTitularData = socioTitularSnapshot.data();
+          socioTitularNombre = socioTitularData ? `${socioTitularData.nombre} ${socioTitularData.apellido}`.trim() : "N/A";
+          socioNameCache.set(solicitudData.idSocioTitular, socioTitularNombre);
+        }
+        solicitudData.listaInvitadosDiarios.forEach((invitado: any) => {
+          if (!invitado.dni) return;
+          records.push({
+            objectID: `${solicitudData.idSocioTitular}-${invitado.dni}-${solicitudData.fecha}`,
+            type: "Invitado Diario",
+            socioTitularId: solicitudData.idSocioTitular,
+            socioTitularNombre: socioTitularNombre,
+            fechaVisita: solicitudData.fecha,
+            ...extractCommonData(invitado),
           });
+        });
       }
 
       // Final Sync to Algolia
       if (records.length > 0) {
-          await index.clearObjects(); // Clear the index before backfilling
-          logger.log("Algolia index cleared successfully.");
-          await index.saveObjects(records);
-          const successMessage = `✅ Backfill complete! ${records.length} records synced to Algolia.`;
-          logger.log(successMessage);
-          res.status(200).json({ success: true, message: successMessage, count: records.length });
+        await index.clearObjects(); // Clear the index before backfilling
+        logger.log("Algolia index cleared successfully.");
+        await index.saveObjects(records);
+        const successMessage = `✅ Backfill complete! ${records.length} records synced to Algolia.`;
+        logger.log(successMessage);
+        res.status(200).json({ success: true, message: successMessage, count: records.length });
       } else {
-          const message = "No records found to backfill.";
-          logger.log(message);
-          res.status(200).json({ success: true, message: message, count: 0 });
+        const message = "No records found to backfill.";
+        logger.log(message);
+        res.status(200).json({ success: true, message: message, count: 0 });
       }
     } catch (error) {
       logger.error("\n❌ An error occurred during the Algolia upload:", error);
@@ -374,8 +374,8 @@ export const createSocioProfile = onCall({ cors: ["http://localhost:3002", "http
     throw new HttpsError("invalid-argument", "Faltan los datos del socio.");
   }
   if (uid !== socioData.id) {
-      logger.error(`createSocioProfile error: Authenticated user ${uid} cannot create data for user ${socioData.id}.`);
-      throw new HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
+    logger.error(`createSocioProfile error: Authenticated user ${uid} cannot create data for user ${socioData.id}.`);
+    throw new HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
   }
 
   // Convertir fechas serializadas a Timestamps reales de Firestore
@@ -425,7 +425,7 @@ export const getNextSocioNumber = onCall({ cors: true, region: "us-central1" }, 
         transaction.set(counterRef, { lastNumber: currentNumber });
       } else {
         const lastNumber = doc.data()?.lastNumber;
-        currentNumber = (typeof lastNumber === 'number' ? lastNumber : initialSocioNumber -1) + 1;
+        currentNumber = (typeof lastNumber === 'number' ? lastNumber : initialSocioNumber - 1) + 1;
         transaction.update(counterRef, { lastNumber: currentNumber });
       }
       return currentNumber;
@@ -438,72 +438,72 @@ export const getNextSocioNumber = onCall({ cors: true, region: "us-central1" }, 
 });
 
 export const solicitarCambioGrupoFamiliar = onCall({ region: "us-central1", cors: true }, async (request) => {
-    try {
-      if (!request.auth) {
-        throw new HttpsError("unauthenticated", "El usuario debe estar autenticado.");
-      }
-      const uid = request.auth.uid;
-      const { cambiosData } = request.data;
-      if (!cambiosData || !Array.isArray(cambiosData)) {
-        throw new HttpsError("invalid-argument", "Faltan los datos de los cambios o el formato es incorrecto.");
-      }
-      for (const familiar of cambiosData) {
-        if (!familiar.nombre || !familiar.apellido || !familiar.dni || !familiar.relacion) {
-          throw new HttpsError("invalid-argument", "Cada familiar debe tener nombre, apellido, dni y relación.");
-        }
-      }
-      const socioRef = getDb().collection("socios").doc(uid);
-      await socioRef.update({
-        cambiosPendientesFamiliares: cambiosData,
-        estadoCambioFamiliares: "Pendiente",
-        motivoRechazoFamiliares: null,
-      });
-      logger.info(`Solicitud de cambio de familiares enviada por usuario ${uid}`);
-      return { success: true, message: "Solicitud de cambio enviada correctamente." };
-    } catch (error: any) {
-      logger.error("Error en solicitarCambioGrupoFamiliar:", error);
-      if (error instanceof HttpsError) throw error;
-      throw new HttpsError("internal", "Ocurrió un error al procesar la solicitud.", error.message);
+  try {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "El usuario debe estar autenticado.");
     }
+    const uid = request.auth.uid;
+    const { cambiosData } = request.data;
+    if (!cambiosData || !Array.isArray(cambiosData)) {
+      throw new HttpsError("invalid-argument", "Faltan los datos de los cambios o el formato es incorrecto.");
+    }
+    for (const familiar of cambiosData) {
+      if (!familiar.nombre || !familiar.apellido || !familiar.dni || !familiar.relacion) {
+        throw new HttpsError("invalid-argument", "Cada familiar debe tener nombre, apellido, dni y relación.");
+      }
+    }
+    const socioRef = getDb().collection("socios").doc(uid);
+    await socioRef.update({
+      cambiosPendientesFamiliares: cambiosData,
+      estadoCambioFamiliares: "Pendiente",
+      motivoRechazoFamiliares: null,
+    });
+    logger.info(`Solicitud de cambio de familiares enviada por usuario ${uid}`);
+    return { success: true, message: "Solicitud de cambio enviada correctamente." };
+  } catch (error: any) {
+    logger.error("Error en solicitarCambioGrupoFamiliar:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "Ocurrió un error al procesar la solicitud.", error.message);
+  }
 });
 
 export const searchSocio = onCall({ cors: true, region: "us-central1" }, async (request) => {
-    logger.info("Iniciando searchSocio para el usuario:", request.auth?.uid);
-    try {
-      const { searchTerm } = request.data;
-      if (!request.auth) {
-        logger.error("Error de autenticación: la solicitud no tiene 'auth'.");
-        throw new HttpsError('unauthenticated', 'User must be authenticated');
-      }
-      
-      const userDoc = await getDb().collection('adminUsers').doc(request.auth.uid).get();
-      const userData = userDoc.data();
-      
-      logger.info(`Datos de adminUsers para ${request.auth.uid}:`, userData);
-      const userRole = userData?.role;
-      logger.info(`Rol del usuario extraído: ${userRole}`);
-
-      const allowedRoles = ['admin', 'medico', 'portero'];
-      const hasPermission = userData && allowedRoles.includes(userRole);
-
-      logger.info(`Verificación de permisos: ${hasPermission ? 'APROBADA' : 'DENEGADA'}`);
-
-      if (!hasPermission) {
-        throw new HttpsError('permission-denied', `User role '${userRole}' does not have permission to search.`);
-      }
-
-      if (!searchTerm) {
-        return { results: [] };
-      }
-      const algoliaIndex = getAlgoliaIndex();
-      const { hits } = await algoliaIndex.search(searchTerm, { hitsPerPage: 10 });
-      logger.info('Búsqueda completada', { uid: request.auth.uid, resultsCount: hits.length });
-      return { results: hits };
-    } catch (error: any) {
-      logger.error('Error en searchSocio:', error);
-      if (error instanceof HttpsError) throw error;
-      throw new HttpsError('internal', error.message || 'Search failed');
+  logger.info("Iniciando searchSocio para el usuario:", request.auth?.uid);
+  try {
+    const { searchTerm } = request.data;
+    if (!request.auth) {
+      logger.error("Error de autenticación: la solicitud no tiene 'auth'.");
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
     }
+
+    const userDoc = await getDb().collection('adminUsers').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+
+    logger.info(`Datos de adminUsers para ${request.auth.uid}:`, userData);
+    const userRole = userData?.role;
+    logger.info(`Rol del usuario extraído: ${userRole}`);
+
+    const allowedRoles = ['admin', 'medico', 'portero'];
+    const hasPermission = userData && allowedRoles.includes(userRole);
+
+    logger.info(`Verificación de permisos: ${hasPermission ? 'APROBADA' : 'DENEGADA'}`);
+
+    if (!hasPermission) {
+      throw new HttpsError('permission-denied', `User role '${userRole}' does not have permission to search.`);
+    }
+
+    if (!searchTerm) {
+      return { results: [] };
+    }
+    const algoliaIndex = getAlgoliaIndex();
+    const { hits } = await algoliaIndex.search(searchTerm, { hitsPerPage: 10 });
+    logger.info('Búsqueda completada', { uid: request.auth.uid, resultsCount: hits.length });
+    return { results: hits };
+  } catch (error: any) {
+    logger.error('Error en searchSocio:', error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError('internal', error.message || 'Search failed');
+  }
 });
 
 export const registrarAccesoPersona = onCall({ cors: true, region: "us-central1" }, async (request) => {
@@ -573,7 +573,7 @@ export const deleteSocioAccount = onCall({ region: "us-central1", cors: true }, 
     // 2. Delete Firestore document
     await getDb().collection("socios").doc(uid).delete();
     logger.log(`Successfully deleted firestore document for user: ${uid}`);
-    
+
     // 3. Delete Auth user
     await getAuth().deleteUser(uid);
     logger.log(`Successfully deleted auth user: ${uid}`);
@@ -583,5 +583,89 @@ export const deleteSocioAccount = onCall({ region: "us-central1", cors: true }, 
   } catch (error) {
     logger.error(`Error deleting account for user ${uid}:`, error);
     throw new HttpsError("internal", "Ocurrió un error al eliminar la cuenta.");
+  }
+});
+
+export const processFamiliarRequests = onCall({ region: "us-central1", cors: true, invoker: "public" }, async (request) => {
+  // 1. Authentication
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "La operación requiere autenticación.");
+  }
+  const adminUid = request.auth.uid;
+
+  // 2. Authorization
+  try {
+    const adminUserDoc = await getDb().collection("adminUsers").doc(adminUid).get();
+    if (!adminUserDoc.exists || adminUserDoc.data()?.role !== 'admin') {
+      throw new HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
+    }
+  } catch (error) {
+    logger.error(`Error checking admin status for user ${adminUid}:`, error);
+    throw new HttpsError("internal", "Error al verificar permisos.");
+  }
+
+  // 3. Data Validation
+  const { socioId, familiaresDecisiones } = request.data;
+  if (!socioId || !Array.isArray(familiaresDecisiones)) {
+    throw new HttpsError("invalid-argument", "Faltan datos o el formato es incorrecto.");
+  }
+
+  // 4. Business Logic
+  const socioRef = getDb().collection("socios").doc(socioId);
+  try {
+    await getDb().runTransaction(async (transaction) => {
+      const socioDoc = await transaction.get(socioRef);
+      if (!socioDoc.exists) {
+        throw new HttpsError("not-found", "No se encontró al socio especificado.");
+      }
+
+      const socioData = socioDoc.data()!;
+      let actuales = socioData.familiares || [];
+
+      const aprobados = familiaresDecisiones.filter(f => f.estadoAprobacion === 'aprobado');
+      const rechazados = familiaresDecisiones.filter(f => f.estadoAprobacion === 'rechazado');
+
+      // Actualizar familiares actuales con los aprobados
+      aprobados.forEach(aprobado => {
+        // Limpiar campos de la solicitud
+        delete aprobado.estadoAprobacion;
+        delete aprobado.motivoRechazo;
+        delete aprobado.fechaDecision;
+        delete aprobado.decidoPor;
+
+        const index = actuales.findIndex((a: any) => a.id === aprobado.id);
+        if (index > -1) {
+          // Si ya existe, se actualiza (caso de modificación)
+          actuales[index] = aprobado;
+        } else {
+          // Si no existe, se añade (caso de nuevo familiar)
+          actuales.push(aprobado);
+        }
+      });
+
+      // Determinar estado final de la solicitud
+      let estadoFinal: 'Aprobado' | 'Rechazado' | 'Parcial' = 'Aprobado';
+      if (aprobados.length === 0 && rechazados.length > 0) {
+        estadoFinal = 'Rechazado';
+      } else if (aprobados.length > 0 && rechazados.length > 0) {
+        estadoFinal = 'Parcial';
+      }
+
+      transaction.update(socioRef, {
+        familiares: actuales,
+        familiaresRechazados: rechazados, // Guardar los rechazados para que el socio los vea
+        estadoCambioFamiliares: estadoFinal,
+        cambiosPendientesFamiliares: [], // Limpiar la solicitud
+        motivoRechazoFamiliares: null // Limpiar el motivo de rechazo general
+      });
+    });
+
+    logger.log(`Decisiones de familiares para socio ${socioId} procesadas por admin ${adminUid}.`);
+    return { success: true, message: "Las decisiones han sido guardadas correctamente." };
+
+  } catch (error: any) {
+    logger.error(`Error processing familiar requests for socio ${socioId}:`, error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "Ocurrió un error al procesar la solicitud.", error.message);
   }
 });

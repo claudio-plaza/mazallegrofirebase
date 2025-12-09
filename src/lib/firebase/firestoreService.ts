@@ -53,9 +53,9 @@ const adherentesCollection = collection(db, 'adherentes');
 
 // --- Funciones de Socios ---
 export async function getPaginatedSocios(
-  pageSize: number, 
-  lastVisible?: DocumentSnapshot, 
-  options?: { estado?: 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion', order?: 'asc' | 'desc' }
+  pageSize: number,
+  lastVisible?: DocumentSnapshot,
+  options?: { estado?: 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente', order?: 'asc' | 'desc' }
 ) {
   const queryConstraints = [];
   if (options?.estado && options.estado !== 'Todos') {
@@ -228,74 +228,77 @@ export async function setUserRole(uid: string, role: string, name: string): Prom
   await setDoc(doc(adminUsersCollection, uid), { role, name });
 }
 
+
+
+
 // =================================================================
 // HELPER FUNCTIONS FOR CONTROL DE ACCESO
 // =================================================================
 
 export const verificarIngresoHoy = async (personaDNI: string): Promise<boolean> => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const q = query(registrosAccesoCollection, where('personaDNI', '==', personaDNI), where('tipoRegistro', '==', 'entrada'), where('fecha', '>=', Timestamp.fromDate(hoy)));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const q = query(registrosAccesoCollection, where('personaDNI', '==', personaDNI), where('tipoRegistro', '==', 'entrada'), where('fecha', '>=', Timestamp.fromDate(hoy)));
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
 };
 
 export const obtenerUltimoIngreso = async (personaDNI: string): Promise<UltimoIngreso | null> => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const q = query(registrosAccesoCollection, where('personaDNI', '==', personaDNI), where('tipoRegistro', '==', 'entrada'), where('fecha', '>=', Timestamp.fromDate(hoy)), orderBy('fecha', 'desc'), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const registro = snapshot.docs[0].data();
-    return { hora: registro.fecha.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), timestamp: registro.fecha };
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const q = query(registrosAccesoCollection, where('personaDNI', '==', personaDNI), where('tipoRegistro', '==', 'entrada'), where('fecha', '>=', Timestamp.fromDate(hoy)), orderBy('fecha', 'desc'), limit(1));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const registro = snapshot.docs[0].data();
+  return { hora: registro.fecha.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), timestamp: registro.fecha };
 };
 
 export const verificarResponsableIngreso = async (socioTitularId: string): Promise<EstadoResponsable> => {
-    try {
-        console.log('🔍 Verificando responsable para socio:', socioTitularId);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
+  try {
+    console.log('🔍 Verificando responsable para socio:', socioTitularId);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
-        // Query más amplia sin filtrar por personaTipo
-        const q = query(
-            registrosAccesoCollection, 
-            where('socioTitularId', '==', socioTitularId), 
-            where('tipoRegistro', '==', 'entrada'), 
-            where('fecha', '>=', Timestamp.fromDate(hoy)),
-            orderBy('fecha', 'asc')
-        );
+    // Query más amplia sin filtrar por personaTipo
+    const q = query(
+      registrosAccesoCollection,
+      where('socioTitularId', '==', socioTitularId),
+      where('tipoRegistro', '==', 'entrada'),
+      where('fecha', '>=', Timestamp.fromDate(hoy)),
+      orderBy('fecha', 'asc')
+    );
 
-        const snapshot = await getDocs(q);
-        console.log('📊 Registros de ingreso encontrados para el grupo:', snapshot.size);
+    const snapshot = await getDocs(q);
+    console.log('📊 Registros de ingreso encontrados para el grupo:', snapshot.size);
 
-        // Filtrar en memoria para excluir solo a los invitados
-        const responsables = snapshot.docs.filter(doc => {
-            const data = doc.data();
-            return data.personaTipo !== 'invitado' && data.personaTipo !== 'invitadoCumpleanos';
-        });
+    // Filtrar en memoria para excluir solo a los invitados
+    const responsables = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.personaTipo !== 'invitado' && data.personaTipo !== 'invitadoCumpleanos';
+    });
 
-        console.log('✅ Responsables válidos encontrados:', responsables.length);
+    console.log('✅ Responsables válidos encontrados:', responsables.length);
 
-        if (responsables.length === 0) {
-            console.log('❌ No se encontró un responsable válido presente.');
-            return { hayResponsable: false };
-        }
-
-        // Tomar el primer responsable que ingresó
-        const primerResponsable = responsables[0].data();
-        console.log('✅ Responsable encontrado:', primerResponsable.personaNombre, primerResponsable.personaTipo);
-
-        return { 
-            hayResponsable: true, 
-            responsable: { 
-                nombre: primerResponsable.personaNombre, 
-                apellido: primerResponsable.personaApellido || '', 
-                tipo: primerResponsable.personaTipo, 
-                hora: primerResponsable.fecha.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) 
-            } 
-        };
-    } catch (error) {
-        console.error('Error al verificar responsable:', error);
-        return { hayResponsable: false };
+    if (responsables.length === 0) {
+      console.log('❌ No se encontró un responsable válido presente.');
+      return { hayResponsable: false };
     }
+
+    // Tomar el primer responsable que ingresó
+    const primerResponsable = responsables[0].data();
+    console.log('✅ Responsable encontrado:', primerResponsable.personaNombre, primerResponsable.personaTipo);
+
+    return {
+      hayResponsable: true,
+      responsable: {
+        nombre: primerResponsable.personaNombre,
+        apellido: primerResponsable.personaApellido || '',
+        tipo: primerResponsable.personaTipo,
+        hora: primerResponsable.fecha.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      }
+    };
+  } catch (error) {
+    console.error('Error al verificar responsable:', error);
+    return { hayResponsable: false };
+  }
 };

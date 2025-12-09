@@ -27,7 +27,7 @@ import { useSolicitudesFamiliaresCount } from '@/hooks/useSolicitudesFamiliaresC
 import Link from 'next/link';
 
 const PAGE_SIZE = 20;
-type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente Validacion';
+type EstadoSocioFiltro = 'Todos' | 'Activo' | 'Inactivo' | 'Pendiente';
 
 export function GestionSociosDashboard() {
   const router = useRouter();
@@ -121,11 +121,11 @@ export function GestionSociosDashboard() {
   const filteredSocios = useMemo(() => {
     if (!searchTerm) return socios;
     const normalizedSearch = normalizeText(searchTerm);
-    return socios.filter(socio => 
-        normalizeText(socio.nombre).includes(normalizedSearch) ||
-        normalizeText(socio.apellido).includes(normalizedSearch) ||
-        normalizeText(socio.numeroSocio).includes(normalizedSearch) ||
-        normalizeText(socio.dni).includes(normalizedSearch)
+    return socios.filter(socio =>
+      normalizeText(socio.nombre).includes(normalizedSearch) ||
+      normalizeText(socio.apellido).includes(normalizedSearch) ||
+      normalizeText(socio.numeroSocio).includes(normalizedSearch) ||
+      normalizeText(socio.dni).includes(normalizedSearch)
     );
   }, [socios, searchTerm]);
 
@@ -153,49 +153,49 @@ export function GestionSociosDashboard() {
   const renderDetailRow = (socio: Socio) => {
     console.log("Renderizando Fila de Detalle para:", socio.id, "Datos de familiares:", socio.familiares);
     const familiaresOrdenados = [...(socio.familiares || [])].sort((a, b) => {
-        if (a.relacion?.toLowerCase() === 'cónyuge') return -1;
-        if (b.relacion?.toLowerCase() === 'cónyuge') return 1;
-        if (a.fechaNacimiento && b.fechaNacimiento) {
-            return new Date(a.fechaNacimiento as any).getTime() - new Date(b.fechaNacimiento as any).getTime();
-        }
-        return 0;
+      if (a.relacion?.toLowerCase() === 'cónyuge') return -1;
+      if (b.relacion?.toLowerCase() === 'cónyuge') return 1;
+      if (a.fechaNacimiento && b.fechaNacimiento) {
+        return new Date(a.fechaNacimiento as any).getTime() - new Date(b.fechaNacimiento as any).getTime();
+      }
+      return 0;
     });
 
     return (
-        <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableCell colSpan={8} className="p-0">
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <section>
-                        <h4 className="font-semibold mb-2 text-sm text-primary flex items-center gap-2"><Users className="w-4 h-4" />Familiares {familiaresOrdenados.length > 0 && <Badge variant="secondary">{familiaresOrdenados.length}</Badge>}</h4>
-                        {familiaresOrdenados.length > 0 ? (
-                            <div className="space-y-2">
-                                {familiaresOrdenados.map((f: MiembroFamiliar) => (
-                                    <div key={f.id || f.dni} className="p-2 border rounded-md bg-background text-xs">
-                                        <p className="font-semibold">{f.nombre} {f.apellido} <span className="text-muted-foreground font-normal">({f.relacion})</span></p>
-                                        <p>DNI: {f.dni}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <p className="text-xs text-muted-foreground">No hay familiares registrados.</p>}
-                    </section>
-                    <section>
-                        <h4 className="font-semibold mb-2 text-sm text-primary flex items-center gap-2"><UserPlus className="w-4 h-4" />Adherentes {socio.adherentes && socio.adherentes.length > 0 && <Badge variant="secondary">{socio.adherentes.length}</Badge>}</h4>
-                        {socio.adherentes && socio.adherentes.length > 0 ? (
-                            <div className="space-y-2">
-                                {socio.adherentes.map((a: Adherente) => (
-                                    <div key={a.id || a.dni} className="p-2 border rounded-md bg-background text-xs">
-                                        <div className="flex justify-between items-start">
-                                            <div><p className="font-semibold">{a.nombre} {a.apellido}</p><p>DNI: {a.dni}</p></div>
-                                            <Badge variant={a.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={a.estadoAdherente === 'Activo' ? 'bg-green-600' : 'bg-slate-500'}>{a.estadoAdherente}</Badge>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <p className="text-xs text-muted-foreground">No hay adherentes registrados.</p>}
-                    </section>
+      <TableRow className="bg-muted/30 hover:bg-muted/30">
+        <TableCell colSpan={8} className="p-0">
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section>
+              <h4 className="font-semibold mb-2 text-sm text-primary flex items-center gap-2"><Users className="w-4 h-4" />Familiares {familiaresOrdenados.length > 0 && <Badge variant="secondary">{familiaresOrdenados.length}</Badge>}</h4>
+              {familiaresOrdenados.length > 0 ? (
+                <div className="space-y-2">
+                  {familiaresOrdenados.map((f: MiembroFamiliar) => (
+                    <div key={f.id || f.dni} className="p-2 border rounded-md bg-background text-xs">
+                      <p className="font-semibold">{f.nombre} {f.apellido} <span className="text-muted-foreground font-normal">({f.relacion})</span></p>
+                      <p>DNI: {f.dni}</p>
+                    </div>
+                  ))}
                 </div>
-            </TableCell>
-        </TableRow>
+              ) : <p className="text-xs text-muted-foreground">No hay familiares registrados.</p>}
+            </section>
+            <section>
+              <h4 className="font-semibold mb-2 text-sm text-primary flex items-center gap-2"><UserPlus className="w-4 h-4" />Adherentes {socio.adherentes && socio.adherentes.length > 0 && <Badge variant="secondary">{socio.adherentes.length}</Badge>}</h4>
+              {socio.adherentes && socio.adherentes.length > 0 ? (
+                <div className="space-y-2">
+                  {socio.adherentes.map((a: Adherente) => (
+                    <div key={a.id || a.dni} className="p-2 border rounded-md bg-background text-xs">
+                      <div className="flex justify-between items-start">
+                        <div><p className="font-semibold">{a.nombre} {a.apellido}</p><p>DNI: {a.dni}</p></div>
+                        <Badge variant={a.estadoAdherente === 'Activo' ? 'default' : 'secondary'} className={a.estadoAdherente === 'Activo' ? 'bg-green-600' : 'bg-slate-500'}>{a.estadoAdherente}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-muted-foreground">No hay adherentes registrados.</p>}
+            </section>
+          </div>
+        </TableCell>
+      </TableRow>
     );
   }
 
@@ -206,13 +206,13 @@ export function GestionSociosDashboard() {
         {statCards.map(stat => {
           const card = (
             <Card key={stat.title} className="shadow-lg hover:shadow-xl transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                </CardHeader>
-                <CardContent>
+              </CardHeader>
+              <CardContent>
                 <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-                </CardContent>
+              </CardContent>
             </Card>
           );
           if (stat.href) {
@@ -244,7 +244,7 @@ export function GestionSociosDashboard() {
               <Select value={filtroEstado} onValueChange={(value) => setFiltroEstado(value as EstadoSocioFiltro)}>
                 <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por estado" /></SelectTrigger>
                 <SelectContent>
-                  {(['Todos', 'Activo', 'Inactivo', 'Pendiente Validacion'] as EstadoSocioFiltro[]).map(estado => (
+                  {(['Todos', 'Activo', 'Inactivo', 'Pendiente'] as EstadoSocioFiltro[]).map(estado => (
                     <SelectItem key={estado} value={estado}>{estado}</SelectItem>
                   ))}
                 </SelectContent>
@@ -264,83 +264,83 @@ export function GestionSociosDashboard() {
         </CardHeader>
         <CardContent>
           <div className="relative w-full overflow-x-auto rounded-md border">
-              <Table className="w-full min-w-[1000px] caption-bottom text-sm">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px] px-2"></TableHead>
-                    <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
-                    <TableHead>Nombre Completo</TableHead>
-                    <TableHead className="hidden md:table-cell">N° Socio</TableHead>
-                    <TableHead className="hidden lg:table-cell">Adherentes (Act./Pend.)</TableHead>
-                    <TableHead>Estado Club</TableHead>
-                    <TableHead>Apto Médico</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSocios.map(socio => {
-                    const isExpanded = expandedRows.includes(socio.id);
-                    const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
-                    const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
-                    const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
-                    const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
-                    
-                    return (
-                      <Fragment key={socio.id}>
-                        <TableRow>
-                          <TableCell className="px-2">
-                            <Button variant="ghost" size="icon" onClick={() => toggleRow(socio.id)} className="h-8 w-8">
-                                <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
-                            </Button>
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} data-ai-hint="member photo" />
-                              <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
-                            </Avatar>
-                          </TableCell>
-                          <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
-                          <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-center">{activeAdherentsCount}{adherentesPendientesCount > 0 && <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5" title={`${adherentesPendientesCount} solicitudes pendientes`}>{adherentesPendientesCount}P</Badge>}</TableCell>
-                          <TableCell><Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'} className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>{socio.estadoSocio}</Badge></TableCell>
-                          <TableCell><Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>{aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}{aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica' && <XCircle className="mr-1 h-3 w-3" />}{aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}{aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}{aptoStatus.status}</Badge></TableCell>
-                          <TableCell className="text-right min-w-[80px]">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleToggleEstadoSocio(socio)} className={cn(socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50", socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50")} >{socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}><Contact2 className="mr-2 h-4 w-4" /> Gestionar Adherentes {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleMarcarApto(socio, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleMarcarApto(socio, false)} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50"><ShieldAlert className="mr-2 h-4 w-4" /> Marcar Apto Vencido/Inválido</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive-foreground focus:bg-destructive/90"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Socio</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Está seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Se eliminará permanentemente al socio ${socio.nombre} ${socio.apellido} de la base de datos.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleEliminarSocio(socio.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded && renderDetailRow(socio)}
-                      </Fragment>
-                    );
-                  })}
-                  {filteredSocios.length === 0 && !loading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No se encontraron socios con los criterios seleccionados.</TableCell></TableRow>}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      {hasMore ? (<Button onClick={handleLoadMore} disabled={loading} variant="outline">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Cargar más socios</Button>) : (<p className="text-sm text-muted-foreground">No hay más socios para mostrar.</p>)}
-                    </TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </div>
-            <div className="lg:hidden mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground"><ArrowRight className="h-3 w-3 animate-pulse" /><span>Desliza para ver más columnas</span></div>
+            <Table className="w-full min-w-[1000px] caption-bottom text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px] px-2"></TableHead>
+                  <TableHead className="w-[80px] hidden sm:table-cell">Foto</TableHead>
+                  <TableHead>Nombre Completo</TableHead>
+                  <TableHead className="hidden md:table-cell">N° Socio</TableHead>
+                  <TableHead className="hidden lg:table-cell">Adherentes (Act./Pend.)</TableHead>
+                  <TableHead>Estado Club</TableHead>
+                  <TableHead>Apto Médico</TableHead>
+                  <TableHead className="text-right min-w-[80px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSocios.map(socio => {
+                  const isExpanded = expandedRows.includes(socio.id);
+                  const aptoStatus = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
+                  const fotoSocio = socio.fotoUrl || `https://placehold.co/40x40.png?text=${socio.nombre[0]}${socio.apellido[0]}`;
+                  const activeAdherentsCount = socio.adherentes?.filter(a => a.estadoAdherente === 'Activo').length || 0;
+                  const adherentesPendientesCount = socio.adherentes?.filter(a => a.estadoSolicitud === EstadoSolicitudAdherente.PENDIENTE).length || 0;
+
+                  return (
+                    <Fragment key={socio.id}>
+                      <TableRow>
+                        <TableCell className="px-2">
+                          <Button variant="ghost" size="icon" onClick={() => toggleRow(socio.id)} className="h-8 w-8">
+                            <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                          </Button>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={fotoSocio} alt={`${socio.nombre} ${socio.apellido}`} data-ai-hint="member photo" />
+                            <AvatarFallback>{socio.nombre[0]}{socio.apellido[0]}</AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">{socio.nombre} {socio.apellido} {esCumpleanosHoy(socio.fechaNacimiento) && '🎂'}</TableCell>
+                        <TableCell className="hidden md:table-cell">{socio.numeroSocio}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-center">{activeAdherentsCount}{adherentesPendientesCount > 0 && <Badge variant="default" className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5" title={`${adherentesPendientesCount} solicitudes pendientes`}>{adherentesPendientesCount}P</Badge>}</TableCell>
+                        <TableCell><Badge variant={socio.estadoSocio === 'Activo' ? 'default' : socio.estadoSocio === 'Inactivo' ? 'destructive' : 'secondary'} className={socio.estadoSocio === 'Activo' ? 'bg-green-500 hover:bg-green-600' : socio.estadoSocio === 'Inactivo' ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}>{socio.estadoSocio}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className={`${aptoStatus.colorClass} border-current font-medium`}>{aptoStatus.status === 'Válido' && <CheckCircle2 className="mr-1 h-3 w-3" />}{aptoStatus.status !== 'Válido' && aptoStatus.status !== 'No Aplica' && <XCircle className="mr-1 h-3 w-3" />}{aptoStatus.status === 'Pendiente' && <CalendarDays className="mr-1 h-3 w-3" />}{aptoStatus.status === 'No Aplica' && <Info className="mr-1 h-3 w-3" />}{aptoStatus.status}</Badge></TableCell>
+                        <TableCell className="text-right min-w-[80px]">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Acciones Socio</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleVerEditarPerfil(socio.id)}><Edit3 className="mr-2 h-4 w-4" /> Ver/Editar Perfil</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleEstadoSocio(socio)} className={cn(socio.estadoSocio !== 'Activo' && "text-green-600 focus:text-green-700 focus:bg-green-50", socio.estadoSocio === 'Activo' && "text-orange-600 focus:text-orange-700 focus:bg-orange-50")} >{socio.estadoSocio === 'Activo' ? 'Desactivar Socio' : 'Activar Socio'}</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openAdherentesDialog(socio)}><Contact2 className="mr-2 h-4 w-4" /> Gestionar Adherentes {adherentesPendientesCount > 0 && <Badge variant="default" className="ml-auto bg-orange-500 text-white text-xs px-1">{adherentesPendientesCount}</Badge>}</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleMarcarApto(socio, true)} className="text-green-600 focus:text-green-700 focus:bg-green-50"><ShieldCheck className="mr-2 h-4 w-4" /> Marcar Apto Válido</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMarcarApto(socio, false)} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50"><ShieldAlert className="mr-2 h-4 w-4" /> Marcar Apto Vencido/Inválido</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive-foreground focus:bg-destructive/90"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Socio</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Está seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Se eliminará permanentemente al socio ${socio.nombre} ${socio.apellido} de la base de datos.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleEliminarSocio(socio.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && renderDetailRow(socio)}
+                    </Fragment>
+                  );
+                })}
+                {filteredSocios.length === 0 && !loading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No se encontraron socios con los criterios seleccionados.</TableCell></TableRow>}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center">
+                    {hasMore ? (<Button onClick={handleLoadMore} disabled={loading} variant="outline">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Cargar más socios</Button>) : (<p className="text-sm text-muted-foreground">No hay más socios para mostrar.</p>)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+          <div className="lg:hidden mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground"><ArrowRight className="h-3 w-3 animate-pulse" /><span>Desliza para ver más columnas</span></div>
         </CardContent>
       </Card>
-       {selectedSocioForAdherentes && <GestionAdherentesDialog socio={selectedSocioForAdherentes} open={isAdherentesDialogOpen} onOpenChange={setIsAdherentesDialogOpen} onAdherentesUpdated={() => fetchSocios(filtroEstado)} />}
+      {selectedSocioForAdherentes && <GestionAdherentesDialog socio={selectedSocioForAdherentes} open={isAdherentesDialogOpen} onOpenChange={setIsAdherentesDialogOpen} onAdherentesUpdated={() => fetchSocios(filtroEstado)} />}
     </div>
   );
 }

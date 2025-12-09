@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteSocioAccount = exports.registrarAccesoPersona = exports.searchSocio = exports.solicitarCambioGrupoFamiliar = exports.getNextSocioNumber = exports.createSocioProfile = exports.registrarIngreso = exports.backfillAlgolia = exports.onInvitadoWrite = exports.onSocioWrite = void 0;
+exports.processFamiliarRequests = exports.deleteSocioAccount = exports.registrarAccesoPersona = exports.searchSocio = exports.solicitarCambioGrupoFamiliar = exports.getNextSocioNumber = exports.createSocioProfile = exports.registrarIngreso = exports.backfillAlgolia = exports.onInvitadoWrite = exports.onSocioWrite = void 0;
 // =================================================================
 // IMPORTS
 // =================================================================
@@ -545,6 +545,84 @@ exports.deleteSocioAccount = (0, https_1.onCall)({ region: "us-central1", cors: 
     catch (error) {
         logger.error(`Error deleting account for user ${uid}:`, error);
         throw new https_1.HttpsError("internal", "Ocurrió un error al eliminar la cuenta.");
+    }
+});
+exports.processFamiliarRequests = (0, https_1.onCall)({ region: "us-central1", cors: true }, async (request) => {
+    var _a;
+    // 1. Authentication
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "La operación requiere autenticación.");
+    }
+    const adminUid = request.auth.uid;
+    // 2. Authorization
+    try {
+        const adminUserDoc = await (0, services_1.getDb)().collection("adminUsers").doc(adminUid).get();
+        if (!adminUserDoc.exists || ((_a = adminUserDoc.data()) === null || _a === void 0 ? void 0 : _a.role) !== 'admin') {
+            throw new https_1.HttpsError("permission-denied", "No tienes permiso para realizar esta acción.");
+        }
+    }
+    catch (error) {
+        logger.error(`Error checking admin status for user ${adminUid}:`, error);
+        throw new https_1.HttpsError("internal", "Error al verificar permisos.");
+    }
+    // 3. Data Validation
+    const { socioId, familiaresDecisiones } = request.data;
+    if (!socioId || !Array.isArray(familiaresDecisiones)) {
+        throw new https_1.HttpsError("invalid-argument", "Faltan datos o el formato es incorrecto.");
+    }
+    // 4. Business Logic
+    const socioRef = (0, services_1.getDb)().collection("socios").doc(socioId);
+    try {
+        await (0, services_1.getDb)().runTransaction(async (transaction) => {
+            const socioDoc = await transaction.get(socioRef);
+            if (!socioDoc.exists) {
+                throw new https_1.HttpsError("not-found", "No se encontró al socio especificado.");
+            }
+            const socioData = socioDoc.data();
+            let actuales = socioData.familiares || [];
+            const aprobados = familiaresDecisiones.filter(f => f.estadoAprobacion === 'aprobado');
+            const rechazados = familiaresDecisiones.filter(f => f.estadoAprobacion === 'rechazado');
+            // Actualizar familiares actuales con los aprobados
+            aprobados.forEach(aprobado => {
+                // Limpiar campos de la solicitud
+                delete aprobado.estadoAprobacion;
+                delete aprobado.motivoRechazo;
+                delete aprobado.fechaDecision;
+                delete aprobado.decidoPor;
+                const index = actuales.findIndex((a) => a.id === aprobado.id);
+                if (index > -1) {
+                    // Si ya existe, se actualiza (caso de modificación)
+                    actuales[index] = aprobado;
+                }
+                else {
+                    // Si no existe, se añade (caso de nuevo familiar)
+                    actuales.push(aprobado);
+                }
+            });
+            // Determinar estado final de la solicitud
+            let estadoFinal = 'Aprobado';
+            if (aprobados.length === 0 && rechazados.length > 0) {
+                estadoFinal = 'Rechazado';
+            }
+            else if (aprobados.length > 0 && rechazados.length > 0) {
+                estadoFinal = 'Parcial';
+            }
+            transaction.update(socioRef, {
+                familiares: actuales,
+                familiaresRechazados: rechazados, // Guardar los rechazados para que el socio los vea
+                estadoCambioFamiliares: estadoFinal,
+                cambiosPendientesFamiliares: [], // Limpiar la solicitud
+                motivoRechazoFamiliares: null // Limpiar el motivo de rechazo general
+            });
+        });
+        logger.log(`Decisiones de familiares para socio ${socioId} procesadas por admin ${adminUid}.`);
+        return { success: true, message: "Las decisiones han sido guardadas correctamente." };
+    }
+    catch (error) {
+        logger.error(`Error processing familiar requests for socio ${socioId}:`, error);
+        if (error instanceof https_1.HttpsError)
+            throw error;
+        throw new https_1.HttpsError("internal", "Ocurrió un error al procesar la solicitud.", error.message);
     }
 });
 //# sourceMappingURL=index.js.map

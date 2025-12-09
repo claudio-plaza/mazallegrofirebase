@@ -168,6 +168,7 @@ export function AdminInvitadosDiariosDashboard() {
     toast({ title: "Descarga (Simulada)", description: "El contenido del reporte se ha mostrado en la consola.", duration: 7000 });
   };
 
+
   const getInvitadoBadge = (invitado: InvitadoConIngreso) => {
     if (!invitado.ingresado || !invitado.datosIngreso) {
         return <Badge variant="outline" className="text-xs">Pendiente</Badge>;
