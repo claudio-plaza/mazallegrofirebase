@@ -55,6 +55,9 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isEditMode = !!familiarToEdit;
   const [familiares, setFamiliares] = useState<FamiliarFormData[]>([]);
+  
+  // Clave para localStorage basada en el socioId
+  const STORAGE_KEY = `familiar_draft_${socioId}`;
 
   const handleEnviarClick = async () => {
     const isValid = await form.trigger();
@@ -89,9 +92,81 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
     if (isEditMode && familiarToEdit) {
         form.reset({ ...familiarToEdit, fechaNacimiento: new Date(familiarToEdit.fechaNacimiento) });
     } else {
-        form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+        // Intentar recuperar datos del localStorage
+        try {
+          const savedData = localStorage.getItem(STORAGE_KEY);
+          if (savedData) {
+            const parsed = JSON.parse(savedData);
+            // Recuperar familiares agregados
+            if (parsed.familiares && parsed.familiares.length > 0) {
+              setFamiliares(parsed.familiares.map((f: any) => ({
+                ...f,
+                fechaNacimiento: f.fechaNacimiento ? new Date(f.fechaNacimiento) : new Date(),
+                // Las fotos no se pueden recuperar de localStorage
+                fotoPerfil: null,
+                fotoDniFrente: null,
+                fotoDniDorso: null,
+                fotoCarnet: null,
+              })));
+              toast({
+                title: "Datos recuperados",
+                description: "Se recuperaron los familiares guardados. Recuerda volver a subir las fotos.",
+              });
+            }
+            // Recuperar formulario actual
+            if (parsed.currentForm) {
+              form.reset({
+                ...parsed.currentForm,
+                fechaNacimiento: parsed.currentForm.fechaNacimiento ? new Date(parsed.currentForm.fechaNacimiento) : new Date(),
+                fotoPerfil: null,
+                fotoDniFrente: null,
+                fotoDniDorso: null,
+                fotoCarnet: null,
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Error recuperando datos de localStorage:', e);
+        }
+        
+        if (!localStorage.getItem(STORAGE_KEY)) {
+          form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+        }
     }
-  }, [isEditMode, familiarToEdit, form]);
+  }, [isEditMode, familiarToEdit, form, STORAGE_KEY, toast]);
+
+  // Guardar automáticamente en localStorage cada vez que cambian los datos
+  useEffect(() => {
+    if (isEditMode) return; // No guardar en modo edición
+    
+    const formValues = form.getValues();
+    const dataToSave = {
+      currentForm: {
+        nombre: formValues.nombre,
+        apellido: formValues.apellido,
+        dni: formValues.dni,
+        fechaNacimiento: formValues.fechaNacimiento,
+        relacion: formValues.relacion,
+        telefono: formValues.telefono,
+        direccion: formValues.direccion,
+        email: formValues.email,
+        // No guardamos las fotos
+      },
+      familiares: familiares.map(f => ({
+        ...f,
+        fotoPerfil: null,
+        fotoDniFrente: null,
+        fotoDniDorso: null,
+        fotoCarnet: null,
+      })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+  }, [familiares, form, isEditMode, STORAGE_KEY]);
+
+  // Limpiar localStorage al enviar exitosamente
+  const clearSavedData = () => {
+    localStorage.removeItem(STORAGE_KEY);
+  };
 
   const handleAddAnother = async () => {
     const result = await form.trigger();
@@ -118,6 +193,11 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
       return;
     }
     setIsSubmitting(true);
+
+    // Timeout de 60 segundos para toda la operación
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('La operación tardó demasiado. Por favor, inténtalo de nuevo.')), 60000);
+    });
 
     try {
       // Combine the currently filled form data with the list of already added familiares
@@ -226,9 +306,16 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
       const functions = getFunctions();
       const solicitarCambio = httpsCallable(functions, 'solicitarCambioGrupoFamiliar');
       
-      await solicitarCambio({ cambiosData: familiaresParaEnviar });
+      // Enviar con timeout
+      await Promise.race([
+        solicitarCambio({ cambiosData: familiaresParaEnviar }),
+        timeoutPromise
+      ]);
 
       toast({ title: "Solicitud Enviada", description: "Los cambios en tus familiares han sido enviados para aprobación." });
+
+      // Limpiar datos guardados en localStorage tras envío exitoso
+      clearSavedData();
 
       queryClient.invalidateQueries({ queryKey: ['socio', socioId] });
       await refreshSocio();

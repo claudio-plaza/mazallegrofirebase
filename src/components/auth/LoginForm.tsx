@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +14,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/auth'; 
@@ -23,6 +22,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { siteConfig } from '@/config/site';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido.'),
@@ -35,6 +35,7 @@ export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -45,17 +46,41 @@ export function LoginForm() {
   });
 
   async function onSubmit(data: LoginFormValues) {
-    const user = await loginUser(data.email, data.password);
-
-    if (user) {
+    // Ejecutar reCAPTCHA antes de hacer login
+    if (!executeRecaptcha) {
       toast({
-        title: 'Inicio de Sesión Exitoso',
-        description: `¡Bienvenido de nuevo!`,
+        title: 'Error de seguridad',
+        description: 'reCAPTCHA no está disponible. Recarga la página.',
+        variant: 'destructive',
       });
-      router.push('/dashboard');
-      router.refresh(); // Force a refresh to ensure layout updates
-    } 
-    // The loginUser function now handles showing the error toast.
+      return;
+    }
+
+    try {
+      const recaptchaToken = await executeRecaptcha('login');
+      console.log('reCAPTCHA token obtenido para login');
+      
+      // Aquí podrías enviar el token al backend para validación adicional
+      // Por ahora, solo verificamos que se obtuvo el token
+      
+      const user = await loginUser(data.email, data.password);
+
+      if (user) {
+        toast({
+          title: 'Inicio de Sesión Exitoso',
+          description: `¡Bienvenido de nuevo!`,
+        });
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Error en reCAPTCHA o login:', error);
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error al iniciar sesión. Intenta nuevamente.',
+        variant: 'destructive',
+      });
+    }
   }
 
   return (

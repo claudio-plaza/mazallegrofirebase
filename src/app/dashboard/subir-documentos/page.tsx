@@ -14,9 +14,27 @@ import { Upload, Loader2, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 
 function FileInput({ label, setFile, preview, setPreview }: any) {
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
+      // Validar tipo de archivo
+      if (!ALLOWED_TYPES.includes(f.type)) {
+        toast.error('Formato no válido. Solo se permiten archivos JPG o PNG.');
+        e.target.value = ''; // Limpiar el input
+        return;
+      }
+
+      // Validar tamaño de archivo
+      if (f.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`El archivo es demasiado grande. Tamaño máximo: ${MAX_FILE_SIZE_MB}MB.`);
+        e.target.value = ''; // Limpiar el input
+        return;
+      }
+
       setFile(f);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result as string);
@@ -37,7 +55,7 @@ function FileInput({ label, setFile, preview, setPreview }: any) {
             <span className="text-xs mt-1">JPG, PNG (máx. 10MB)</span>
           </div>
         )}
-        <input type="file" accept="image/*" className="hidden" onChange={handleChange} />
+        <input type="file" accept=".jpg,.jpeg,.png" className="hidden" onChange={handleChange} />
       </label>
     </div>
   );

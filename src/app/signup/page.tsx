@@ -21,6 +21,7 @@ import { ArrowRight, ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, AlertCircle 
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const reglamentoInternoTexto = `Aceptación del Reglamento y Política de Privacidad:
 Al registrarse y utilizar la aplicación de Mazallegro, el socio declara haber leído, comprendido y aceptado el presente Reglamento Interno en su totalidad. Asimismo, el socio acepta la Política de Privacidad de Allegro, la cual detalla el tratamiento y resguardo de los datos personales (nombre, apellido, DNI y fecha de nacimiento) recopilados para la gestión de accesos y servicios, conforme a la Ley N° 25.326 de Protección de los Datos Personales de Argentina.
@@ -76,6 +77,7 @@ export default function SignupPage() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -130,7 +132,19 @@ export default function SignupPage() {
       setLoading(false);
       return;
     }
+
+    // Ejecutar reCAPTCHA antes de registrar
+    if (!executeRecaptcha) {
+      toast.error('Error de seguridad: reCAPTCHA no está disponible. Recarga la página.');
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoadingMessage('Verificando seguridad...');
+      const recaptchaToken = await executeRecaptcha('signup');
+      console.log('reCAPTCHA token obtenido para signup');
+      
       setLoadingMessage('Creando tu usuario...');
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
