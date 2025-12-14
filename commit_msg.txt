@@ -1,0 +1,10 @@
+feat: refactor familiar form and optimize images
+
+- Refactored 'AgregarEditarFamiliarDialog' to implement a clearer Add-to-List flow.
+- Added visual distinction for the familiar form container (card style).
+- Fixed 'ReferenceError' and logic issues in the dialog (state restoration, validations).
+- Implemented client-side image compression in 'imageUtils.ts' and integrated it into familiar and document uploads.
+- Cleaned up console logs across the application.
+- Improved 'PhotoChangeCard' for admin dashboard.
+- Removed process freezing issues by fixing form handling.
+- Fixed compilation errors (escaped quotes) and lint warnings (hook dependencies).

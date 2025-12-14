@@ -45,6 +45,8 @@ export function ControlAcceso() {
   const [displayablePeople, setDisplayablePeople] = useState<DisplayablePerson[]>([]);
   const [invitadosState, setInvitadosState] = useState<InvitadoState[]>([]);
   const [estadoResponsable, setEstadoResponsable] = useState<EstadoResponsable>({ hayResponsable: false });
+  const [personasSeleccionadas, setPersonasSeleccionadas] = useState<Set<string>>(new Set());
+  const [registrandoMultiple, setRegistrandoMultiple] = useState(false);
   const [metodoPagoInvitados, setMetodoPagoInvitados] = useState<{
     [invitadoDNI: string]: {
       esInvitadoCumpleanos: boolean;
@@ -148,7 +150,7 @@ export function ControlAcceso() {
     if (!term.trim()) { setMensajeBusqueda('Ingrese un término de búsqueda.'); return; }
 
     setLoading(true);
-    setSocioTitular(null); setDisplayablePeople([]); setInvitadosState([]); setMensajeBusqueda('Buscando...');
+    setSocioTitular(null); setDisplayablePeople([]); setInvitadosState([]); setMensajeBusqueda('Buscando...'); setPersonasSeleccionadas(new Set());
 
     try {
       const functions = getFunctions();
@@ -223,6 +225,90 @@ export function ControlAcceso() {
   const buscarNuevamente = useCallback(async () => {
     if (searchTerm) await handleSearch(searchTerm);
   }, [searchTerm, handleSearch]);
+
+  // Toggle selección de persona para registro múltiple
+  const toggleSeleccion = (dni: string) => {
+    setPersonasSeleccionadas(prev => {
+      const nuevo = new Set(prev);
+      if (nuevo.has(dni)) nuevo.delete(dni);
+      else nuevo.add(dni);
+      return nuevo;
+    });
+  };
+
+  // Registrar ingresos de todas las personas seleccionadas
+  const registrarIngresosMultiples = async () => {
+    if (personasSeleccionadas.size === 0) return;
+    
+    setRegistrandoMultiple(true);
+    const personasARegistrar = displayablePeople.filter(p => 
+      personasSeleccionadas.has(p.dni) && !p.yaIngreso
+    );
+    
+    let exitosos = 0;
+    let errores = 0;
+    
+    for (const persona of personasARegistrar) {
+      try {
+        const yaIngreso = await verificarIngresoHoy(persona.dni);
+        if (yaIngreso) {
+          errores++;
+          continue;
+        }
+        
+        let titularId = '', titularNumero = '';
+        
+        if (persona.tipo === 'titular') {
+          titularId = persona.id;
+          titularNumero = (persona as any).numeroSocio || socioTitular?.numeroSocio || 'N/A';
+        } else if (persona.tipo === 'familiar' && persona.titularId) {
+          titularId = persona.titularId;
+          titularNumero = socioTitular?.numeroSocio || 'N/A';
+        } else if (persona.tipo === 'adherente' && persona.socioTitularId) {
+          titularId = persona.socioTitularId;
+          titularNumero = socioTitular?.numeroSocio || 'N/A';
+        }
+        
+        if (!titularId) {
+          errores++;
+          continue;
+        }
+        
+        await addDoc(collection(db, 'registros_acceso'), {
+          fecha: Timestamp.now(),
+          socioTitularId: titularId,
+          socioTitularNumero: titularNumero,
+          personaId: persona.id,
+          personaNombre: persona.nombre,
+          personaApellido: persona.apellido,
+          personaDNI: persona.dni,
+          personaTipo: persona.tipo || 'titular',
+          personaRelacion: persona.relacion || null,
+          tipoRegistro: 'entrada',
+          registradoPor: auth.currentUser?.uid || '',
+          registradoPorEmail: auth.currentUser?.email || ''
+        });
+        exitosos++;
+      } catch (error) {
+        console.error(`Error registrando ${persona.nombreCompleto}:`, error);
+        errores++;
+      }
+    }
+    
+    setPersonasSeleccionadas(new Set());
+    setRegistrandoMultiple(false);
+    
+    if (exitosos > 0) {
+      toast({ 
+        title: "Ingresos Registrados", 
+        description: `Se registraron ${exitosos} ingreso(s) correctamente${errores > 0 ? `. ${errores} error(es).` : '.'}`
+      });
+    } else if (errores > 0) {
+      toast({ title: "Error", description: `No se pudo registrar ningún ingreso. ${errores} error(es).`, variant: "destructive" });
+    }
+    
+    await buscarNuevamente();
+  };
 
   const registrarIngreso = async (persona: any) => {
     try {
@@ -425,7 +511,17 @@ export function ControlAcceso() {
 
       {socioTitular && (
         <div className="w-full max-w-4xl mx-auto space-y-4">
-            {displayablePeople.map(p => <MemberCard key={p.id} person={p} onRegister={() => registrarIngreso(p)} onCancel={() => anularIngreso(p.dni)} onShowCarnet={() => router.push(`/carnet?titularId=${socioTitular.numeroSocio}${p.relacion !== 'Titular' ? `&memberDni=${p.dni}`: ''}`)} />)}
+            {displayablePeople.map(p => (
+              <MemberCard 
+                key={p.id} 
+                person={p} 
+                onRegister={() => registrarIngreso(p)} 
+                onCancel={() => anularIngreso(p.dni)} 
+                onShowCarnet={() => router.push(`/carnet?titularId=${socioTitular.numeroSocio}${p.relacion !== 'Titular' ? `&memberDni=${p.dni}`: ''}`)} 
+                isSelected={personasSeleccionadas.has(p.dni)}
+                onToggleSelect={() => toggleSeleccion(p.dni)}
+              />
+            ))}
             <GuestSection 
               invitados={invitadosState} 
               estadoResponsable={estadoResponsable} 
@@ -435,6 +531,36 @@ export function ControlAcceso() {
               onMetodoPagoChange={handleMetodoPagoChange}
               cuposCumpleanos={cuposCumpleanos}
             />
+            
+            {/* Barra de registro múltiple */}
+            {personasSeleccionadas.size > 0 && (
+              <Card className="sticky bottom-4 border-2 border-orange-500 bg-orange-50 shadow-lg">
+                <CardContent className="flex justify-between items-center p-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-orange-600" />
+                    <span className="font-semibold text-orange-800">
+                      {personasSeleccionadas.size} persona(s) seleccionada(s)
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setPersonasSeleccionadas(new Set())}
+                      disabled={registrandoMultiple}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={registrarIngresosMultiples}
+                      disabled={registrandoMultiple}
+                      className="bg-orange-500 hover:bg-orange-600"
+                    >
+                      {registrandoMultiple ? 'Registrando...' : `Registrar Ingresos (${personasSeleccionadas.size})`}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </div>
       )}
     </div>
@@ -445,7 +571,14 @@ export function ControlAcceso() {
 // SUB-COMPONENTES
 // =================================================================
 
-function MemberCard({ person, onRegister, onCancel, onShowCarnet }: { person: DisplayablePerson, onRegister: () => void, onCancel: () => void, onShowCarnet: () => void }) {
+function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, onToggleSelect }: { 
+  person: DisplayablePerson, 
+  onRegister: () => void, 
+  onCancel: () => void, 
+  onShowCarnet: () => void,
+  isSelected?: boolean,
+  onToggleSelect?: () => void
+}) {
   const esTitular = person.tipo === 'titular';
   const esFamiliar = person.tipo === 'familiar';
   const esAdherente = person.tipo === 'adherente';
@@ -459,11 +592,24 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet }: { person: Di
     puedeIngresarGeneral = titularActivo && person.estadoAdherente === 'Activo';
   }
 
+  const mostrarCheckbox = puedeIngresarGeneral && !person.yaIngreso;
+
   return (
-    <Card className={`border-2 ${puedeIngresarGeneral ? 'border-gray-200' : 'border-red-300'}`}>
+    <Card className={`border-2 ${puedeIngresarGeneral ? 'border-gray-200' : 'border-red-300'} ${isSelected ? 'ring-2 ring-orange-500 bg-orange-50/50' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
+            {/* Checkbox para selección múltiple */}
+            {mostrarCheckbox && onToggleSelect && (
+              <div className="flex items-center pt-4">
+                <input
+                  type="checkbox"
+                  checked={isSelected || false}
+                  onChange={onToggleSelect}
+                  className="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                />
+              </div>
+            )}
+            <div className="flex items-start gap-4 flex-1">
                 <Dialog>
                   <DialogTrigger asChild>
                     <Avatar className="w-16 h-16 cursor-pointer">

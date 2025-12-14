@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Upload, Loader2, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
+import { compressImage } from '@/lib/imageUtils';
 
 function FileInput({ label, setFile, preview, setPreview }: any) {
   const MAX_FILE_SIZE_MB = 10;
@@ -103,22 +104,51 @@ export default function SubirDocumentosPage() {
     setLoading(true);
 
     try {
+      // 1. Fase de Compresión
+      toast.info('Optimizando imágenes para subida rápida...', { id: 'upload', duration: Infinity });
+      
+      const compressWithFallback = async (file: File) => {
+        try {
+          // Comprimir a max 1280px y calidad 0.8
+          return await compressImage(file, 1280, 0.8);
+        } catch (e) {
+          return file;
+        }
+      };
+
+      const [compressedDniFrente, compressedDniDorso, compressedFotoPerfil] = await Promise.all([
+        compressWithFallback(dniFrente),
+        compressWithFallback(dniDorso),
+        compressWithFallback(fotoPerfil)
+      ]);
+
+      let compressedFotoCarnet = null;
+      if (fotoCarnet) {
+        compressedFotoCarnet = await compressWithFallback(fotoCarnet);
+      }
+
+      // 2. Fase de Subida
       toast.loading('Subiendo documentos...', { id: 'upload' });
 
       const subirImagen = async (file: File, path: string) => {
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, file);
+        // Añadir metadata para caché
+        const metadata = {
+          cacheControl: 'public,max-age=31536000',
+          contentType: file.type || 'image/jpeg',
+        };
+        await uploadBytes(storageRef, file, metadata);
         return await getDownloadURL(storageRef);
       };
 
       const uploads = [
-        subirImagen(dniFrente, `socios/${user.uid}/dni-frente.jpg`),
-        subirImagen(dniDorso, `socios/${user.uid}/dni-dorso.jpg`),
-        subirImagen(fotoPerfil, `socios/${user.uid}/foto-perfil.jpg`),
+        subirImagen(compressedDniFrente, `socios/${user.uid}/dni-frente.jpg`),
+        subirImagen(compressedDniDorso, `socios/${user.uid}/dni-dorso.jpg`),
+        subirImagen(compressedFotoPerfil, `socios/${user.uid}/foto-perfil.jpg`),
       ];
 
-      if (fotoCarnet) {
-        uploads.push(subirImagen(fotoCarnet, `socios/${user.uid}/foto-carnet.jpg`));
+      if (compressedFotoCarnet) {
+        uploads.push(subirImagen(compressedFotoCarnet, `socios/${user.uid}/foto-carnet.jpg`));
       }
 
       const [dniFrenteUrl, dniDorsoUrl, fotoPerfilUrl, fotoCarnetUrl] = await Promise.all(uploads);
@@ -146,7 +176,7 @@ export default function SubirDocumentosPage() {
 
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error al subir documentos. Intenta nuevamente.', { id: 'upload' });
+      toast.error('Error al subir documentos. Intenta nuevamente o verifica tu conexión.', { id: 'upload' });
     } finally {
       setLoading(false);
     }
@@ -182,7 +212,7 @@ export default function SubirDocumentosPage() {
               setPreview={setPreviewDniDorso}
             />
             <FileInput 
-              label="Foto de Perfil (Rostro descubierto) *"
+              label="Foto para tu perfil (De frente, mirando la camara. Rostro descubierto, sin lentes ni sombreros, tipo selfie) *"
               setFile={setFotoPerfil}
               preview={previewFotoPerfil}
               setPreview={setPreviewFotoPerfil}

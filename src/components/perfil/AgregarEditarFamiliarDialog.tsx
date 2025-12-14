@@ -28,9 +28,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { generateId } from '@/lib/helpers';
 import { format, parseISO } from 'date-fns';
 import FileInput from '@/components/ui/file-input';
+import { compressImage } from '@/lib/imageUtils';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, Trash2 } from 'lucide-react';
 
 const familiarDialogSchema = familiarBaseSchema.extend({
   fotoPerfil: z.any().refine(val => val, { message: "Se requiere foto de perfil." }),
@@ -45,9 +46,10 @@ interface Props {
   onClose: () => void;
   socioId: string;
   familiaresActuales: MiembroFamiliar[];
+  onSaveDraft?: (familiar: MiembroFamiliar) => void;
 }
 
-export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, familiaresActuales }: Props) {
+export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, familiaresActuales, onSaveDraft }: Props) {
   const { toast } = useToast();
   const { user, refreshSocio } = useAuth();
   const queryClient = useQueryClient();
@@ -55,123 +57,62 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isEditMode = !!familiarToEdit;
   const [familiares, setFamiliares] = useState<FamiliarFormData[]>([]);
+  const [mostrarFormularioNuevo, setMostrarFormularioNuevo] = useState(true);
   
   // Clave para localStorage basada en el socioId
   const STORAGE_KEY = `familiar_draft_${socioId}`;
 
-  const handleEnviarClick = async () => {
-    const isValid = await form.trigger();
-    
-    if (!isValid) {
-      toast({
-        title: "Formulario incompleto",
-        description: "Por favor completa todos los campos requeridos marcados en rojo.",
-        variant: "destructive"
-      });
-      
-      const firstError = document.querySelector('[data-invalid="true"], .text-destructive');
-      if (firstError) {
-        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-    
-    setShowConfirmDialog(true);
-  };
-
   const form = useForm<FamiliarFormData>({ resolver: zodResolver(familiarDialogSchema) });
+  const [formKey, setFormKey] = useState(0); // Para forzar reset de inputs
 
-  const yaExisteConyuge = useMemo(() => {
-    if (isEditMode && familiarToEdit?.relacion === RelacionFamiliar.CONYUGE) return false; // Allow editing existing spouse
-    const enGrupoActual = familiaresActuales.some(f => f.relacion === RelacionFamiliar.CONYUGE);
-    const enNuevos = familiares.some(f => f.relacion === RelacionFamiliar.CONYUGE);
-    return enGrupoActual || enNuevos;
-  }, [familiaresActuales, familiares, isEditMode, familiarToEdit]);
-
+  // Cargar datos al montar (edición o draft)
   useEffect(() => {
-    if (isEditMode && familiarToEdit) {
-        form.reset({ ...familiarToEdit, fechaNacimiento: new Date(familiarToEdit.fechaNacimiento) });
-    } else {
-        // Intentar recuperar datos del localStorage
-        try {
-          const savedData = localStorage.getItem(STORAGE_KEY);
-          if (savedData) {
-            const parsed = JSON.parse(savedData);
-            // Recuperar familiares agregados
-            if (parsed.familiares && parsed.familiares.length > 0) {
-              setFamiliares(parsed.familiares.map((f: any) => ({
-                ...f,
-                fechaNacimiento: f.fechaNacimiento ? new Date(f.fechaNacimiento) : new Date(),
-                // Las fotos no se pueden recuperar de localStorage
-                fotoPerfil: null,
-                fotoDniFrente: null,
-                fotoDniDorso: null,
-                fotoCarnet: null,
-              })));
-              toast({
-                title: "Datos recuperados",
-                description: "Se recuperaron los familiares guardados. Recuerda volver a subir las fotos.",
-              });
-            }
-            // Recuperar formulario actual
-            if (parsed.currentForm) {
-              form.reset({
-                ...parsed.currentForm,
-                fechaNacimiento: parsed.currentForm.fechaNacimiento ? new Date(parsed.currentForm.fechaNacimiento) : new Date(),
-                fotoPerfil: null,
-                fotoDniFrente: null,
-                fotoDniDorso: null,
-                fotoCarnet: null,
-              });
-            }
-          }
-        } catch (e) {
-          console.error('Error recuperando datos de localStorage:', e);
-        }
-        
-        if (!localStorage.getItem(STORAGE_KEY)) {
-          form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
-        }
-    }
-  }, [isEditMode, familiarToEdit, form, STORAGE_KEY, toast]);
-
-  // Guardar automáticamente en localStorage cada vez que cambian los datos
-  useEffect(() => {
-    if (isEditMode) return; // No guardar en modo edición
-    
-    const formValues = form.getValues();
-    const dataToSave = {
-      currentForm: {
-        nombre: formValues.nombre,
-        apellido: formValues.apellido,
-        dni: formValues.dni,
-        fechaNacimiento: formValues.fechaNacimiento,
-        relacion: formValues.relacion,
-        telefono: formValues.telefono,
-        direccion: formValues.direccion,
-        email: formValues.email,
-        // No guardamos las fotos
-      },
-      familiares: familiares.map(f => ({
-        ...f,
+    if (familiarToEdit) {
+      // Modo edición: cargar datos del familiar
+      form.reset({
+        ...familiarToEdit,
+        fechaNacimiento: familiarToEdit.fechaNacimiento ? parseISO(familiarToEdit.fechaNacimiento as any) : new Date(),
+        // Las fotos ya vienen como URLs, el input file no las muestra pero el usuario puede subir nuevas
         fotoPerfil: null,
         fotoDniFrente: null,
         fotoDniDorso: null,
         fotoCarnet: null,
-      })),
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-  }, [familiares, form, isEditMode, STORAGE_KEY]);
+      });
+    } else {
+       // Modo agregar: intentar recuperar draft del localStorage
+       const savedData = localStorage.getItem(STORAGE_KEY);
+       if (savedData) {
+         try {
+           const parsed = JSON.parse(savedData);
+           setFamiliares(parsed); // Recuperar lista de familiares
+           toast({ title: "Borrador recuperado", description: "Se han restaurado los familiares que tenías pendientes." });
+         } catch (e) {
+           console.error("Error parsing draft", e);
+         }
+       }
+    }
+  }, [familiarToEdit, form, STORAGE_KEY, toast]);
 
-  // Limpiar localStorage al enviar exitosamente
-  const clearSavedData = () => {
-    localStorage.removeItem(STORAGE_KEY);
-  };
+  // Guardar en localStorage cuando cambia la lista de familiares (solo modo agregar)
+  useEffect(() => {
+    if (!isEditMode && familiares.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(familiares));
+    } else if (!isEditMode && familiares.length === 0) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [familiares, isEditMode, STORAGE_KEY]);
 
-  const handleAddAnother = async () => {
+  // Validar si ya existe cónyuge (en existentes o en la lista nueva)
+  const yaExisteConyuge = useMemo(() => {
+    const enExistentes = familiaresActuales.some(f => f.relacion === RelacionFamiliar.CONYUGE && f.id !== familiarToEdit?.id);
+    const enNuevos = familiares.some(f => f.relacion === RelacionFamiliar.CONYUGE);
+    return enExistentes || enNuevos;
+  }, [familiaresActuales, familiares, familiarToEdit]);
+
+  const handleAgregarALista = async () => {
     const result = await form.trigger();
     if (!result) {
-      toast({ title: "Datos incompletos", description: "Complete los campos requeridos antes de agregar otro.", variant: "destructive" });
+      toast({ title: "Datos incompletos", description: "Complete los campos requeridos para agregar al familiar.", variant: "destructive" });
       return;
     }
     const currentData = form.getValues();
@@ -180,13 +121,61 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
         return;
     }
     setFamiliares(prev => [...prev, { ...currentData, id: generateId() }]);
+    
+    // Resetear formulario completo y forzar remount de inputs con la key
+    setFormKey(prev => prev + 1);
     form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+    setMostrarFormularioNuevo(true); 
+    toast({ title: "Familiar Agregado", description: "El familiar se ha añadido a la lista para enviar." });
   };
 
   const handleRemoveFamiliar = (id: string) => {
     setFamiliares(prev => prev.filter(f => f.id !== id));
   };
 
+  // Limpiar localStorage al enviar exitosamente
+  const clearSavedData = () => {
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // Descartar formulario vacío (cuando se agregó uno por error)
+  const handleDiscardForm = () => {
+    if (familiares.length > 0) {
+      // Si hay familiares agregados, ocultar el formulario adicional
+      setMostrarFormularioNuevo(false);
+      form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+      toast({ title: "Formulario descartado", description: "El formulario adicional fue eliminado." });
+    }
+  };
+
+  // Verificar si el formulario actual está vacío (sin datos importantes)
+  const currentFormValues = form.watch();
+  const isCurrentFormEmpty = useMemo(() => {
+    return !currentFormValues.nombre && !currentFormValues.apellido && !currentFormValues.dni;
+  }, [currentFormValues.nombre, currentFormValues.apellido, currentFormValues.dni]);
+
+  const handleFinalSubmit = async () => {
+    // Solo enviar la lista de familiares acumulados
+    if (familiares.length === 0) {
+      toast({ title: "Lista vacía", description: "Agregue al menos un familiar a la lista antes de enviar.", variant: "destructive" });
+      return;
+    }
+
+    if (!isCurrentFormEmpty && mostrarFormularioNuevo) {
+       // Hay datos sin agregar en el formulario
+       toast({ 
+         title: "Formulario pendiente", 
+         description: "Tiene datos en el formulario sin agregar. Agregue el familiar a la lista o limpie el formulario antes de enviar.", 
+         variant: "destructive" 
+       });
+       return;
+    }
+
+    // Logic de envío existente simplificada (ya no mira el form actual)
+    onSubmit(form.getValues()); // Pasamos values dummy, onSubmit usará 'familiares' state
+  };
+
+  // onSubmit modificado para usar solo la lista en modo Agregar
   const onSubmit = async (data: FamiliarFormData) => {
     if (!user) {
       toast({ title: "Error", description: "Debes estar autenticado.", variant: "destructive" });
@@ -194,74 +183,87 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
     }
     setIsSubmitting(true);
 
-    // Timeout de 60 segundos para toda la operación
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('La operación tardó demasiado. Por favor, inténtalo de nuevo.')), 60000);
     });
 
     try {
-      // Combine the currently filled form data with the list of already added familiares
-      const allNewFamiliaresData: FamiliarFormData[] = [...familiares];
-      const isCurrentFormEmpty = !data.nombre && !data.apellido && !data.dni;
-
-      if (!isEditMode && !isCurrentFormEmpty) {
-        const result = await form.trigger();
-        if (result) {
-          allNewFamiliaresData.push({ ...data, id: generateId() });
-        } else {
-          toast({ title: "Datos incompletos", description: "El último familiar en el formulario tiene datos incompletos. O complételos o envíe la solicitud sin rellenar el último.", variant: "destructive" });
-          setIsSubmitting(false);
-          return;
-        }
-      }
-      
-      if (!isEditMode && allNewFamiliaresData.length === 0) {
-        toast({ title: "No hay familiares", description: "Agregue al menos un familiar para enviar la solicitud.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-      }
-
-      const uploadFoto = async (file: File | string | null | undefined, familiarId: string, tipo: string): Promise<string | null> => {
-        if (file instanceof File) {
-          const { uploadFile } = await import('@/lib/firebase/storageService');
-          const path = `solicitudes-temp/${socioId}/${familiarId}_${tipo}.jpg`;
-          return await uploadFile(file, path);
-        }
-        return typeof file === 'string' ? file : null;
-      };
-
       let familiaresParaEnviar: MiembroFamiliar[];
 
       if (isEditMode) {
-        // EDIT MODE: Process only the single familiar being edited
-        const familiarId = familiarToEdit?.id || generateId();
-        const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
-          uploadFoto(data.fotoPerfil, familiarId, 'perfil'),
-          uploadFoto(data.fotoDniFrente, familiarId, 'dniFrente'),
-          uploadFoto(data.fotoDniDorso, familiarId, 'dniDorso'),
-          uploadFoto(data.fotoCarnet, familiarId, 'carnet'),
-        ]);
-        const familiarEditado: MiembroFamiliar = {
-          id: familiarId,
-          nombre: data.nombre,
-          apellido: data.apellido,
-          dni: data.dni,
-          fechaNacimiento: data.fechaNacimiento,
-          relacion: data.relacion,
-          telefono: data.telefono || '',
-          email: data.email || '',
-          direccion: data.direccion || '',
-          fotoPerfil: fotoPerfilUrl,
-          fotoDniFrente: fotoDniFrenteUrl,
-          fotoDniDorso: fotoDniDorsoUrl,
-          fotoCarnet: fotoCarnetUrl,
-        };
-        familiaresParaEnviar = familiaresActuales.map(f => f.id === familiarEditado.id ? familiarEditado : f);
+         // Lógica Edición (se mantiene igual, usa 'data' del form actual)
+         const familiarId = familiarToEdit?.id || generateId();
+         const uploadFoto = async (file: File | string | null | undefined, famId: string, tipo: string) => {
+             // ... lógica uploadFoto existente ...
+             // Reutilizaremos la función definida dentro (pero necesitamos moverla fuera o duplicarla si cambiamos el scope)
+             // Para minimizar cambios invasivos, asumiremos que esta función onSubmit sigue encapsulando la lógica.
+             // SIMPLIFICACION: Copiaremos la lógica de uploadFoto aquí dentro.
+             if (file instanceof File) {
+               try {
+                 const compressedFile = await compressImage(file, 1280, 0.8);
+                 const { uploadFile } = await import('@/lib/firebase/storageService');
+                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+                 return await uploadFile(compressedFile, path);
+               } catch (error) {
+                 const { uploadFile } = await import('@/lib/firebase/storageService');
+                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+                 return await uploadFile(file, path);
+               }
+             }
+             return typeof file === 'string' ? file : null;
+         };
+
+         const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
+            uploadFoto(data.fotoPerfil, familiarId, 'perfil'),
+            uploadFoto(data.fotoDniFrente, familiarId, 'dniFrente'),
+            uploadFoto(data.fotoDniDorso, familiarId, 'dniDorso'),
+            uploadFoto(data.fotoCarnet, familiarId, 'carnet'),
+          ]);
+
+          familiaresParaEnviar = familiaresActuales.map(f => f.id === familiarId ? {
+            ...f,
+            nombre: data.nombre,
+            apellido: data.apellido,
+            dni: data.dni,
+            fechaNacimiento: data.fechaNacimiento,
+            relacion: data.relacion,
+            telefono: data.telefono || '',
+            email: data.email || '',
+            direccion: data.direccion || '',
+            fotoPerfil: fotoPerfilUrl,
+            fotoDniFrente: fotoDniFrenteUrl,
+            fotoDniDorso: fotoDniDorsoUrl,
+            fotoCarnet: fotoCarnetUrl,
+          } : f);
+
       } else {
-        // ADD MODE: Process the list of new familiares
+        // MODO AGREGAR: Usar SOLO 'familiares' (lista state)
+        // Ya no miramos 'data' ni 'allNewFamiliaresData' combinados.
+        if (familiares.length === 0) {
+           toast({ title: "No hay familiares", description: "Agregue al menos un familiar.", variant: "destructive" });
+           setIsSubmitting(false);
+           return;
+        }
+
+        const uploadFoto = async (file: File | string | null | undefined, famId: string, tipo: string) => {
+             if (file instanceof File) {
+               try {
+                 const compressedFile = await compressImage(file, 1280, 0.8);
+                 const { uploadFile } = await import('@/lib/firebase/storageService');
+                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+                 return await uploadFile(compressedFile, path);
+               } catch (error) {
+                 const { uploadFile } = await import('@/lib/firebase/storageService');
+                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+                 return await uploadFile(file, path);
+               }
+             }
+             return typeof file === 'string' ? file : null;
+        };
+
         const nuevosFamiliaresProcesados = await Promise.all(
-          allNewFamiliaresData.map(async (famData) => {
-            const familiarId = famData.id || generateId();
+          familiares.map(async (famData) => {
+            const familiarId = famData.id || generateId(); // Deberían tener ID ya
             const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
               uploadFoto(famData.fotoPerfil, familiarId, 'perfil'),
               uploadFoto(famData.fotoDniFrente, familiarId, 'dniFrente'),
@@ -295,72 +297,112 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
         return;
       }
 
-      console.log('📤 ENVIANDO A CLOUD FUNCTION:', {
-        datos: {
-          cambiosData: familiaresParaEnviar
-        },
-        estructura: JSON.stringify(familiaresParaEnviar[0], null, 2),
-        cantidad: familiaresParaEnviar.length
-      });
+      if (onSaveDraft) {
+        const familiarDraft = familiaresParaEnviar.find(f => f.id === (familiarToEdit?.id || familiares[0]?.id));
+        if (familiarDraft) {
+             onSaveDraft(familiarDraft);
+             toast({ title: "Borrador Guardado", description: "Cambios guardados." });
+             onClose();
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('📤 ENVIANDO SOLICITUD FAMILIARES');
 
       const functions = getFunctions();
       const solicitarCambio = httpsCallable(functions, 'solicitarCambioGrupoFamiliar');
       
-      // Enviar con timeout
       await Promise.race([
         solicitarCambio({ cambiosData: familiaresParaEnviar }),
         timeoutPromise
       ]);
 
-      toast({ title: "Solicitud Enviada", description: "Los cambios en tus familiares han sido enviados para aprobación." });
-
-      // Limpiar datos guardados en localStorage tras envío exitoso
+      toast({ title: "Solicitud Enviada", description: "Los cambios han sido enviados para aprobación." });
       clearSavedData();
-
       queryClient.invalidateQueries({ queryKey: ['socio', socioId] });
       await refreshSocio();
       onClose();
+
     } catch (error: any) {
-      setShowConfirmDialog(false); // Cerrar diálogo para que vea el error
-      console.error("Error al enviar la solicitud:", error);
-      toast({ title: "Error al enviar", description: error.message || "Ocurrió un error desconocido.", variant: "destructive" });
+      setShowConfirmDialog(false);
+      console.error("Error al enviar:", error);
+      toast({ title: "Error al enviar", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const showAddAnotherButton = useMemo(() => {
-    if (isEditMode) return false;
-    // Simple rule: allow adding up to 20 familiares in total for now.
-    return familiares.length < 20;
-  }, [isEditMode, familiares.length]);
-
   return (
     <Dialog open={true} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Editar Familiar' : 'Agregar Familiar'}</DialogTitle>
-          <DialogDescription>{isEditMode ? 'Modifique los datos del familiar. La solicitud será revisada por administración.' : 'Agregue uno o más familiares. La solicitud se enviará con todos los miembros juntos.'}</DialogDescription>
+          <DialogTitle>{isEditMode ? 'Editar Familiar' : 'Agregar Grupo Familiar'}</DialogTitle>
+          <DialogDescription>{isEditMode ? 'Modifique los datos.' : 'Agregue cada familiar a la lista y luego envíe la solicitud.'}</DialogDescription>
         </DialogHeader>
 
         {!isEditMode && familiares.length > 0 && (
-          <div className="mb-4 border-b pb-4">
-            <h3 className="font-semibold mb-2 text-sm">Familiares en esta solicitud:</h3>
-            <div className="flex flex-wrap gap-2">{familiares.map((fam) => (<Badge key={fam.id} variant="secondary" className="flex items-center gap-2"><span>{fam.nombre} {fam.apellido} ({fam.relacion})</span><button onClick={() => handleRemoveFamiliar(fam.id!)} className="rounded-full hover:bg-muted-foreground/20 p-0.5"><X className="h-3 w-3" /></button></Badge>))}</div>
+          <div className="mb-4 border-b pb-4 bg-muted/20 p-2 rounded-md">
+            <h3 className="font-semibold mb-2 text-sm text-primary">Familiares listos para enviar:</h3>
+            <div className="flex flex-wrap gap-2">
+                {familiares.map((fam) => (
+                    <Badge key={fam.id} variant="default" className="flex items-center gap-2 pl-3 bg-blue-600 hover:bg-blue-700">
+                        <span className="text-sm font-medium">{fam.nombre} {fam.apellido}</span>
+                        <span className="text-xs opacity-80">({fam.relacion})</span>
+                        <button onClick={() => handleRemoveFamiliar(fam.id!)} className="rounded-full hover:bg-white/20 p-1 ml-1 cursor-pointer" title="Eliminar de lista">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </Badge>
+                ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-right">Recuerda pulsar &quot;Enviar Solicitud&quot; al finalizar.</p>
           </div>
         )}
         
         <div className="overflow-y-auto pr-2 flex-grow">
             <FormProvider {...form}>
-            <form id="familiar-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(isEditMode || mostrarFormularioNuevo) ? (
+            <div className={`relative transition-all duration-300 ${
+                !isEditMode && familiares.length > 0 
+                  ? 'mt-4 border border-blue-100 shadow-lg' 
+                  : 'border border-border/50'
+              } bg-white rounded-xl overflow-hidden`}>
+              
+              {!isEditMode && familiares.length > 0 && (
+                 <div className="bg-blue-50/50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
+                    <span className="font-semibold text-sm text-blue-700 flex items-center gap-2">
+                        <span className="bg-blue-100 p-1.5 rounded-md text-blue-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-plus"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                        </span>
+                        Nuevo Familiar
+                    </span>
+                    <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleDiscardForm}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                        title="Descartar este formulario"
+                    >
+                        <Trash2 className="h-4 w-4 mr-1.5" /> Descartar
+                    </Button>
+                 </div>
+              )}
+
+              <div className="p-5">
+              {!isEditMode && isCurrentFormEmpty && familiares.length === 0 && (
+                 <div className="flex justify-end mb-2 absolute top-2 right-2 z-10">
+                    {/* Botón de ocultar solo visible si es el primer formulario y está vacío (opcional, por ahora oculto para limpieza) */}
+                 </div>
+              )}
+              
+              <form id="familiar-form" key={formKey} className="space-y-5">
+                {!isEditMode && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <FormField name="nombre" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField name="apellido" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField name="dni" control={form.control} render={({ field }) => ( <FormItem><FormLabel>DNI</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="fechaNacimiento" control={form.control} render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento</FormLabel><FormControl><Input type="date" value={field.value && !isNaN(new Date(field.value).getTime()) 
-          ? format(new Date(field.value), 'yyyy-MM-dd') 
-          : ''
-        }  onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField name="fechaNacimiento" control={form.control} render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento</FormLabel><FormControl><Input type="date" value={field.value && !isNaN(new Date(field.value).getTime()) ? format(new Date(field.value), 'yyyy-MM-dd') : ''}  onChange={(e) => field.onChange(e.target.value ? parseISO(e.target.value) : null)} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField name="relacion" control={form.control} render={({ field }) => (
                         <FormItem>
                         <FormLabel>Relación</FormLabel>
@@ -371,65 +413,68 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
                                 <SelectItem value={RelacionFamiliar.HIJO_A}>Hijo/a</SelectItem>
                             </SelectContent>
                         </Select>
-                        {yaExisteConyuge && (
-                            <Alert variant="destructive" className="mt-2 bg-yellow-50 border-yellow-200 text-yellow-800"><AlertTriangle className="h-4 w-4" /><AlertDescription className="text-xs">Ya existe un cónyuge en este grupo familiar.</AlertDescription></Alert>
-                        )}
                         <FormMessage />
                         </FormItem>
                     )} />
-                    <FormField name="telefono" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Teléfono (Opcional)</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="direccion" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Dirección (Opcional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="email" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Email (Opcional)</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /> </FormItem> )} />
+                    <FormField name="telefono" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField name="direccion" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField name="email" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /> </FormItem> )} />
                 </div>
+                )}
                 <div className="space-y-4 pt-4 border-t">
                     <h3 className="text-sm font-semibold">Documentación Fotográfica</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <FormField name="fotoPerfil" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Foto para tu perfil (De frente, mirando la camara. Rostro descubierto, sin lentes ni sombreros, tipo selfie)</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Seleccionar foto" accept="image/png,image/jpeg" {...rest} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField name="fotoDniFrente" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Frente</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="DNI frente" accept="image/png,image/jpeg,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField name="fotoDniDorso" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Dorso</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="DNI dorso" accept="image/png,image/jpeg,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField name="fotoCarnet" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Foto carnet sindical si corresponde</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Foto tipo carnet" accept="image/png,image/jpeg" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoPerfil" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Foto Perfil (Selfie)</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir Foto" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoDniFrente" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Frente</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Frente" accept="image/*,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoDniDorso" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Dorso</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Dorso" accept="image/*,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoCarnet" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Carnet Sindical (Opcional)</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir Carnet" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
-            </form>
+
+                {!isEditMode && (
+                    <div className="pt-4 flex flex-col gap-2">
+                        <Button 
+                            type="button" 
+                            onClick={handleAgregarALista} 
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-6 text-lg shadow-md"
+                        >
+                            + AGREGAR FAMILIAR A LA LISTA
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                           Al pulsar &quot;Agregar&quot;, este familiar se guardará en la lista superior. Luego podrá agregar otro o enviar la solicitud.
+                        </p>
+                    </div>
+                )}
+              </form>
+              </div>
+            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50">
+                <p className="text-muted-foreground mb-4 font-medium">Formulario vacío u oculto</p>
+                <Button type="button" onClick={() => setMostrarFormularioNuevo(true)} className="bg-orange-500 hover:bg-orange-600">
+                  + Ingresar Nuevo Familiar
+                </Button>
+              </div>
+            )}
             </FormProvider>
         </div>
 
-        <DialogFooter className="pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          {!isEditMode && showAddAnotherButton && (
-            <Button type="button" onClick={handleAddAnother}>+ Agregar Otro</Button>
-          )}
+        <DialogFooter className="pt-4 border-t flex-col sm:flex-row gap-3 sm:gap-2">
+          <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">Cancelar</Button>
           
           {isEditMode ? (
-            <Button type="submit" form="familiar-form" disabled={isSubmitting}>
+            <Button type="button" onClick={() => onSubmit(form.getValues())} disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           ) : (
-            <>
-              <Button 
+            <Button 
                 type="button"
-                onClick={handleEnviarClick}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
-              </Button>
-              <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Recuerda agregar a todos los integrantes de tu grupo familiar antes de enviar la solicitud, ya que sólo puedes enviar UNA solicitud hasta que sea aprobada o denegada por el administrador.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Agregar otro familiar</AlertDialogCancel>
-                    <AlertDialogAction onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
-                      {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
+                onClick={handleFinalSubmit}
+                disabled={isSubmitting || familiares.length === 0}
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold"
+            >
+                {isSubmitting ? 'Enviando...' : `ENVIAR SOLICITUD (${familiares.length})`}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

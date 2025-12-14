@@ -69,8 +69,7 @@ function LoadingOverlay({ message }: { message: string }) {
   );
 }
 
-export default function SignupPage() {
-  console.log("DEBUG: Componente SignupPage cargado. Versión con logs de depuración."); 
+export default function SignupPage() { 
   const [pasoActual, setPasoActual] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -143,7 +142,6 @@ export default function SignupPage() {
     try {
       setLoadingMessage('Verificando seguridad...');
       const recaptchaToken = await executeRecaptcha('signup');
-      console.log('reCAPTCHA token obtenido para signup');
       
       setLoadingMessage('Creando tu usuario...');
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
@@ -182,9 +180,7 @@ export default function SignupPage() {
         aptoMedico: null
       };
 
-      console.log('socioData antes de enviar:', JSON.stringify(socioData, null, 2));
-      console.log('fechaNacimiento tipo:', typeof socioData.fechaNacimiento);
-      console.log('fechaNacimiento valor:', socioData.fechaNacimiento);
+
 
       const createSocioProfile = httpsCallable(functions, 'createSocioProfile');
       await createSocioProfile({ socioData });

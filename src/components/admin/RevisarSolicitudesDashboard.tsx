@@ -1,82 +1,51 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 import { getAllSolicitudes } from '@/lib/firebase/solicitudesService';
 import { SolicitudCambioFoto, EstadoSolicitudCambioFoto } from '@/types';
-import { FileImage, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { RevisarSolicitudDialog } from './RevisarSolicitudDialog';
+import { CheckCircle, FileImage } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PhotoChangeCard } from './PhotoChangeCard';
+import { useAdminPhotoActions } from '@/hooks/useAdminPhotoActions';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from '@/components/ui/textarea';
 
 export function RevisarSolicitudesDashboard() {
-  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<SolicitudCambioFoto | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
   const { data: solicitudes = [], isLoading } = useQuery<SolicitudCambioFoto[]>({
     queryKey: ['solicitudesCambioFoto'],
     queryFn: () => getAllSolicitudes(),
   });
 
+  const { handleApprove, handleReject, isProcessing } = useAdminPhotoActions();
+
+  // Estado para el diálogo de rechazo
+  const [solicitudToReject, setSolicitudToReject] = useState<SolicitudCambioFoto | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   const pendientes = solicitudes.filter(s => s.estado === EstadoSolicitudCambioFoto.PENDIENTE);
   const aprobadas = solicitudes.filter(s => s.estado === EstadoSolicitudCambioFoto.APROBADA);
   const rechazadas = solicitudes.filter(s => s.estado === EstadoSolicitudCambioFoto.RECHAZADA);
 
-  const renderSolicitud = (solicitud: SolicitudCambioFoto) => (
-    <Card key={solicitud.id} className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">
-              {solicitud.socioNombre} (N° {solicitud.socioNumero})
-            </CardTitle>
-            <CardDescription>
-              {solicitud.tipoPersona} - {solicitud.tipoFoto.replace('foto', '').replace(/([A-Z])/g, ' $1').trim()}
-            </CardDescription>
-          </div>
-          <Badge variant={
-            solicitud.estado === EstadoSolicitudCambioFoto.PENDIENTE ? 'default' :
-            solicitud.estado === EstadoSolicitudCambioFoto.APROBADA ? 'success' : 'destructive'
-          }>
-            {solicitud.estado}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            <Clock className="inline h-3 w-3 mr-1" />
-            Solicitado: {format(solicitud.fechaSolicitud, "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
-          </p>
-          {solicitud.fechaRespuesta && (
-            <p className="text-sm text-muted-foreground">
-              Respondido: {format(solicitud.fechaRespuesta, "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
-            </p>
-          )}
-          {solicitud.motivoRechazo && (
-            <p className="text-sm text-destructive">
-              Motivo de rechazo: {solicitud.motivoRechazo}
-            </p>
-          )}
-          <Button
-            onClick={() => setSolicitudSeleccionada(solicitud)}
-            variant={solicitud.estado === EstadoSolicitudCambioFoto.PENDIENTE ? 'default' : 'outline'}
-            className="w-full mt-2"
-          >
-            <FileImage className="mr-2 h-4 w-4" />
-            {solicitud.estado === EstadoSolicitudCambioFoto.PENDIENTE ? 'Revisar Solicitud' : 'Ver Detalles'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const onConfirmReject = () => {
+    if (solicitudToReject && rejectionReason) {
+      handleReject(solicitudToReject, rejectionReason);
+      setSolicitudToReject(null);
+      setRejectionReason('');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -105,7 +74,7 @@ export function RevisarSolicitudesDashboard() {
               <TabsTrigger value="pendientes" className="relative">
                 Pendientes
                 {pendientes.length > 0 && (
-                  <Badge className="ml-2 h-5 w-5 flex items-center justify-center p-0" variant="destructive">
+                  <Badge className="ml-2 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white">
                     {pendientes.length}
                   </Badge>
                 )}
@@ -122,7 +91,15 @@ export function RevisarSolicitudesDashboard() {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {pendientes.map(renderSolicitud)}
+                  {pendientes.map(solicitud => (
+                    <PhotoChangeCard 
+                      key={solicitud.id} 
+                      solicitud={solicitud} 
+                      onApprove={handleApprove}
+                      onReject={(s) => setSolicitudToReject(s)}
+                      isProcessing={isProcessing}
+                    />
+                  ))}
                 </div>
               )}
             </TabsContent>
@@ -134,7 +111,14 @@ export function RevisarSolicitudesDashboard() {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {aprobadas.map(renderSolicitud)}
+                  {aprobadas.map(solicitud => (
+                    <PhotoChangeCard 
+                      key={solicitud.id} 
+                      solicitud={solicitud} 
+                      onApprove={() => {}} // Ya aprobadas
+                      onReject={() => {}}
+                    />
+                  ))}
                 </div>
               )}
             </TabsContent>
@@ -146,7 +130,14 @@ export function RevisarSolicitudesDashboard() {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {rechazadas.map(renderSolicitud)}
+                   {rechazadas.map(solicitud => (
+                    <PhotoChangeCard 
+                      key={solicitud.id} 
+                      solicitud={solicitud} 
+                      onApprove={() => {}}
+                      onReject={() => {}} 
+                    />
+                  ))}
                 </div>
               )}
             </TabsContent>
@@ -154,13 +145,29 @@ export function RevisarSolicitudesDashboard() {
         </CardContent>
       </Card>
 
-      {solicitudSeleccionada && (
-        <RevisarSolicitudDialog
-          solicitud={solicitudSeleccionada}
-          open={!!solicitudSeleccionada}
-          onClose={() => setSolicitudSeleccionada(null)}
-        />
-      )}
+      <AlertDialog open={!!solicitudToReject} onOpenChange={(open) => !open && setSolicitudToReject(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechazar Solicitud</AlertDialogTitle>
+            <AlertDialogDescription>
+              Por favor indica el motivo del rechazo para que el socio pueda corregirlo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+             <Textarea 
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Ej: Foto borrosa, rostro no visible..."
+             />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmReject} disabled={!rejectionReason.trim() || isProcessing}>
+              {isProcessing ? 'Procesando...' : 'Confirmar Rechazo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

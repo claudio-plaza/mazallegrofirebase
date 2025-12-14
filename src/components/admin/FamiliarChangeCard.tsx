@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'; // Importar cn
 
 interface FamiliarChangeCardProps {
   familiar: MiembroFamiliar;
+  originalFamiliar?: MiembroFamiliar;
   changeType: 'NUEVO' | 'MODIFICADO' | 'ELIMINADO';
   onApproveFamiliar: (familiarId: string) => void;
   onRejectFamiliar: (familiarId: string) => void;
@@ -67,16 +68,47 @@ function FullDataDialog({ familiar }: { familiar: MiembroFamiliar }) {
     );
 }
 
+export function FamiliarChangeCard({ familiar, originalFamiliar, changeType, onApproveFamiliar, onRejectFamiliar, isProcessing }: FamiliarChangeCardProps) {
+  
+  const detectSpecificChange = () => {
+    if (changeType !== 'MODIFICADO' || !originalFamiliar) return changeType;
 
-export function FamiliarChangeCard({ familiar, changeType, onApproveFamiliar, onRejectFamiliar, isProcessing }: FamiliarChangeCardProps) {
+    const dataChanged = 
+      familiar.nombre !== originalFamiliar.nombre ||
+      familiar.apellido !== originalFamiliar.apellido ||
+      familiar.dni !== originalFamiliar.dni ||
+      familiar.fechaNacimiento !== originalFamiliar.fechaNacimiento ||
+      familiar.relacion !== originalFamiliar.relacion;
+
+    const photosChanged = 
+      familiar.fotoPerfil !== originalFamiliar.fotoPerfil ||
+      familiar.fotoDniFrente !== originalFamiliar.fotoDniFrente ||
+      familiar.fotoDniDorso !== originalFamiliar.fotoDniDorso ||
+      familiar.fotoCarnet !== originalFamiliar.fotoCarnet;
+
+    if (dataChanged && photosChanged) return 'DATOS Y FOTOS';
+    if (photosChanged) return 'NUEVA FOTO';
+    if (dataChanged) return 'DATOS MODIFICADOS';
+    
+    return 'MODIFICADO';
+  };
+
+  const displayChangeType = detectSpecificChange();
+
   const getChangeBadgeClass = () => {
-    switch (changeType) {
+    switch (displayChangeType) {
       case 'NUEVO':
         return 'bg-green-100 text-green-800';
       case 'MODIFICADO':
-        return 'bg-yellow-100 text-yellow-800';
+      case 'DATOS MODIFICADOS':
+      case 'DATOS Y FOTOS':
+        return 'bg-orange-100 text-orange-800';
       case 'ELIMINADO':
         return 'bg-red-100 text-red-800';
+      case 'NUEVA FOTO':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -114,7 +146,7 @@ export function FamiliarChangeCard({ familiar, changeType, onApproveFamiliar, on
       <CardHeader className="p-4 bg-muted/50">
         <div className="flex items-center justify-between">
             <CardTitle className="text-base">{familiar.nombre} {familiar.apellido}</CardTitle>
-            <Badge className={getChangeBadgeClass()}>{changeType}</Badge>
+            <Badge className={getChangeBadgeClass()}>{displayChangeType}</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-4 space-y-4 flex-1">

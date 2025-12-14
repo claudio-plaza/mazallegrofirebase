@@ -34,6 +34,18 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
         pathname: '/v0/b/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9199',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '9199',
+        pathname: '/**',
       }
     ],
   },

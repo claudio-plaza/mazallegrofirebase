@@ -264,6 +264,7 @@ export function GestionSolicitudesFamiliaresDashboard() {
                       <FamiliarChangeCard 
                         key={f.id} 
                         familiar={f} 
+                        originalFamiliar={actuales.find(a => a.id === f.id)}
                         changeType={actuales.some(a => a.id === f.id) ? "MODIFICADO" : "NUEVO"} 
                         onApproveFamiliar={(familiarId) => handleApproveFamiliar(socio.id, familiarId)}
                         onRejectFamiliar={(familiarId) => handleRejectFamiliar(socio.id, familiarId)}

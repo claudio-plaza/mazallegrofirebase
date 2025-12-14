@@ -120,13 +120,22 @@ export function GestionSociosDashboard() {
 
   const filteredSocios = useMemo(() => {
     if (!searchTerm) return socios;
-    const normalizedSearch = normalizeText(searchTerm);
-    return socios.filter(socio =>
-      normalizeText(socio.nombre).includes(normalizedSearch) ||
-      normalizeText(socio.apellido).includes(normalizedSearch) ||
-      normalizeText(socio.numeroSocio).includes(normalizedSearch) ||
-      normalizeText(socio.dni).includes(normalizedSearch)
-    );
+    
+    // Split search term into individual tokens (words), normalize them, and remove empty ones
+    const searchTokens = normalizeText(searchTerm).split(' ').filter(token => token.length > 0);
+
+    if (searchTokens.length === 0) return socios;
+
+    return socios.filter(socio => {
+      // Create a single searchable string containing all relevant fields
+      // We add spaces between fields to ensure tokens don't match across field boundaries accidentally if not desired,
+      // but here standard concatenation is fine as we are just checking for presence.
+      const socioData = `${normalizeText(socio.nombre)} ${normalizeText(socio.apellido)} ${normalizeText(socio.numeroSocio)} ${normalizeText(socio.dni)}`;
+      
+      // Check if EVERY search token exists somewhere in the socio's data
+      // This enables "Juan Perez", "Perez Juan", "Juan 12345" etc.
+      return searchTokens.every(token => socioData.includes(token));
+    });
   }, [socios, searchTerm]);
 
   const handleDescargarListaPdf = () => toast({ title: "Función en revisión", description: "La descarga masiva está siendo adaptada.", variant: "default" });

@@ -20,7 +20,6 @@ export const loginUser = async (email: string, passwordInput: string) => {
   try {
     if (!auth) throw new Error("Auth service not initialized.");
     const trimmedEmail = email.trim();
-    console.log('DEBUG: Intentando iniciar sesión con el email:', trimmedEmail); // Corregido
     const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, passwordInput);
     return userCredential.user;
   } catch (error: any) {
@@ -45,7 +44,6 @@ export const signupUser = async (data: SignupTitularData) => {
   let user: User | null = null; // Definido aquí para que esté disponible en el catch
 
   try {
-    console.log('DEBUG: Iniciando registro...');
 
     // FIX 2: Normalizar email ANTES de cualquier operación
     const normalizedEmail = data.email.trim().toLowerCase();
@@ -57,19 +55,16 @@ export const signupUser = async (data: SignupTitularData) => {
       data.password
     );
     user = userCredential.user;
-    console.log('✅ Usuario creado en Auth:', user.uid);
 
     // FIX 3: Bloque try anidado para implementar el rollback
     try {
       // 2. Obtener número de socio
       let numeroSocio = '';
       try {
-        console.log('🔄 Obteniendo siguiente número de socio...');
         const functions = getFunctions();
         const getNextNumber = httpsCallable(functions, 'getNextSocioNumber');
         const result: any = await getNextNumber();
         numeroSocio = result.data.numeroSocio;
-        console.log('✅ Número de socio obtenido:', numeroSocio);
       } catch (numeroError: any) {
         console.error('❌ Error al obtener número de socio. Se continuará con número vacío.', numeroError);
       }
@@ -86,7 +81,6 @@ export const signupUser = async (data: SignupTitularData) => {
         uploadAndGetUrl(data.fotoDniFrente, 'fotoDniFrente.jpg'),
         uploadAndGetUrl(data.fotoDniDorso, 'fotoDniDorso.jpg'),
       ]);
-      console.log('✅ Fotos subidas a Storage');
 
       // 4. Crear documento en Firestore
       const socioData = {
@@ -115,7 +109,6 @@ export const signupUser = async (data: SignupTitularData) => {
       };
 
       await setDoc(doc(db, 'socios', user.uid), socioData);
-      console.log('✅ Documento de socio creado en Firestore');
 
       // 5. Crear documento en adminUsers
       const adminUserData = {
@@ -128,13 +121,11 @@ export const signupUser = async (data: SignupTitularData) => {
       };
 
       await setDoc(doc(db, 'adminUsers', user.uid), adminUserData);
-      console.log('✅ Documento de adminUsers creado');
 
     } catch (operationError) {
       console.error('❌ Error durante operaciones post-autenticación. Iniciando rollback...', operationError);
       if (user) {
         await deleteUser(user);
-        console.log('🔄 Rollback completado: Usuario eliminado de Auth.');
       }
       // Propagar el error para que el catch externo lo maneje
       throw operationError;
@@ -143,14 +134,12 @@ export const signupUser = async (data: SignupTitularData) => {
     // 6. Enviar verificación de email (opcional)
     try {
       await sendEmailVerification(user);
-      console.log('✅ Email de verificación enviado');
     } catch (emailError) {
       console.warn('⚠️ No se pudo enviar email de verificación:', emailError);
     }
 
     // 7. Desloguear al usuario para evitar race condition
     await signOut(auth);
-    console.log('✅ Usuario deslogueado - debe iniciar sesión manualmente');
 
     return { success: true, uid: user.uid, requiresLogin: true };
 

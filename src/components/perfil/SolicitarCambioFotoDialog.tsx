@@ -14,6 +14,7 @@ import { Loader2, Camera, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query'; // Import useQuery
 import { getPendingSolicitudCambioFoto } from '@/lib/firebase/solicitudesService'; // Import new function
+import { compressImage } from '@/lib/imageUtils';
 
 interface SolicitarCambioFotoDialogProps {
   socioId: string;
@@ -72,6 +73,9 @@ export function SolicitarCambioFotoDialog({
 
     setLoading(true);
     try {
+      // Comprimir imagen antes de enviar
+      const compressedFile = await compressImage(selectedFile, 1280, 0.8);
+
       await crearSolicitudCambioFoto(
         {
           socioId,
@@ -82,7 +86,7 @@ export function SolicitarCambioFotoDialog({
           tipoFoto,
           fotoActualUrl: fotoActualUrl || null,
         },
-        selectedFile
+        compressedFile
       );
 
       toast({ title: 'Solicitud Enviada', description: 'Tu solicitud de cambio de foto será revisada por un administrador.' });

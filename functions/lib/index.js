@@ -411,6 +411,36 @@ exports.getNextSocioNumber = (0, https_1.onCall)({ cors: true, region: "us-centr
         throw new https_1.HttpsError('internal', 'Unable to generate a new socio number.');
     }
 });
+// Helper to compare dates loosely (Timestamp vs String vs Date)
+const areDatesEqual = (d1, d2) => {
+    if (!d1 && !d2)
+        return true;
+    if (!d1 || !d2)
+        return false;
+    const getDate = (d) => {
+        if ((d === null || d === void 0 ? void 0 : d.toDate) && typeof d.toDate === 'function')
+            return d.toDate(); // Firestore Timestamp
+        if (d instanceof Date)
+            return d;
+        return new Date(d);
+    };
+    const date1 = getDate(d1);
+    const date2 = getDate(d2);
+    return date1.getTime() === date2.getTime();
+};
+const normalizeString = (s) => (s || "").toString().trim();
+const isSemanticallyEqual = (obj1, obj2) => {
+    const fieldsToCheck = ['nombre', 'apellido', 'dni', 'relacion', 'email', 'telefono', 'direccion'];
+    for (const field of fieldsToCheck) {
+        if (normalizeString(obj1[field]) !== normalizeString(obj2[field])) {
+            return false;
+        }
+    }
+    if (!areDatesEqual(obj1.fechaNacimiento, obj2.fechaNacimiento)) {
+        return false;
+    }
+    return true;
+};
 exports.solicitarCambioGrupoFamiliar = (0, https_1.onCall)({ region: "us-central1", cors: true }, async (request) => {
     try {
         if (!request.auth) {
@@ -421,19 +451,98 @@ exports.solicitarCambioGrupoFamiliar = (0, https_1.onCall)({ region: "us-central
         if (!cambiosData || !Array.isArray(cambiosData)) {
             throw new https_1.HttpsError("invalid-argument", "Faltan los datos de los cambios o el formato es incorrecto.");
         }
-        for (const familiar of cambiosData) {
-            if (!familiar.nombre || !familiar.apellido || !familiar.dni || !familiar.relacion) {
-                throw new https_1.HttpsError("invalid-argument", "Cada familiar debe tener nombre, apellido, dni y relación.");
+        const db = (0, services_1.getDb)();
+        const socioRef = db.collection("socios").doc(uid);
+        const solicitudsRef = db.collection("solicitudesCambioFoto");
+        await db.runTransaction(async (transaction) => {
+            const socioDoc = await transaction.get(socioRef);
+            if (!socioDoc.exists) {
+                throw new https_1.HttpsError("not-found", "Socio no encontrado.");
             }
-        }
-        const socioRef = (0, services_1.getDb)().collection("socios").doc(uid);
-        await socioRef.update({
-            cambiosPendientesFamiliares: cambiosData,
-            estadoCambioFamiliares: "Pendiente",
-            motivoRechazoFamiliares: null,
+            const socioData = socioDoc.data();
+            const actuales = socioData.familiares || [];
+            const socioNombre = `${socioData.nombre} ${socioData.apellido}`;
+            const socioNumero = socioData.numeroSocio || '';
+            const finalPendientes = [];
+            let hasNonPhotoChanges = false;
+            const photoFields = ['fotoPerfil', 'fotoDniFrente', 'fotoDniDorso', 'fotoCarnet'];
+            // Process each candidate in the proposed state
+            for (const candidato of cambiosData) {
+                if (!candidato.nombre || !candidato.apellido || !candidato.dni || !candidato.relacion) {
+                    throw new https_1.HttpsError("invalid-argument", "Cada familiar debe tener nombre, apellido, dni y relación.");
+                }
+                const original = actuales.find((a) => a.id === candidato.id);
+                if (original) {
+                    // Existing familiar: Check for photo changes
+                    let photoChanged = false;
+                    for (const field of photoFields) {
+                        // Basic strict equality check for URL strings
+                        if (candidato[field] !== original[field]) {
+                            const newVal = candidato[field];
+                            const oldVal = original[field];
+                            if (newVal && newVal !== oldVal) {
+                                // Create photo change request
+                                const newId = solicitudsRef.doc().id;
+                                transaction.set(solicitudsRef.doc(newId), {
+                                    id: newId,
+                                    socioId: uid,
+                                    socioNombre,
+                                    socioNumero,
+                                    tipoPersona: 'Familiar',
+                                    familiarId: original.id,
+                                    tipoFoto: field,
+                                    fotoActualUrl: oldVal || null,
+                                    fotoNuevaUrl: newVal,
+                                    estado: 'Pendiente',
+                                    fechaSolicitud: admin.firestore.Timestamp.now(),
+                                });
+                                photoChanged = true;
+                            }
+                        }
+                    }
+                    if (photoChanged) {
+                        logger.info(`Detectados cambios de foto para familiar ${original.id} de socio ${uid}`);
+                    }
+                    // To determine if there are data changes (non-photo), we use the candidate
+                    // but REVERT the photo fields to original to compare data only.
+                    const searchCandidate = Object.assign({}, candidato);
+                    photoFields.forEach(f => searchCandidate[f] = original[f]);
+                    if (!isSemanticallyEqual(searchCandidate, original)) {
+                        hasNonPhotoChanges = true;
+                        finalPendientes.push(searchCandidate);
+                    }
+                    else {
+                        // If semantically equal (no data changes), use EXACT original object
+                        // to avoid false positives in frontend 'isModified' checks due to serialization diffs
+                        finalPendientes.push(original);
+                    }
+                }
+                else {
+                    // New familiar found
+                    finalPendientes.push(candidato);
+                    hasNonPhotoChanges = true;
+                }
+            }
+            // Check for deletions: If an item in 'actuales' is NOT in 'cambiosData'
+            const deletions = actuales.filter((a) => !cambiosData.some((c) => c.id === a.id));
+            if (deletions.length > 0) {
+                hasNonPhotoChanges = true;
+            }
+            const updateData = {
+                cambiosPendientesFamiliares: finalPendientes
+            };
+            if (hasNonPhotoChanges) {
+                updateData.estadoCambioFamiliares = "Pendiente";
+                updateData.motivoRechazoFamiliares = null;
+            }
+            else {
+                // If only photo changes occurred (or no changes at all), we clear the "Pendiente" flag
+                // But we still save finalPendientes which might be mostly originals
+                updateData.estadoCambioFamiliares = "Ninguno";
+            }
+            transaction.update(socioRef, updateData);
         });
-        logger.info(`Solicitud de cambio de familiares enviada por usuario ${uid}`);
-        return { success: true, message: "Solicitud de cambio enviada correctamente." };
+        return { success: true, message: "Solicitud enviada correctamente." };
     }
     catch (error) {
         logger.error("Error en solicitarCambioGrupoFamiliar:", error);
@@ -547,7 +656,7 @@ exports.deleteSocioAccount = (0, https_1.onCall)({ region: "us-central1", cors: 
         throw new https_1.HttpsError("internal", "Ocurrió un error al eliminar la cuenta.");
     }
 });
-exports.processFamiliarRequests = (0, https_1.onCall)({ region: "us-central1", cors: true }, async (request) => {
+exports.processFamiliarRequests = (0, https_1.onCall)({ region: "us-central1", cors: true, invoker: "public" }, async (request) => {
     var _a;
     // 1. Authentication
     if (!request.auth) {
