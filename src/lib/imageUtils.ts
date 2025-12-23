@@ -1,73 +1,52 @@
 
+import imageCompression from 'browser-image-compression';
+
 /**
  * Comprime una imagen en el lado del cliente manteniendo una calidad aceptable.
- * Reduce la dimensión máxima a maxDimension (default 1280px) y la calidad a quality (default 0.7).
+ * Utiliza 'browser-image-compression' para mejor manejo de memoria y EXIF.
+ * @param file Archivo a comprimir
+ * @param maxDimension Dimensión máxima (ancho o alto)
+ * @param quality Calidad (0 a 1)
  */
 export async function compressImage(file: File, maxDimension: number = 1280, quality: number = 0.7): Promise<File> {
-  return new Promise((resolve, reject) => {
-    // Si no es imagen, devolver el archivo original
-    if (!file.type.match(/image.*/)) {
-      resolve(file);
-      return;
+  // Si no es imagen, devolver el archivo original
+  if (!file.type.match(/image.*/)) {
+    return file;
+  }
+
+  const options = {
+    maxSizeMB: 1, // Objetivo: menos de 1MB (ajustable)
+    maxWidthOrHeight: maxDimension,
+    useWebWorker: true, // Importante para no congelar la UI
+    initialQuality: quality,
+    fileType: 'image/jpeg', // Unificar a JPEG
+  };
+
+  try {
+    // Timeout de seguridad de 30 segundos
+    const compressionPromise = imageCompression(file, options);
+    
+    // Wrapper para timeout
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Tiempo de espera agotado al comprimir imagen')), 30000)
+    );
+
+    const compressedFile = await Promise.race([compressionPromise, timeoutPromise]);
+    
+    // Si por alguna razón la librería devuelve un Blob en lugar de File (raro pero posible en ver antiguas)
+    if (!(compressedFile instanceof File)) {
+       return new File([compressedFile], file.name, { 
+         type: 'image/jpeg',
+         lastModified: Date.now() 
+       });
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    return compressedFile;
 
-        // Calcular nuevas dimensiones manteniendo aspecto
-        if (width > height) {
-          if (width > maxDimension) {
-            height *= maxDimension / width;
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width *= maxDimension / height;
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('No se pudo obtener el contexto del canvas'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convertir a Blob/File
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Error al comprimir la imagen'));
-              return;
-            }
-            
-            // Crear nuevo archivo con el blob comprimido
-            const newFile = new File([blob], file.name, {
-              type: 'image/jpeg', // Forzamos JPEG para mejor compresión
-              lastModified: Date.now(),
-            });
-
-
-            resolve(newFile);
-          },
-          'image/jpeg',
-          quality
-        );
-      };
-      img.onerror = (error) => reject(error);
-    };
-    reader.onerror = (error) => reject(error);
-  });
+  } catch (error) {
+    console.error('Error comprimiendo imagen con browser-image-compression:', error);
+    // Fallback: devolver el original si falla algo (mejor subir pesado que no subir)
+    return file;
+  }
 }
+

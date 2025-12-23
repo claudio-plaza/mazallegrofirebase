@@ -1,27 +1,28 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Socio, MiembroFamiliar, InvitadoDiario, Adherente, MetodoPagoInvitado, RelacionFamiliar, EstadoResponsable, AptoMedicoDisplay, UltimoIngreso } from '@/types';
+import { Socio, MiembroFamiliar, InvitadoDiario, Adherente, MetodoPagoInvitado, RelacionFamiliar, EstadoResponsable, AptoMedicoDisplay, UltimoIngreso, EstadoSolicitudInvitados, SolicitudInvitadosDiarios } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Search, ShieldCheck, ShieldAlert, CheckCircle, XCircle, LogIn, LogOut, Ticket, UserCheck, CalendarDays, Info, Users, Gift, AlertTriangle, CreditCard, Check, Lock } from 'lucide-react';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { esCumpleanosHoy, normalizeText } from '@/lib/helpers';
+import { esCumpleanosHoy, normalizeText, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format, isToday, isValid, formatISO } from 'date-fns';
-import { getSocio, getAllSolicitudesInvitadosDiarios, verificarIngresoHoy, obtenerUltimoIngreso, verificarResponsableIngreso } from '@/lib/firebase/firestoreService';
+import { getSocio, getAllSolicitudesInvitadosDiarios, verificarIngresoHoy, obtenerUltimoIngreso, verificarResponsableIngreso, getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { getAptoMedicoStatus } from '@/lib/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useRouter } from 'next/navigation';
 import { addDoc, collection, Timestamp, query, where, getDocs, orderBy, limit, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/config';
+import ManualGuestForm from './ManualGuestForm';
 
 // =================================================================
 // TYPES
@@ -34,7 +35,7 @@ interface InvitadoState { id: string; nombre: string; apellido: string; dni: str
 // COMPONENTE PRINCIPAL
 // =================================================================
 export function ControlAcceso() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -239,25 +240,23 @@ export function ControlAcceso() {
   // Registrar ingresos de todas las personas seleccionadas
   const registrarIngresosMultiples = async () => {
     if (personasSeleccionadas.size === 0) return;
-    
     setRegistrandoMultiple(true);
-    const personasARegistrar = displayablePeople.filter(p => 
-      personasSeleccionadas.has(p.dni) && !p.yaIngreso
-    );
     
+    // Filtramos miembros
+    const personasARegistrar = displayablePeople.filter(p => personasSeleccionadas.has(p.dni) && !p.yaIngreso);
+    // Filtramos invitados
+    const invitadosARegistrar = invitadosState.filter(i => personasSeleccionadas.has(i.dni) && !i.yaIngresado);
+
     let exitosos = 0;
     let errores = 0;
     
+    // 1. Registrar Miembros
     for (const persona of personasARegistrar) {
       try {
         const yaIngreso = await verificarIngresoHoy(persona.dni);
-        if (yaIngreso) {
-          errores++;
-          continue;
-        }
+        if (yaIngreso) { errores++; continue; }
         
         let titularId = '', titularNumero = '';
-        
         if (persona.tipo === 'titular') {
           titularId = persona.id;
           titularNumero = (persona as any).numeroSocio || socioTitular?.numeroSocio || 'N/A';
@@ -269,10 +268,7 @@ export function ControlAcceso() {
           titularNumero = socioTitular?.numeroSocio || 'N/A';
         }
         
-        if (!titularId) {
-          errores++;
-          continue;
-        }
+        if (!titularId) { errores++; continue; }
         
         await addDoc(collection(db, 'registros_acceso'), {
           fecha: Timestamp.now(),
@@ -294,19 +290,70 @@ export function ControlAcceso() {
         errores++;
       }
     }
-    
+
+    // 2. Registrar Invitados
+    for (const inv of invitadosARegistrar) {
+       try {
+          const yaIngreso = await verificarIngresoHoy(inv.dni);
+          if (yaIngreso) { errores++; continue; }
+
+          const metodoPago = metodoPagoInvitados[inv.dni];
+          if (!metodoPago) {
+             toast({ title: "Falta Método de Pago", description: `Seleccione pago para ${inv.nombre}`, variant: "destructive" });
+             errores++;
+             continue;
+          }
+           
+          // Validar campos de pago si no es cumple
+          if (!metodoPago.esInvitadoCumpleanos && !(metodoPago.pagoEfectivo || metodoPago.pagoTransferencia || metodoPago.pagoCaja)) {
+             toast({ title: "Falta Método de Pago", description: `Seleccione pago para ${inv.nombre}`, variant: "destructive" });
+             errores++;
+             continue;
+          }
+
+          let metodoPagoFinal = '';
+          if (metodoPago.esInvitadoCumpleanos) metodoPagoFinal = 'Gratis (Cumpleaños)';
+          else if (metodoPago.pagoEfectivo) metodoPagoFinal = 'Efectivo';
+          else if (metodoPago.pagoTransferencia) metodoPagoFinal = 'Transferencia';
+          else if (metodoPago.pagoCaja) metodoPagoFinal = 'Caja';
+
+          const estadoResp = await verificarResponsableIngreso(inv.socioId);
+
+          await addDoc(collection(db, "registros_acceso"), {
+            fecha: Timestamp.now(),
+            socioTitularId: inv.socioId,
+            socioTitularNumero: socioTitular?.numeroSocio || 'N/A',
+            personaId: inv.id,
+            personaNombre: inv.nombre,
+            personaApellido: inv.apellido,
+            personaDNI: inv.dni,
+            personaTipo: 'invitado',
+            tipoRegistro: 'entrada',
+            registradoPor: auth.currentUser?.uid || '',
+            registradoPorEmail: auth.currentUser?.email || '',
+            esInvitadoCumpleanos: metodoPago.esInvitadoCumpleanos,
+            metodoPago: metodoPagoFinal,
+            habilitadoPor: `${estadoResp.responsable?.nombre || 'Socio Titular'} ${estadoResp.responsable?.apellido || ''}`,
+            habilitadoPorTipo: estadoResp.responsable?.tipo || 'titular'
+          });
+          exitosos++;
+
+       } catch(error) {
+          console.error(`Error registrando invitado ${inv.nombre}:`, error);
+          errores++;
+       }
+    }
+
     setPersonasSeleccionadas(new Set());
     setRegistrandoMultiple(false);
     
     if (exitosos > 0) {
-      toast({ 
-        title: "Ingresos Registrados", 
-        description: `Se registraron ${exitosos} ingreso(s) correctamente${errores > 0 ? `. ${errores} error(es).` : '.'}`
-      });
+      toast({ title: "Ingresos Registrados", description: `Se registraron ${exitosos} ingreso(s) correctamente${errores > 0 ? `. ${errores} error(es).` : '.'}`});
+      // Actualizar ultimo ingreso de socio si hubo movimiento
+      if(socioTitular) await updateDoc(doc(db, 'socios', socioTitular.id), { ultimoIngreso: Timestamp.now() });
     } else if (errores > 0) {
-      toast({ title: "Error", description: `No se pudo registrar ningún ingreso. ${errores} error(es).`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudo registrar ningún ingreso. ${errores} error(es). Verifique pagos.`, variant: "destructive" });
     }
-    
     await buscarNuevamente();
   };
 
@@ -492,6 +539,74 @@ export function ControlAcceso() {
     } catch (error: any) { toast({ title: "Error al Anular", description: error.message, variant: "destructive" }); }
   };
 
+  // --- EFFECT: Listen for manual guest addition ---
+  useEffect(() => {
+    const handleManualAdd = async (e: any) => {
+        if(!socioTitular) return;
+        const { nombre, apellido, dni, fechaNacimiento } = e.detail;
+        
+        try {
+            toast({ title: "Guardando invitado...", description: "Por favor espere." });
+            const todayISO = formatISO(new Date(), { representation: 'date' });
+            
+            // 1. Buscar o crear solicitud
+            const solicitudExistente = await getSolicitudInvitadosDiarios(socioTitular.id, todayISO);
+            let solicitud: SolicitudInvitadosDiarios;
+            
+            if (solicitudExistente) {
+                solicitud = solicitudExistente;
+            } else {
+                solicitud = {
+                    id: generateId(),
+                    idSocioTitular: socioTitular.id,
+                    nombreSocioTitular: `${socioTitular.nombre} ${socioTitular.apellido}`,
+                    numeroSocioTitular: socioTitular.numeroSocio,
+                    titularIngresadoEvento: false,
+                    listaInvitadosDiarios: [],
+                    fecha: todayISO,
+                    fechaCreacion: new Date(),
+                    fechaUltimaModificacion: new Date(),
+                    estado: EstadoSolicitudInvitados.PROCESADA
+                };
+            }
+            
+            // 2. Agregar invitado
+            const nuevoInvitado: InvitadoDiario = {
+                id: generateId(),
+                nombre,
+                apellido,
+                dni,
+                fechaNacimiento: new Date(fechaNacimiento),
+                ingresado: false,
+                metodoPago: null,
+                esDeCumpleanos: false 
+            };
+            
+            // Comprobación de duplicados
+            const existe = solicitud.listaInvitadosDiarios?.some(i => i.dni === dni);
+            if(existe) {
+               toast({ title: "Ya existe", description: "Este DNI ya está en la lista de invitados de hoy.", variant: "destructive" });
+               return;
+            }
+
+            const listaActualizada = [...(solicitud.listaInvitadosDiarios || []), nuevoInvitado];
+            solicitud.listaInvitadosDiarios = listaActualizada;
+            
+            await addOrUpdateSolicitudInvitadosDiarios(solicitud);
+            
+            toast({ title: "Invitado Agregado", description: "Se ha cargado correctamente." });
+            buscarNuevamente();
+            
+        } catch (error: any) {
+            console.error("Error manual add:", error);
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+    window.addEventListener('manual-guest-submit', handleManualAdd);
+    return () => window.removeEventListener('manual-guest-submit', handleManualAdd);
+  }, [socioTitular, buscarNuevamente, toast]);
+
   if (authLoading) return <p>Cargando...</p>;
 
   return (
@@ -520,6 +635,7 @@ export function ControlAcceso() {
                 onShowCarnet={() => router.push(`/carnet?titularId=${socioTitular.numeroSocio}${p.relacion !== 'Titular' ? `&memberDni=${p.dni}`: ''}`)} 
                 isSelected={personasSeleccionadas.has(p.dni)}
                 onToggleSelect={() => toggleSeleccion(p.dni)}
+                userRole={userRole}
               />
             ))}
             <GuestSection 
@@ -530,6 +646,9 @@ export function ControlAcceso() {
               metodoPagoInvitados={metodoPagoInvitados}
               onMetodoPagoChange={handleMetodoPagoChange}
               cuposCumpleanos={cuposCumpleanos}
+              personasSeleccionadas={personasSeleccionadas}
+              toggleSeleccion={toggleSeleccion}
+              userRole={userRole}
             />
             
             {/* Barra de registro múltiple */}
@@ -571,13 +690,14 @@ export function ControlAcceso() {
 // SUB-COMPONENTES
 // =================================================================
 
-function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, onToggleSelect }: { 
+function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, onToggleSelect, userRole }: { 
   person: DisplayablePerson, 
   onRegister: () => void, 
   onCancel: () => void, 
   onShowCarnet: () => void,
   isSelected?: boolean,
-  onToggleSelect?: () => void
+  onToggleSelect?: () => void,
+  userRole: string | null
 }) {
   const esTitular = person.tipo === 'titular';
   const esFamiliar = person.tipo === 'familiar';
@@ -618,6 +738,12 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, on
                     </Avatar>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
+                     <DialogHeader>
+                        <DialogTitle>{person.nombreCompleto}</DialogTitle>
+                        <DialogDescription>
+                           Foto de perfil
+                        </DialogDescription>
+                     </DialogHeader>
                     <Image
                       src={person.fotoUrl || (person as any).fotoPerfil || '/placeholder.png'}
                       alt={`Foto de ${person.nombreCompleto}`}
@@ -638,7 +764,9 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, on
                 {person.yaIngreso ? (
                 <div className="flex flex-col items-end gap-1">
                     <Button variant="outline" size="sm" disabled className="bg-green-50 border-green-500 text-green-700 cursor-not-allowed"><Check className="mr-2 h-4 w-4" /> Ingresó - {person.ultimoIngreso?.hora}</Button>
-                    <Button variant="ghost" size="sm" onClick={onCancel} className="text-xs text-red-600 hover:text-red-700">Anular ingreso</Button>
+                    {userRole !== 'portero' && (
+                        <Button variant="ghost" size="sm" onClick={onCancel} className="text-xs text-red-600 hover:text-red-700">Anular ingreso</Button>
+                    )}
                 </div>
                 ) : (
                   <Button onClick={() => onRegister()} disabled={!puedeIngresarGeneral} className="bg-orange-500 hover:bg-orange-600"><LogIn className="mr-2 h-4 w-4" /> Registrar Ingreso</Button>
@@ -662,7 +790,10 @@ function GuestSection({
   onAnularIngreso,
   metodoPagoInvitados,
   onMetodoPagoChange,
-  cuposCumpleanos
+  cuposCumpleanos,
+  personasSeleccionadas,
+  toggleSeleccion,
+  userRole
 }: { 
   invitados: InvitadoState[], 
   estadoResponsable: EstadoResponsable, 
@@ -671,11 +802,36 @@ function GuestSection({
   metodoPagoInvitados: { [key: string]: any },
   onMetodoPagoChange: (dni: string, tipo: string, checked: boolean) => void,
   cuposCumpleanos: { disponibles: number; usados: number; quienesCumplen: string[]; };
+  personasSeleccionadas?: Set<string>;
+  toggleSeleccion?: (dni: string) => void;
+  userRole: string | null;
 }) {
-  if (invitados.length === 0) return null;
   return (
     <div className="mt-6 border-t pt-6">
-      <div className="flex items-center gap-2 mb-3"><Users className="text-orange-500" /><h3 className="font-bold text-lg">Invitados Diarios</h3></div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+           <Users className="text-orange-500" />
+           <h3 className="font-bold text-lg">Invitados Diarios</h3>
+        </div>
+     </div>
+
+      <Dialog>
+            <DialogTrigger asChild>
+              <Button size="sm" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 mb-4">
+                  + Carga Rápida (Portería)
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+               <DialogHeader>
+                  <DialogTitle>Carga Rápida de Invitado</DialogTitle>
+                  <DialogDescription>
+                    Complete los datos para agregar un invitado al día de hoy.
+                  </DialogDescription>
+               </DialogHeader>
+               {/* No pasamos props porque usa eventos custom */}
+               <ManualGuestForm />
+            </DialogContent>
+      </Dialog>
       
       {cuposCumpleanos.disponibles > 0 && (
         <Alert className="mb-3 bg-pink-50 border-pink-300">
@@ -711,6 +867,9 @@ function GuestSection({
             metodoPago={metodoPagoInvitados[inv.dni]}
             onMetodoPagoChange={onMetodoPagoChange}
             cuposCumpleanos={cuposCumpleanos}
+            isSelected={personasSeleccionadas?.has(inv.dni)}
+            onToggleSelect={() => toggleSeleccion && toggleSeleccion(inv.dni)}
+            userRole={userRole}
           />
         ))}
       </div>
@@ -725,7 +884,10 @@ function GuestCard({
   estadoResponsable,
   metodoPago,
   onMetodoPagoChange,
-  cuposCumpleanos
+  cuposCumpleanos,
+  isSelected,
+  onToggleSelect,
+  userRole
 }: { 
   invitado: InvitadoState;
   onRegister: () => void;
@@ -734,17 +896,35 @@ function GuestCard({
   metodoPago?: { esInvitadoCumpleanos: boolean; pagoEfectivo: boolean; pagoTransferencia: boolean; pagoCaja: boolean; };
   onMetodoPagoChange: (dni: string, tipo: string, checked: boolean) => void;
   cuposCumpleanos: { disponibles: number; usados: number; };
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  userRole: string | null;
 }) {
   const puedeIngresar = estadoResponsable.hayResponsable && !invitado.yaIngresado;
+  const mostrarCheckbox = puedeIngresar && !invitado.yaIngresado;
   
   return (
-    <Card className={invitado.yaIngresado ? "bg-green-50" : ""}>
+    <Card className={`${invitado.yaIngresado ? "bg-green-50" : ""} ${isSelected ? 'ring-2 ring-orange-500 bg-orange-50/50' : ''}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          <div>
-            <h4 className="font-semibold">{invitado.nombre} {invitado.apellido}</h4>
-            <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
-          </div>
+          <div className="flex justify-between items-start">
+            <div className="flex gap-4">
+                 {mostrarCheckbox && onToggleSelect && (
+                  <div className="flex items-center pt-1">
+                    <input
+                      type="checkbox"
+                      checked={isSelected || false}
+                      onChange={onToggleSelect}
+                      className="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                    />
+                  </div>
+                )}
+                <div>
+                  <h4 className="font-semibold">{invitado.nombre} {invitado.apellido}</h4>
+                  <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
+                </div>
+            </div>
+           </div>
           
           {puedeIngresar && !invitado.yaIngresado && (
             <div className="border-t pt-3">
@@ -803,9 +983,11 @@ function GuestCard({
                 <Button variant="outline" size="sm" disabled className="bg-green-50 border-green-500 text-green-700">
                   <Check className="mr-2 h-4 w-4" /> Ingresó - {invitado.ultimoIngreso?.hora}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onCancel} className="text-xs text-red-600">
-                  Anular ingreso
-                </Button>
+                {userRole !== 'portero' && (
+                  <Button variant="ghost" size="sm" onClick={onCancel} className="text-xs text-red-600">
+                    Anular ingreso
+                  </Button>
+                )}
               </div>
             ) : puedeIngresar ? (
               <Button onClick={onRegister} className="bg-orange-500 hover:bg-orange-600">

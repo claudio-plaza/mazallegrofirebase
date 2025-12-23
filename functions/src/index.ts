@@ -437,40 +437,7 @@ export const getNextSocioNumber = onCall({ cors: true, region: "us-central1" }, 
   }
 });
 
-// Helper to compare dates loosely (Timestamp vs String vs Date)
-const areDatesEqual = (d1: any, d2: any): boolean => {
-  if (!d1 && !d2) return true;
-  if (!d1 || !d2) return false;
-  
-  const getDate = (d: any) => {
-    if (d?.toDate && typeof d.toDate === 'function') return d.toDate(); // Firestore Timestamp
-    if (d instanceof Date) return d;
-    return new Date(d);
-  };
 
-  const date1 = getDate(d1);
-  const date2 = getDate(d2);
-  
-  return date1.getTime() === date2.getTime();
-};
-
-const normalizeString = (s: any) => (s || "").toString().trim();
-
-const isSemanticallyEqual = (obj1: any, obj2: any) => {
-  const fieldsToCheck = ['nombre', 'apellido', 'dni', 'relacion', 'email', 'telefono', 'direccion'];
-  
-  for (const field of fieldsToCheck) {
-    if (normalizeString(obj1[field]) !== normalizeString(obj2[field])) {
-      return false;
-    }
-  }
-
-  if (!areDatesEqual(obj1.fechaNacimiento, obj2.fechaNacimiento)) {
-    return false;
-  }
-
-  return true;
-};
 
 export const solicitarCambioGrupoFamiliar = onCall({ region: "us-central1", cors: true }, async (request) => {
   try {
@@ -483,109 +450,37 @@ export const solicitarCambioGrupoFamiliar = onCall({ region: "us-central1", cors
       throw new HttpsError("invalid-argument", "Faltan los datos de los cambios o el formato es incorrecto.");
     }
 
+    // Si no hay familiares nuevos, no hay nada que procesar
+    if (cambiosData.length === 0) {
+      return { success: true, message: "No hay familiares nuevos para procesar." };
+    }
+
     const db = getDb();
     const socioRef = db.collection("socios").doc(uid);
-    const solicitudsRef = db.collection("solicitudesCambioFoto");
 
     await db.runTransaction(async (transaction) => {
       const socioDoc = await transaction.get(socioRef);
       if (!socioDoc.exists) {
         throw new HttpsError("not-found", "Socio no encontrado.");
       }
-      const socioData = socioDoc.data()!;
-      const actuales = socioData.familiares || [];
-      const socioNombre = `${socioData.nombre} ${socioData.apellido}`;
-      const socioNumero = socioData.numeroSocio || '';
 
-      const finalPendientes: any[] = [];
-      let hasNonPhotoChanges = false;
-      const photoFields = ['fotoPerfil', 'fotoDniFrente', 'fotoDniDorso', 'fotoCarnet'];
-
-      // Process each candidate in the proposed state
+      // Validar que cada familiar nuevo tenga los campos requeridos
       for (const candidato of cambiosData) {
         if (!candidato.nombre || !candidato.apellido || !candidato.dni || !candidato.relacion) {
            throw new HttpsError("invalid-argument", "Cada familiar debe tener nombre, apellido, dni y relación.");
         }
-
-        const original = actuales.find((a: any) => a.id === candidato.id);
-
-        if (original) {
-          // Existing familiar: Check for photo changes
-          let photoChanged = false;
-          
-          for (const field of photoFields) {
-             // Basic strict equality check for URL strings
-             if (candidato[field] !== original[field]) {
-                 const newVal = candidato[field];
-                 const oldVal = original[field];
-                 if (newVal && newVal !== oldVal) {
-                    // Create photo change request
-                    const newId = solicitudsRef.doc().id;
-                    transaction.set(solicitudsRef.doc(newId), {
-                        id: newId,
-                        socioId: uid,
-                        socioNombre,
-                        socioNumero,
-                        tipoPersona: 'Familiar',
-                        familiarId: original.id,
-                        tipoFoto: field, 
-                        fotoActualUrl: oldVal || null,
-                        fotoNuevaUrl: newVal,
-                        estado: 'Pendiente',
-                        fechaSolicitud: admin.firestore.Timestamp.now(),
-                    });
-                    photoChanged = true;
-                 }
-             }
-          }
-
-          if (photoChanged) {
-              logger.info(`Detectados cambios de foto para familiar ${original.id} de socio ${uid}`);
-          }
-
-          // To determine if there are data changes (non-photo), we use the candidate
-          // but REVERT the photo fields to original to compare data only.
-          const searchCandidate = { ...candidato };
-          photoFields.forEach(f => searchCandidate[f] = original[f]); 
-          
-          if (!isSemanticallyEqual(searchCandidate, original)) {
-             hasNonPhotoChanges = true;
-             finalPendientes.push(searchCandidate);
-          } else {
-             // If semantically equal (no data changes), use EXACT original object
-             // to avoid false positives in frontend 'isModified' checks due to serialization diffs
-             finalPendientes.push(original);
-          }
-
-        } else {
-           // New familiar found
-           finalPendientes.push(candidato);
-           hasNonPhotoChanges = true;
-        }
       }
 
-      // Check for deletions: If an item in 'actuales' is NOT in 'cambiosData'
-      const deletions = actuales.filter((a: any) => !cambiosData.some((c: any) => c.id === a.id));
-      if (deletions.length > 0) {
-          hasNonPhotoChanges = true;
-      }
-
-      const updateData: any = {
-          cambiosPendientesFamiliares: finalPendientes
-      };
-
-      if (hasNonPhotoChanges) {
-          updateData.estadoCambioFamiliares = "Pendiente";
-          updateData.motivoRechazoFamiliares = null;
-      } else {
-          // If only photo changes occurred (or no changes at all), we clear the "Pendiente" flag
-          // But we still save finalPendientes which might be mostly originals
-          updateData.estadoCambioFamiliares = "Ninguno";
-      }
-
-      transaction.update(socioRef, updateData);
+      // Los familiares recibidos son NUEVOS - los guardamos directamente como pendientes
+      // El admin los revisará y, al aprobar, se agregarán a socio.familiares
+      transaction.update(socioRef, {
+        cambiosPendientesFamiliares: cambiosData,
+        estadoCambioFamiliares: "Pendiente",
+        motivoRechazoFamiliares: null
+      });
     });
 
+    logger.info(`Solicitud de ${cambiosData.length} familiar(es) nuevo(s) para socio ${uid}`);
     return { success: true, message: "Solicitud enviada correctamente." };
   } catch (error: any) {
     logger.error("Error en solicitarCambioGrupoFamiliar:", error);
@@ -593,6 +488,7 @@ export const solicitarCambioGrupoFamiliar = onCall({ region: "us-central1", cors
     throw new HttpsError("internal", "Ocurrió un error al procesar la solicitud.", error.message);
   }
 });
+
 
 export const searchSocio = onCall({ cors: true, region: "us-central1" }, async (request) => {
   logger.info("Iniciando searchSocio para el usuario:", request.auth?.uid);

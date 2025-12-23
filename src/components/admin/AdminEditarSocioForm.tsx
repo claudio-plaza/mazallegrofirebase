@@ -15,15 +15,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getSocio, updateSocio } from '@/lib/firebase/firestoreService';
+import { db } from '@/lib/firebase/config';
+import { doc, deleteDoc, setDoc, collection } from 'firebase/firestore';
 import { uploadFile } from '@/lib/firebase/storageService';
 import { formatDate, getAptoMedicoStatus, generateId, generateKeywords } from '@/lib/helpers';
 import { format, subYears, parseISO, isValid } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart } from 'lucide-react';
+import { CalendarDays, UserCog, Save, X, Info, Users, ShieldCheck, ShieldAlert, AlertTriangle, UserCircle, Briefcase, Mail, Phone, MapPin, Trash2, PlusCircle, UploadCloud, FileText, Lock, Heart, Unlock } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -67,6 +70,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
       fotoDniFrente: null,
       fotoDniDorso: null,
       fotoCarnet: null,
+      documentosCompletos: false,
     },
   });
 
@@ -118,6 +122,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
           fotoDniFrente: data.fotoDniFrente,
           fotoDniDorso: data.fotoDniDorso,
           fotoCarnet: data.fotoCarnet,
+          documentosCompletos: data.documentosCompletos,
           familiares: data.familiares || [],
           adherentes: data.adherentes || [],
         });
@@ -185,6 +190,38 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
         return { ...adherenteFormData, id: adherenteId, fotoPerfil: adherenteFotoPerfilUrl, fotoDniFrente: adherenteFotoDniFrenteUrl, fotoDniDorso: adherenteFotoDniDorsoUrl };
       })
     );
+
+    // 3b. Sync Adherentes with 'adherentes' collection (separate collection)
+    // Identify removed adherentes
+    const originalAdherenteIds = new Set((socio.adherentes || []).map(a => a.id));
+    const currentAdherenteIds = new Set((data.adherentes || []).map(a => a.id || '')); // New ones might not have ID yet if generated in form? usually they have empty string or temp id
+    
+    // Deletions
+    const adherentesToDelete = (socio.adherentes || []).filter(a => !currentAdherenteIds.has(a.id));
+    await Promise.all(adherentesToDelete.map(async (adh) => {
+        try {
+            await deleteDoc(doc(db, 'adherentes', adh.id));
+            console.log(`Adherente ${adh.id} eliminado de la colección.`);
+        } catch (error) {
+            console.error(`Error eliminando adherente ${adh.id}:`, error);
+        }
+    }));
+
+    // Updates/Creates in collection
+    // Note: processedAdherentes already has IDs (generated if missing) and photo URLs
+    await Promise.all(processedAdherentes.map(async (adh) => {
+        try {
+             // Ensure socioTitularId is set
+             const adherenteDoc = {
+                 ...adh,
+                 socioTitularId: socio.id,
+                 // Ensure dates are converted if needed or stored as is (Firestore handles Dates)
+             };
+             await setDoc(doc(db, 'adherentes', adh.id), adherenteDoc, { merge: true });
+        } catch (error) {
+            console.error(`Error sincronizando adherente ${adh.id}:`, error);
+        }
+    }));
 
     // 4. Construct the final payload
     const { familiares, adherentes, fotoPerfil, fotoDniFrente, fotoDniDorso, fotoCarnet, ...restOfData } = data;
@@ -435,6 +472,42 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                   <FormLabel>Miembro Desde</FormLabel>
                   <Input value={formatDate(socio.miembroDesde)} disabled className="mt-1 bg-muted/50" />
                 </div>
+              </div>
+            </section>
+            <Separator />
+
+            {/* Nueva Sección: Desbloqueo de Carga de Documentos */}
+            <section className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-800 flex items-center gap-2">
+                    <Unlock className="h-5 w-5" />
+                    Desbloqueo de Carga de Documentos
+                  </h3>
+                  <p className="text-sm text-orange-700 mt-1">
+                    Activa esta opción si el socio tiene problemas técnicos para subir sus documentos. 
+                    Esto marcará la documentación como &quot;Completa&quot; y le permitirá acceder al Dashboard.
+                  </p>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="documentosCompletos"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-white min-w-[200px]">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Documentación Completa</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="ml-4"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             </section>
             <Separator />

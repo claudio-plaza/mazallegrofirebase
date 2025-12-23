@@ -554,11 +554,17 @@ export const adminEditableFamiliarSchema = z.object({
 }).refine(data => {
   if (data.relacion === RelacionFamiliar.HIJO_A) {
     if (!data.fechaNacimiento) return true; // Dejar que la validación base maneje el campo requerido
-    return differenceInYears(new Date(), data.fechaNacimiento) < 22;
+    const hoy = new Date();
+    const fechaNacimiento = new Date(data.fechaNacimiento);
+    // Para ser válido, la persona debe tener 21 años o menos.
+    // Calculamos la fecha límite: hoy hace 22 años.
+    const fechaLimite = new Date(hoy.getFullYear() - 22, hoy.getMonth(), hoy.getDate());
+    // La fecha de nacimiento debe ser posterior a esta fecha límite.
+    return fechaNacimiento > fechaLimite;
   }
   return true;
 }, {
-  message: "Los hijos deben ser menores de 22 años.",
+  message: "Los hijos no pueden ser mayores de 21 años.",
   path: ["fechaNacimiento"],
 });
 export type AdminEditableFamiliarData = z.infer<typeof adminEditableFamiliarSchema>;
@@ -605,6 +611,7 @@ const adminEditSocioTitularObject = z.object({
   fotoDniFrente: optionalFileField(dniFileSchemaConfig),
   fotoDniDorso: optionalFileField(dniFileSchemaConfig),
   fotoCarnet: optionalFileField(profileFileSchemaConfig),
+  documentosCompletos: z.boolean().optional(),
 });
 
 export const adminEditSocioTitularSchema = adminEditSocioTitularObject.refine(

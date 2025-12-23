@@ -134,7 +134,7 @@ export default function GestionSolicitudesAdherentesDashboard() {
                 </AlertDialogHeader>
                 <div className="py-2">
                   <Label htmlFor={`rejection-reason-${adherente.id}`} className="sr-only">Motivo</Label>
-                  <Textarea id={`rejection-reason-${adherente.id}`} placeholder="Ej: La foto de perfil no es clara..." onChange={(e) => setRejectionReason(e.target.value)} className="min-h-[80px]" />
+                  <Textarea id={`rejection-reason-${adherente.id}`} placeholder="Ej: La foto de perfil no es clara..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="min-h-[80px]" />
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel onClick={() => setRejectionReason('')}>Cancelar</AlertDialogCancel>

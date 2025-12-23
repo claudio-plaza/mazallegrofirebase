@@ -216,14 +216,10 @@ export function GestionSolicitudesFamiliaresDashboard() {
         const familiaresDeEsteSocio = localFamiliaresPendientes[socio.id] || [];
         const allDecided = familiaresDeEsteSocio.every(f => f.estadoAprobacion === 'aprobado' || f.estadoAprobacion === 'rechazado');
         
-        // Determinar qué familiares son "added" o "modified" para mostrarlos
-        const actuales = socio.familiares || [];
-        const addedModified = familiaresDeEsteSocio.filter(p => 
-          !actuales.some(a => a.id === p.id) || 
-          (actuales.find(a => a.id === p.id) && JSON.stringify(actuales.find(a => a.id === p.id)) !== JSON.stringify(p))
-        );
+        // Ahora solo recibimos familiares NUEVOS (la lógica del frontend ya no envía los existentes)
+        // Por simplicidad, todos los familiares pendientes son "NUEVO"
+        const familiaresNuevos = familiaresDeEsteSocio;
 
-        const removed = actuales.filter(a => !familiaresDeEsteSocio.some(p => p.id === a.id));
 
         return (
           <Card key={socio.id}>
@@ -256,33 +252,15 @@ export function GestionSolicitudesFamiliaresDashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {addedModified.length > 0 && (
+              {familiaresNuevos.length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-2">Familiares Propuestos ({addedModified.length})</h3>
+                  <h3 className="font-semibold mb-2">Familiares Nuevos ({familiaresNuevos.length})</h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {addedModified.map(f => (
+                    {familiaresNuevos.map(f => (
                       <FamiliarChangeCard 
                         key={f.id} 
                         familiar={f} 
-                        originalFamiliar={actuales.find(a => a.id === f.id)}
-                        changeType={actuales.some(a => a.id === f.id) ? "MODIFICADO" : "NUEVO"} 
-                        onApproveFamiliar={(familiarId) => handleApproveFamiliar(socio.id, familiarId)}
-                        onRejectFamiliar={(familiarId) => handleRejectFamiliar(socio.id, familiarId)}
-                        isProcessing={isSubmitting}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {removed.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">Familiares a Eliminar ({removed.length})</h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {removed.map(f => (
-                      <FamiliarChangeCard 
-                        key={f.id} 
-                        familiar={f} 
-                        changeType="ELIMINADO" 
+                        changeType={"NUEVO"} 
                         onApproveFamiliar={(familiarId) => handleApproveFamiliar(socio.id, familiarId)}
                         onRejectFamiliar={(familiarId) => handleRejectFamiliar(socio.id, familiarId)}
                         isProcessing={isSubmitting}

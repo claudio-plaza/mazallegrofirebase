@@ -129,6 +129,16 @@ export async function getSocioByNumeroSocioOrDNI(searchTerm: string): Promise<So
   return null;
 }
 
+export async function getSocioByNumeroExacto(numeroSocio: string): Promise<Socio | null> {
+  if (!numeroSocio.trim()) return null;
+  const q = query(sociosCollection, where('numeroSocio', '==', numeroSocio.trim()), limit(1));
+  const querySnapshot = await getDocs(q);
+  if (!querySnapshot.empty) {
+    return convertTimestamps({ id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() }) as Socio;
+  }
+  return null;
+}
+
 export async function getAdherentesByTitularId(titularId: string): Promise<Adherente[]> {
   if (!titularId) return [];
   const q = query(adherentesCollection, where('socioTitularId', '==', titularId));

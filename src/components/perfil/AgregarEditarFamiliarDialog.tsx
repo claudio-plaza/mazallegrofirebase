@@ -38,6 +38,21 @@ const familiarDialogSchema = familiarBaseSchema.extend({
   fotoDniFrente: z.any().refine(val => val, { message: "Se requiere foto del DNI (frente)." }),
   fotoDniDorso: z.any().refine(val => val, { message: "Se requiere foto del DNI (dorso)." }),
   fotoCarnet: z.any().optional(),
+}).refine(data => {
+  if (data.relacion === RelacionFamiliar.HIJO_A) {
+    if (!data.fechaNacimiento) return true; // Dejar que el validador `required` se encargue.
+    const hoy = new Date();
+    const fechaNacimiento = new Date(data.fechaNacimiento);
+    // Para ser válido, el cumpleaños número 22 no debe haber ocurrido aún.
+    // Calculamos la fecha límite: hoy hace 22 años.
+    const fechaLimite = new Date(hoy.getFullYear() - 22, hoy.getMonth(), hoy.getDate());
+    // La fecha de nacimiento debe ser posterior a esta fecha límite.
+    return fechaNacimiento > fechaLimite;
+  }
+  return true;
+}, {
+  message: "Los hijos no pueden ser mayores de 21 años.",
+  path: ["fechaNacimiento"], 
 });
 type FamiliarFormData = z.infer<typeof familiarDialogSchema>;
 
@@ -109,24 +124,88 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
     return enExistentes || enNuevos;
   }, [familiaresActuales, familiares, familiarToEdit]);
 
+  // --- NUEVA FUNCION: Subir foto individual ---
+  const uploadFotoIndividual = async (file: File | string | null | undefined, famId: string, tipo: string) => {
+      // Si ya es una URL (string), retornarla tal cual (ej: edición o persistencia)
+      if (typeof file === 'string') return file;
+      // Si no hay archivo, retornar null
+      if (!file || !(file instanceof File)) return null;
+
+      try {
+        // 1. Comprimir
+        const compressedFile = await compressImage(file, 1280, 0.8);
+        // 2. Subir
+        const { uploadFile } = await import('@/lib/firebase/storageService');
+        const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+        const url = await uploadFile(compressedFile, path);
+        return url;
+      } catch (error) {
+        console.error(`Error subiendo ${tipo}:`, error);
+        // Fallback: intentar subir original si falla compresión
+        try {
+            const { uploadFile } = await import('@/lib/firebase/storageService');
+            const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
+            return await uploadFile(file, path);
+        } catch (retryError) {
+             console.error("Fallo total subida imagen", retryError);
+             throw retryError;
+        }
+      }
+  };
+
+  const [isUploading, setIsUploading] = useState(false); // Estado local para spinner en botón agregar
+
   const handleAgregarALista = async () => {
     const result = await form.trigger();
     if (!result) {
       toast({ title: "Datos incompletos", description: "Complete los campos requeridos para agregar al familiar.", variant: "destructive" });
       return;
     }
+    
+    // Validación conyuge
     const currentData = form.getValues();
     if (currentData.relacion === RelacionFamiliar.CONYUGE && yaExisteConyuge) {
         toast({ title: "Error de Validación", description: "Ya existe un cónyuge en el grupo familiar. Solo se permite uno.", variant: "destructive" });
         return;
     }
-    setFamiliares(prev => [...prev, { ...currentData, id: generateId() }]);
-    
-    // Resetear formulario completo y forzar remount de inputs con la key
-    setFormKey(prev => prev + 1);
-    form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
-    setMostrarFormularioNuevo(true); 
-    toast({ title: "Familiar Agregado", description: "El familiar se ha añadido a la lista para enviar." });
+
+    setIsUploading(true); // Activar spinner
+    try {
+        const familiarId = generateId();
+        
+        // --- SUBIDA INMEDIATA DE FOTOS ---
+        // Esto evita el congelamiento al final y permite persistencia en localStorage
+        const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
+             uploadFotoIndividual(currentData.fotoPerfil, familiarId, 'perfil'),
+             uploadFotoIndividual(currentData.fotoDniFrente, familiarId, 'dniFrente'),
+             uploadFotoIndividual(currentData.fotoDniDorso, familiarId, 'dniDorso'),
+             uploadFotoIndividual(currentData.fotoCarnet, familiarId, 'carnet'),
+        ]);
+
+        // Crear objeto familiar con URLs finales
+        const nuevoFamiliarConFotos = { 
+            ...currentData, 
+            id: familiarId,
+            fotoPerfil: fotoPerfilUrl,
+            fotoDniFrente: fotoDniFrenteUrl, 
+            fotoDniDorso: fotoDniDorsoUrl, 
+            fotoCarnet: fotoCarnetUrl
+        };
+
+        setFamiliares(prev => [...prev, nuevoFamiliarConFotos]);
+        
+        // Resetear formulario
+        setFormKey(prev => prev + 1);
+        form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+        setMostrarFormularioNuevo(true); 
+        toast({ title: "Familiar Agregado", description: "El familiar y sus fotos se han guardado correctamente." });
+
+    } catch (error) {
+        console.error("Error al procesar familiar:", error);
+        toast({ title: "Error al agregar", description: "Hubo un problema subiendo las fotos. Intente nuevamente.", variant: "destructive" });
+    } finally {
+        setIsUploading(false);
+    }
   };
 
   const handleRemoveFamiliar = (id: string) => {
@@ -143,7 +222,7 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
     if (familiares.length > 0) {
       // Si hay familiares agregados, ocultar el formulario adicional
       setMostrarFormularioNuevo(false);
-      form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, telefono: '', direccion: '', email: '', fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
+      form.reset({ nombre: '', apellido: '', dni: '', fechaNacimiento: new Date(), relacion: '' as RelacionFamiliar, fotoPerfil: null, fotoDniFrente: null, fotoDniDorso: null, fotoCarnet: null });
       toast({ title: "Formulario descartado", description: "El formulario adicional fue eliminado." });
     }
   };
@@ -237,57 +316,10 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
           } : f);
 
       } else {
-        // MODO AGREGAR: Usar SOLO 'familiares' (lista state)
-        // Ya no miramos 'data' ni 'allNewFamiliaresData' combinados.
-        if (familiares.length === 0) {
-           toast({ title: "No hay familiares", description: "Agregue al menos un familiar.", variant: "destructive" });
-           setIsSubmitting(false);
-           return;
-        }
-
-        const uploadFoto = async (file: File | string | null | undefined, famId: string, tipo: string) => {
-             if (file instanceof File) {
-               try {
-                 const compressedFile = await compressImage(file, 1280, 0.8);
-                 const { uploadFile } = await import('@/lib/firebase/storageService');
-                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
-                 return await uploadFile(compressedFile, path);
-               } catch (error) {
-                 const { uploadFile } = await import('@/lib/firebase/storageService');
-                 const path = `solicitudes-temp/${socioId}/${famId}_${tipo}.jpg`;
-                 return await uploadFile(file, path);
-               }
-             }
-             return typeof file === 'string' ? file : null;
-        };
-
-        const nuevosFamiliaresProcesados = await Promise.all(
-          familiares.map(async (famData) => {
-            const familiarId = famData.id || generateId(); // Deberían tener ID ya
-            const [fotoPerfilUrl, fotoDniFrenteUrl, fotoDniDorsoUrl, fotoCarnetUrl] = await Promise.all([
-              uploadFoto(famData.fotoPerfil, familiarId, 'perfil'),
-              uploadFoto(famData.fotoDniFrente, familiarId, 'dniFrente'),
-              uploadFoto(famData.fotoDniDorso, familiarId, 'dniDorso'),
-              uploadFoto(famData.fotoCarnet, familiarId, 'carnet'),
-            ]);
-            return {
-              id: familiarId,
-              nombre: famData.nombre,
-              apellido: famData.apellido,
-              dni: famData.dni,
-              fechaNacimiento: famData.fechaNacimiento,
-              relacion: famData.relacion,
-              telefono: famData.telefono || '',
-              email: famData.email || '',
-              direccion: famData.direccion || '',
-              fotoPerfil: fotoPerfilUrl,
-              fotoDniFrente: fotoDniFrenteUrl,
-              fotoDniDorso: fotoDniDorsoUrl,
-              fotoCarnet: fotoCarnetUrl,
-            };
-          })
-        );
-        familiaresParaEnviar = [...familiaresActuales, ...nuevosFamiliaresProcesados];
+        // MODO AGREGAR:
+        // Solo enviamos los familiares NUEVOS (no los existentes)
+        // Las fotos ya están subidas en 'familiares'.
+        familiaresParaEnviar = familiares as unknown as MiembroFamiliar[];
       }
 
       const conyugesEnSolicitud = familiaresParaEnviar.filter(f => f.relacion === RelacionFamiliar.CONYUGE).length;
@@ -416,17 +448,15 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
                         <FormMessage />
                         </FormItem>
                     )} />
-                    <FormField name="telefono" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="direccion" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="email" control={form.control} render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /> </FormItem> )} />
+
                 </div>
                 )}
                 <div className="space-y-4 pt-4 border-t">
                     <h3 className="text-sm font-semibold">Documentación Fotográfica</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField name="fotoPerfil" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Foto Perfil (Selfie)</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir Foto" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField name="fotoDniFrente" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Frente</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Frente" accept="image/*,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField name="fotoDniDorso" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Dorso</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Dorso" accept="image/*,application/pdf" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoDniFrente" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Frente</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Frente" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField name="fotoDniDorso" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>DNI Dorso</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir DNI Dorso" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField name="fotoCarnet" control={form.control} render={({ field: { onChange, value, ...rest } }) => ( <FormItem><FormLabel>Carnet Sindical (Opcional)</FormLabel><FormControl><FileInput onValueChange={onChange} value={value as any} placeholder="Subir Carnet" accept="image/*" {...rest} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
@@ -436,9 +466,20 @@ export function AgregarEditarFamiliarDialog({ familiarToEdit, onClose, socioId, 
                         <Button 
                             type="button" 
                             onClick={handleAgregarALista} 
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-6 text-lg shadow-md"
+                            disabled={isUploading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-6 text-lg shadow-md disabled:opacity-70"
                         >
-                            + AGREGAR FAMILIAR A LA LISTA
+                            {isUploading ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                PROCESANDO IMÁGENES...
+                              </span>
+                            ) : (
+                              "+ AGREGAR FAMILIAR A LA LISTA"
+                            )}
                         </Button>
                         <p className="text-xs text-center text-muted-foreground">
                            Al pulsar &quot;Agregar&quot;, este familiar se guardará en la lista superior. Luego podrá agregar otro o enviar la solicitud.

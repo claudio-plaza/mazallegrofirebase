@@ -17,7 +17,7 @@ import { addDays, subDays } from 'date-fns';
 import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Contact2, Info, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { getPaginatedSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb } from '@/lib/firebase/firestoreService';
+import { getPaginatedSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb, getSocioByNumeroExacto } from '@/lib/firebase/firestoreService';
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,6 +49,8 @@ export function GestionSociosDashboard() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [numeroSocioDirecto, setNumeroSocioDirecto] = useState('');
+  const [buscandoDirecto, setBuscandoDirecto] = useState(false);
   const solicitudesFamiliaresCount = useSolicitudesFamiliaresCount();
 
   const fetchSocios = useCallback(async (filtro: EstadoSocioFiltro, startingDoc?: DocumentSnapshot, order?: 'asc' | 'desc') => {
@@ -117,6 +119,35 @@ export function GestionSociosDashboard() {
   const handleVerEditarPerfil = (socioId: string) => router.push(`/admin/socios/${socioId}/editar`);
   const openAdherentesDialog = (socio: Socio) => { setSelectedSocioForAdherentes(socio); setIsAdherentesDialogOpen(true); };
   const openRevisionDialog = (socio: Socio) => { setSelectedSocioForRevision(socio); setIsRevisionDialogOpen(true); };
+
+  const handleIrASocio = async () => {
+    if (!numeroSocioDirecto.trim()) {
+      toast({ title: "Ingrese un número", description: "Por favor ingrese el número de socio a buscar.", variant: "default" });
+      return;
+    }
+    setBuscandoDirecto(true);
+    try {
+      const socio = await getSocioByNumeroExacto(numeroSocioDirecto.trim());
+      if (socio) {
+        // Agregar al principio de la lista si no existe
+        setSocios(prev => {
+          if (prev.some(s => s.id === socio.id)) {
+            return prev; // Ya está en la lista
+          }
+          return [socio, ...prev];
+        });
+        setExpandedRows([socio.id]); // Expandir automáticamente
+        toast({ title: "Socio encontrado", description: `${socio.nombre} ${socio.apellido} (N° ${socio.numeroSocio})` });
+        setNumeroSocioDirecto('');
+      } else {
+        toast({ title: "No encontrado", description: `No existe un socio con el número ${numeroSocioDirecto}`, variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBuscandoDirecto(false);
+    }
+  };
 
   const filteredSocios = useMemo(() => {
     if (!searchTerm) return socios;
@@ -268,6 +299,18 @@ export function GestionSociosDashboard() {
                   <SelectItem value="asc">N° Socio (más antiguos)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input 
+                placeholder="N° Socio" 
+                value={numeroSocioDirecto} 
+                onChange={(e) => setNumeroSocioDirecto(e.target.value)} 
+                onKeyPress={(e) => e.key === 'Enter' && handleIrASocio()}
+                className="w-[100px]" 
+              />
+              <Button onClick={handleIrASocio} disabled={buscandoDirecto} variant="secondary" size="sm">
+                {buscandoDirecto ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Ir'}
+              </Button>
             </div>
           </div>
         </CardHeader>
