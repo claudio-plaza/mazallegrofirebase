@@ -12,12 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText } from '@/lib/helpers';
+import { formatDate, getAptoMedicoStatus, esCumpleanosHoy, normalizeText, normalizeEmpresa } from '@/lib/helpers';
 import { addDays, subDays } from 'date-fns';
 import { MoreVertical, UserPlus, Search, Filter, Users, UserCheck, UserX, ShieldCheck, ShieldAlert, Edit3, Trash2, CheckCircle2, XCircle, CalendarDays, FileSpreadsheet, Users2, MailQuestion, Contact2, Info, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { getPaginatedSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb, getSocioByNumeroExacto } from '@/lib/firebase/firestoreService';
+import { getPaginatedSocios, updateSocio as updateSocioInDb, deleteSocio as deleteSocioInDb, getSocioByNumeroExacto, getAllSocios } from '@/lib/firebase/firestoreService';
 import { GestionAdherentesDialog } from './GestionAdherentesDialog';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -51,7 +51,29 @@ export function GestionSociosDashboard() {
   const [isError, setIsError] = useState(false);
   const [numeroSocioDirecto, setNumeroSocioDirecto] = useState('');
   const [buscandoDirecto, setBuscandoDirecto] = useState(false);
+  const [filtroEmpresa, setFiltroEmpresa] = useState('Todas');
+  const [empresaOptions, setEmpresaOptions] = useState<string[]>(['Todas']);
+  const [globalStats, setGlobalStats] = useState<{ total: number; porEmpresa: Record<string, number> }>({ total: 0, porEmpresa: {} });
   const solicitudesFamiliaresCount = useSolicitudesFamiliaresCount();
+
+  // Fetch global stats (all socios) once on mount
+  useEffect(() => {
+    const fetchGlobalStats = async () => {
+      try {
+        const allSocios = await getAllSocios();
+        const porEmpresa: Record<string, number> = {};
+        allSocios.forEach(s => {
+          const emp = normalizeEmpresa(s.empresa);
+          porEmpresa[emp] = (porEmpresa[emp] || 0) + 1;
+        });
+        setGlobalStats({ total: allSocios.length, porEmpresa });
+        setEmpresaOptions(['Todas', ...Object.keys(porEmpresa).sort()]);
+      } catch (e) {
+        console.error('Error fetching global stats:', e);
+      }
+    };
+    fetchGlobalStats();
+  }, []);
 
   const fetchSocios = useCallback(async (filtro: EstadoSocioFiltro, startingDoc?: DocumentSnapshot, order?: 'asc' | 'desc') => {
     setLoading(true);
@@ -150,24 +172,25 @@ export function GestionSociosDashboard() {
   };
 
   const filteredSocios = useMemo(() => {
-    if (!searchTerm) return socios;
-    
-    // Split search term into individual tokens (words), normalize them, and remove empty ones
-    const searchTokens = normalizeText(searchTerm).split(' ').filter(token => token.length > 0);
+    let result = socios;
 
-    if (searchTokens.length === 0) return socios;
+    // Apply empresa filter
+    if (filtroEmpresa !== 'Todas') {
+      result = result.filter(s => normalizeEmpresa(s.empresa) === filtroEmpresa);
+    }
 
-    return socios.filter(socio => {
-      // Create a single searchable string containing all relevant fields
-      // We add spaces between fields to ensure tokens don't match across field boundaries accidentally if not desired,
-      // but here standard concatenation is fine as we are just checking for presence.
-      const socioData = `${normalizeText(socio.nombre)} ${normalizeText(socio.apellido)} ${normalizeText(socio.numeroSocio)} ${normalizeText(socio.dni)}`;
-      
-      // Check if EVERY search token exists somewhere in the socio's data
-      // This enables "Juan Perez", "Perez Juan", "Juan 12345" etc.
-      return searchTokens.every(token => socioData.includes(token));
-    });
-  }, [socios, searchTerm]);
+    // Apply search term
+    if (searchTerm) {
+      const searchTokens = normalizeText(searchTerm).split(' ').filter(token => token.length > 0);
+      if (searchTokens.length > 0) {
+        result = result.filter(socio => {
+          const socioData = `${normalizeText(socio.nombre)} ${normalizeText(socio.apellido)} ${normalizeText(socio.numeroSocio)} ${normalizeText(socio.dni)}`;
+          return searchTokens.every(token => socioData.includes(token));
+        });
+      }
+    }
+    return result;
+  }, [socios, searchTerm, filtroEmpresa]);
 
   const handleDescargarListaPdf = () => toast({ title: "Función en revisión", description: "La descarga masiva está siendo adaptada.", variant: "default" });
 
@@ -182,11 +205,20 @@ export function GestionSociosDashboard() {
   if (isInitialLoading) return <div className="space-y-6 p-4"><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}</div><Skeleton className="h-12 w-full" /><Skeleton className="h-96 w-full" /></div>;
   if (isError) return <div className="text-center py-10 text-destructive"><p>Error al cargar los datos. Intente recargar.</p></div>;
 
+  // Build stat cards dynamically, including global empresa counts
+  const mainEmpresas = ['SADOP', 'AMPROS', 'JUDICIALES', 'UTN', 'SITEA', 'CP', 'SIND. SEGURO', 'SUTIAGA', 'PARTICULAR'];
+  const empresaStatCards = mainEmpresas.map(emp => ({
+    title: emp,
+    value: globalStats.porEmpresa[emp] || 0,
+    icon: Users2,
+    color: emp === 'SADOP' ? 'text-blue-600' : emp === 'AMPROS' ? 'text-orange-600' : emp === 'JUDICIALES' ? 'text-purple-600' : emp === 'UTN' ? 'text-red-600' : emp === 'SITEA' ? 'text-teal-600' : emp === 'CP' ? 'text-cyan-600' : emp === 'SIND. SEGURO' ? 'text-rose-600' : emp === 'SUTIAGA' ? 'text-amber-600' : 'text-gray-500',
+    href: undefined as (string | undefined),
+  }));
+
   const statCards = [
-    { title: "Socios Cargados", value: stats.total, icon: Users, color: "text-blue-500" },
-    { title: "Activos (en lista)", value: stats.activos, icon: UserCheck, color: "text-green-500" },
-    { title: "Aptos Vigentes (en lista)", value: stats.aptosVigentes, icon: ShieldCheck, color: "text-teal-500" },
-    { title: "Solic. Adh. Pend. (en lista)", value: stats.solicitudesAdherentesPendientes, icon: Contact2, color: "text-orange-500" },
+    { title: "Socios Totales", value: globalStats.total, icon: Users, color: "text-blue-500", href: undefined as (string | undefined) },
+    { title: "Activos (en lista)", value: stats.activos, icon: UserCheck, color: "text-green-500", href: undefined as (string | undefined) },
+    ...empresaStatCards,
     { title: "Solic. Familiares Pend.", value: solicitudesFamiliaresCount, icon: MailQuestion, color: "text-purple-500", href: "/admin/solicitudes-familiares" },
   ];
 
@@ -282,10 +314,18 @@ export function GestionSociosDashboard() {
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={filtroEstado} onValueChange={(value) => setFiltroEstado(value as EstadoSocioFiltro)}>
-                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por estado" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
                   {(['Todos', 'Activo', 'Inactivo', 'Pendiente'] as EstadoSocioFiltro[]).map(estado => (
                     <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                <SelectContent>
+                  {empresaOptions.map(emp => (
+                    <SelectItem key={emp} value={emp}>{emp}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

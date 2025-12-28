@@ -15,7 +15,7 @@ import { esCumpleanosHoy, normalizeText, generateId } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { format, isToday, isValid, formatISO } from 'date-fns';
+import { format, isToday, isValid, formatISO, addDays } from 'date-fns';
 import { getSocio, getAllSolicitudesInvitadosDiarios, verificarIngresoHoy, obtenerUltimoIngreso, verificarResponsableIngreso, getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { getAptoMedicoStatus } from '@/lib/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -28,7 +28,7 @@ import ManualGuestForm from './ManualGuestForm';
 // TYPES
 // =================================================================
 
-type DisplayablePerson = { id: string; nombre: string; apellido: string; nombreCompleto: string; dni: string; fotoUrl?: string; aptoMedico: AptoMedicoDisplay; fechaNacimiento?: string | Date; relacion: string; estadoSocio?: Socio['estadoSocio']; estadoAdherente?: Adherente['estadoAdherente']; esCumpleanero: boolean; yaIngreso: boolean; ultimoIngreso: UltimoIngreso | null; titularId?: string; socioTitularId?: string; tipo: string;};
+type DisplayablePerson = { id: string; nombre: string; apellido: string; nombreCompleto: string; dni: string; fotoUrl?: string; aptoMedico: AptoMedicoDisplay; fechaNacimiento?: string | Date; relacion: string; estadoSocio?: Socio['estadoSocio']; estadoAdherente?: Adherente['estadoAdherente']; esCumpleanero: boolean; yaIngreso: boolean; ultimoIngreso: UltimoIngreso | null; titularId?: string; socioTitularId?: string; tipo: string; titularNumero?: string;};
 interface InvitadoState { id: string; nombre: string; apellido: string; dni: string; fechaNacimiento: string | Date; esInvitadoCumpleanos: boolean; metodoPago: MetodoPagoInvitado | null; esCumpleanero: boolean; yaIngresado: boolean; ultimoIngreso: UltimoIngreso | null; puedeIngresar: boolean; socioId: string;}
 
 // =================================================================
@@ -172,6 +172,19 @@ export function ControlAcceso() {
       const estadoResp = await verificarResponsableIngreso(titularData.id);
       setEstadoResponsable(estadoResp);
 
+      // --- CÁLCULO DE CUPOS DESDE DB ---
+      const hoyInicio = new Date();
+      hoyInicio.setHours(0,0,0,0);
+      const qUsados = query(
+        collection(db, 'registros_acceso'),
+        where('socioTitularId', '==', titularData.id),
+        where('esInvitadoCumpleanos', '==', true),
+        where('fecha', '>=', Timestamp.fromDate(hoyInicio))
+      );
+      const snapshotUsados = await getDocs(qUsados);
+      const countUsadosDB = snapshotUsados.size;
+      // --------------------------------
+
       const miembrosOriginales = [
         { ...titularData, id: titularData.id, dni: titularData.dni, relacion: 'Titular' as const, tipo: 'titular' as const },
         ...(titularData.familiares || []).map(f => ({ ...f, id: f.dni, relacion: f.relacion as RelacionFamiliar, tipo: 'familiar' as const, titularId: titularData.id })),
@@ -191,16 +204,20 @@ export function ControlAcceso() {
             ultimoIngreso,
             estadoSocio: titularData.estadoSocio,
             esCumpleanero: esCumpleanosHoy(p.fechaNacimiento),
+            titularNumero: titularData.numeroSocio
           } as DisplayablePerson;
         })
       );
       setDisplayablePeople(personasConEstado);
 
-      const { cuposDisponibles, quienesCumplen } = calcularCuposCumpleanos(personasConEstado);
+      // Calculamos cupos basados en todos los miembros del grupo
+      const cumpleaneros = personasConEstado.filter(p => p.esCumpleanero);
+      const cuposTotales = cumpleaneros.length * 15;
+
       setCuposCumpleanos({
-        disponibles: cuposDisponibles,
-        usados: 0,
-        quienesCumplen
+        disponibles: cuposTotales,
+        usados: countUsadosDB,
+        quienesCumplen: cumpleaneros.map(p => `${p.nombre} ${p.apellido}`)
       });
 
       const todayISO = formatISO(new Date(), { representation: 'date' });
@@ -579,7 +596,8 @@ export function ControlAcceso() {
                 fechaNacimiento: new Date(fechaNacimiento),
                 ingresado: false,
                 metodoPago: null,
-                esDeCumpleanos: false 
+                esDeCumpleanos: false,
+                aptoMedico: null
             };
             
             // Comprobación de duplicados
@@ -649,6 +667,7 @@ export function ControlAcceso() {
               personasSeleccionadas={personasSeleccionadas}
               toggleSeleccion={toggleSeleccion}
               userRole={userRole}
+              socioTitular={socioTitular}
             />
             
             {/* Barra de registro múltiple */}
@@ -754,7 +773,14 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, on
                   </DialogContent>
                 </Dialog>
                 <div>
-                    <div className="flex items-center gap-2 flex-wrap"><h3 className="font-bold text-lg">{person.nombreCompleto}</h3><Badge className="bg-blue-100 text-blue-800">{person.relacion}</Badge>{person.esCumpleanero && <Badge className="bg-pink-500 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-lg">{person.nombreCompleto}</h3>
+                      <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50 font-mono">
+                        N° {person.titularNumero || '---'}
+                      </Badge>
+                      <Badge className="bg-blue-100 text-blue-800">{person.relacion}</Badge>
+                      {person.esCumpleanero && <Badge className="bg-pink-500 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}
+                    </div>
                     <p className="text-sm text-muted-foreground">DNI: {person.dni}</p>
                     {(person.relacion === 'Titular' || person.relacion === 'Adherente') && <div className="text-sm text-muted-foreground">Estado: <Badge variant={puedeIngresarGeneral ? 'default' : 'destructive'} className={puedeIngresarGeneral ? 'bg-green-500' : ''}>{person.relacion === 'Titular' ? person.estadoSocio : person.estadoAdherente}</Badge></div>}
                 </div>
@@ -793,7 +819,8 @@ function GuestSection({
   cuposCumpleanos,
   personasSeleccionadas,
   toggleSeleccion,
-  userRole
+  userRole,
+  socioTitular
 }: { 
   invitados: InvitadoState[], 
   estadoResponsable: EstadoResponsable, 
@@ -805,6 +832,7 @@ function GuestSection({
   personasSeleccionadas?: Set<string>;
   toggleSeleccion?: (dni: string) => void;
   userRole: string | null;
+  socioTitular: Socio | null;
 }) {
   return (
     <div className="mt-6 border-t pt-6">
@@ -870,6 +898,7 @@ function GuestSection({
             isSelected={personasSeleccionadas?.has(inv.dni)}
             onToggleSelect={() => toggleSeleccion && toggleSeleccion(inv.dni)}
             userRole={userRole}
+            socioTitular={socioTitular}
           />
         ))}
       </div>
@@ -887,7 +916,8 @@ function GuestCard({
   cuposCumpleanos,
   isSelected,
   onToggleSelect,
-  userRole
+  userRole,
+  socioTitular
 }: { 
   invitado: InvitadoState;
   onRegister: () => void;
@@ -899,6 +929,7 @@ function GuestCard({
   isSelected?: boolean;
   onToggleSelect?: () => void;
   userRole: string | null;
+  socioTitular: Socio | null;
 }) {
   const puedeIngresar = estadoResponsable.hayResponsable && !invitado.yaIngresado;
   const mostrarCheckbox = puedeIngresar && !invitado.yaIngresado;
@@ -920,7 +951,12 @@ function GuestCard({
                   </div>
                 )}
                 <div>
-                  <h4 className="font-semibold">{invitado.nombre} {invitado.apellido}</h4>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold">{invitado.nombre} {invitado.apellido}</h4>
+                    <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 font-mono">
+                      Tit. {socioTitular?.numeroSocio || '---'}
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
                 </div>
             </div>

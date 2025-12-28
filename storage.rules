@@ -17,7 +17,8 @@ service firebase.storage {
     }
     
     match /socios/{userId}/{allPaths=**} {
-      allow read: if true;
+      // ✅ CORREGIDO: Solo usuarios autenticados pueden ver fotos (antes era público)
+      allow read: if request.auth != null;
       allow write: if request.auth != null; // Cualquiera autenticado puede escribir su propia foto
       
       // Permitir update solo a admins (después del signup inicial)

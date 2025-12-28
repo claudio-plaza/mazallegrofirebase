@@ -114,6 +114,12 @@ export default function CompletarPerfilPage() {
         <CardContent className="space-y-8 pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <FileInput 
+              label="Foto para tu Perfil frente a la camara rostro descubierto, sin gafas y sin sombrero (tipo selfie) *"
+              setFile={setFotoPerfil}
+              preview={previewFotoPerfil}
+              setPreview={setPreviewFotoPerfil}
+            />
+            <FileInput 
               label="DNI Frente *"
               setFile={setDniFrente}
               preview={previewDniFrente}
@@ -125,12 +131,7 @@ export default function CompletarPerfilPage() {
               preview={previewDniDorso}
               setPreview={setPreviewDniDorso}
             />
-            <FileInput 
-              label="Foto de Perfil (tipo selfie) *"
-              setFile={setFotoPerfil}
-              preview={previewFotoPerfil}
-              setPreview={setPreviewFotoPerfil}
-            />
+
           </div>
 
           <Button 

@@ -218,7 +218,7 @@ export default function SubirDocumentosPage() {
               setPreview={setPreviewFotoPerfil}
             />
             <FileInput 
-              label="Foto carnet sindical (Opcional)"
+              label="Foto del carnet sindical si corresponde"
               setFile={setFotoCarnet}
               preview={previewFotoCarnet}
               setPreview={setPreviewFotoCarnet}

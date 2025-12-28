@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { Download, CalendarDays, Users2, Search, CircleDollarSign, Gift, Baby, CreditCard, Banknote, Archive, UserPlus, X, Save } from 'lucide-react';
 import { formatDate, generateId, normalizeText } from '@/lib/helpers';
-import { format, parseISO, isValid, differenceInYears } from 'date-fns';
+import { format, parseISO, isValid, differenceInYears, addDays } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +125,12 @@ export function AdminInvitadosDiariosDashboard() {
       id: generateId(),
       ingresado: false,
       metodoPago: null,
+      aptoMedico: {
+        valido: true,
+        fechaEmision: new Date(),
+        fechaVencimiento: addDays(new Date(), 15),
+        observaciones: 'Apto automático (Admin - Invitado Diario)'
+      }
     };
     setListaNuevosInvitados(prev => [...prev, nuevoInvitado]);
     form.reset();

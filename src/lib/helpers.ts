@@ -260,3 +260,55 @@ export const generateKeywords = (
 
   return Array.from(keywords).filter(Boolean);
 };
+
+/**
+ * Normalizes a company/organization name for consistent filtering and statistics.
+ * Handles variations like "S.A.D.O.P", "Sadop", "AMPROS", etc.
+ * Returns a standardized uppercase version without punctuation.
+ */
+export const normalizeEmpresa = (empresa?: string | null): string => {
+  if (!empresa || typeof empresa !== 'string') return 'PARTICULAR';
+  
+  // Remove punctuation and extra spaces, convert to uppercase
+  const cleaned = empresa
+    .toUpperCase()
+    .replace(/[.\-_]/g, '')  // Remove dots, hyphens, underscores
+    .replace(/\s+/g, ' ')    // Normalize multiple spaces to single
+    .trim();
+  
+  if (!cleaned || cleaned.length === 0) return 'PARTICULAR';
+  
+  // Common aliases mapping
+  const aliases: Record<string, string> = {
+    'SADOP': 'SADOP',
+    'AMPROS': 'AMPROS',
+    'JUDICIAL': 'JUDICIALES',
+    'JUDICIALES': 'JUDICIALES',
+    'PODER JUDICIAL': 'JUDICIALES',
+    'UTN': 'UTN',
+    'SITEA': 'SITEA',
+    'CP': 'CP',
+    'SINDICATO DEL SEGURO': 'SIND. SEGURO',
+    'SINDICATODELSEGURO': 'SIND. SEGURO',
+    'SIND SEGURO': 'SIND. SEGURO',
+    'SUTIAGA': 'SUTIAGA',
+    'PARTICULAR': 'PARTICULAR',
+    'NINGUNA': 'PARTICULAR',
+    'NO TIENE': 'PARTICULAR',
+  };
+  
+  // Check for known aliases
+  if (aliases[cleaned]) {
+    return aliases[cleaned];
+  }
+  
+  // Check if the cleaned name contains a known key (partial match)
+  for (const [key, value] of Object.entries(aliases)) {
+    if (cleaned.includes(key)) {
+      return value;
+    }
+  }
+  
+  // Return the cleaned name as-is if no alias matched
+  return cleaned;
+};

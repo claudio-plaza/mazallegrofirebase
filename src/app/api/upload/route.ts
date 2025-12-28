@@ -2,9 +2,23 @@ import { NextResponse } from 'next/server';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase/config';
 import { encrypt } from '@/lib/crypto';
+import { adminAuth } from '@/lib/firebase/admin';
 
 export async function POST(request: Request) {
   try {
+    // ✅ Validar autenticación
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new NextResponse('Unauthorized: No token provided', { status: 401 });
+    }
+    
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      await adminAuth.verifyIdToken(idToken);
+    } catch (authError) {
+      return new NextResponse('Unauthorized: Invalid token', { status: 401 });
+    }
+
     if (!storage) {
       throw new Error("Firebase Storage not initialized.");
     }
@@ -34,3 +48,4 @@ export async function POST(request: Request) {
     return new NextResponse('Error uploading file.', { status: 500 });
   }
 }
+

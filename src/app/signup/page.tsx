@@ -243,7 +243,7 @@ export default function SignupPage() {
                   <FormField control={form.control} name="telefono" render={({ field }) => (<FormItem><FormLabel>Teléfono *</FormLabel><FormControl><Input placeholder="261..." {...field} onChange={e => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email *</FormLabel><FormControl><Input type="email" placeholder="tu@correo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <div className="md:col-span-2"><FormField control={form.control} name="direccion" render={({ field }) => (<FormItem><FormLabel>Dirección Completa *</FormLabel><FormControl><Input placeholder="Calle 123, Ciudad" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-                  <FormField control={form.control} name="empresaSindicato" render={({ field }) => (<FormItem><FormLabel>Empresa / Sindicato (Opcional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="empresaSindicato" render={({ field }) => (<FormItem><FormLabel>Nombres del sindicato si corresponde</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <Button type="button" onClick={irSiguiente} className="w-full bg-orange-500 hover:bg-orange-600" size="lg">Siguiente <ArrowRight className="ml-2 w-5 h-5" /></Button>
                 </div>
               )}

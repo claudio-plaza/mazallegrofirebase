@@ -519,9 +519,40 @@ export const searchSocio = onCall({ cors: true, region: "us-central1" }, async (
       return { results: [] };
     }
     const algoliaIndex = getAlgoliaIndex();
-    const { hits } = await algoliaIndex.search(searchTerm, { hitsPerPage: 10 });
-    logger.info('Búsqueda completada', { uid: request.auth.uid, resultsCount: hits.length });
-    return { results: hits };
+    const trimmedTerm = searchTerm.trim();
+    
+    // Hacer búsqueda normal en Algolia
+    const { hits } = await algoliaIndex.search(trimmedTerm, { hitsPerPage: 20 });
+    
+    // Si el término de búsqueda parece ser un número de socio (solo dígitos),
+    // reordenamos para priorizar coincidencias exactas de numeroSocio
+    const isNumericSearch = /^\d+$/.test(trimmedTerm);
+    
+    let sortedHits = hits;
+    
+    if (isNumericSearch && hits.length > 0) {
+      // Buscar coincidencias exactas de numeroSocio
+      const exactMatches = hits.filter((hit: any) => hit.numeroSocio === trimmedTerm);
+      const otherMatches = hits.filter((hit: any) => hit.numeroSocio !== trimmedTerm);
+      
+      if (exactMatches.length > 0) {
+        // Poner coincidencias exactas primero
+        sortedHits = [...exactMatches, ...otherMatches];
+        logger.info('Coincidencia exacta de numeroSocio encontrada y priorizada', { 
+          searchTerm: trimmedTerm, 
+          exactCount: exactMatches.length,
+          totalCount: hits.length 
+        });
+      } else {
+        logger.info('Búsqueda numérica sin coincidencia exacta de numeroSocio', { 
+          searchTerm: trimmedTerm, 
+          totalCount: hits.length 
+        });
+      }
+    }
+    
+    logger.info('Búsqueda completada', { uid: request.auth.uid, resultsCount: sortedHits.length });
+    return { results: sortedHits.slice(0, 10) };
   } catch (error: any) {
     logger.error('Error en searchSocio:', error);
     if (error instanceof HttpsError) throw error;

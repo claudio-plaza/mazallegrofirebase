@@ -716,6 +716,7 @@ export interface RegistroAcceso {
   fecha: Date;
   personaDNI: string;
   personaNombre: string;
+  personaApellido: string;
   personaTipo: string;
   registradoPorEmail: string;
   socioTitularId: string;

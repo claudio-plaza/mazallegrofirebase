@@ -45,6 +45,7 @@ const createDefaultInvitado = (): InvitadoDiario => ({
   fechaNacimiento: new Date(),
   ingresado: false,
   metodoPago: null,
+  aptoMedico: null
 });
 
 export function GestionInvitadosDiarios() {
