@@ -8,14 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, ShieldCheck, ShieldAlert, CheckCircle, XCircle, LogIn, LogOut, Ticket, UserCheck, CalendarDays, Info, Users, Gift, AlertTriangle, CreditCard, Check, Lock } from 'lucide-react';
+import { Search, ShieldCheck, ShieldAlert, CheckCircle, XCircle, LogIn, LogOut, Ticket, UserCheck, CalendarDays, Info, Users, Gift, AlertTriangle, CreditCard, Check, Lock, UserPlus, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { esCumpleanosHoy, normalizeText, generateId } from '@/lib/helpers';
+import { esCumpleanosHoy, normalizeText, generateId, formatDate } from '@/lib/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { format, isToday, isValid, formatISO, addDays } from 'date-fns';
+import { format, isToday, isValid, formatISO, addDays, parseISO } from 'date-fns';
 import { getSocio, getAllSolicitudesInvitadosDiarios, verificarIngresoHoy, obtenerUltimoIngreso, verificarResponsableIngreso, getSolicitudInvitadosDiarios, addOrUpdateSolicitudInvitadosDiarios } from '@/lib/firebase/firestoreService';
 import { getAptoMedicoStatus } from '@/lib/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -29,7 +29,17 @@ import ManualGuestForm from './ManualGuestForm';
 // =================================================================
 
 type DisplayablePerson = { id: string; nombre: string; apellido: string; nombreCompleto: string; dni: string; fotoUrl?: string; aptoMedico: AptoMedicoDisplay; fechaNacimiento?: string | Date; relacion: string; estadoSocio?: Socio['estadoSocio']; estadoAdherente?: Adherente['estadoAdherente']; esCumpleanero: boolean; yaIngreso: boolean; ultimoIngreso: UltimoIngreso | null; titularId?: string; socioTitularId?: string; tipo: string; titularNumero?: string;};
-interface InvitadoState { id: string; nombre: string; apellido: string; dni: string; fechaNacimiento: string | Date; esInvitadoCumpleanos: boolean; metodoPago: MetodoPagoInvitado | null; esCumpleanero: boolean; yaIngresado: boolean; ultimoIngreso: UltimoIngreso | null; puedeIngresar: boolean; socioId: string;}
+interface InvitadoState { id: string; nombre: string; apellido: string; dni: string; fechaNacimiento: string | Date; esInvitadoCumpleanos: boolean; metodoPago: MetodoPagoInvitado | null; esCumpleanero: boolean; yaIngresado: boolean; ultimoIngreso: UltimoIngreso | null; puedeIngresar: boolean; socioId: string; aptoMedico?: AptoMedicoDisplay;}
+
+interface InvitadoFrecuente {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  fechaNacimiento: Date;
+  ultimoUso?: Date;
+  vecesUsado: number;
+}
 
 // =================================================================
 // COMPONENTE PRINCIPAL
@@ -65,6 +75,8 @@ export function ControlAcceso() {
     usados: 0,
     quienesCumplen: []
   });
+  const [invitadosFrecuentes, setInvitadosFrecuentes] = useState<InvitadoFrecuente[]>([]);
+  const [loadingFrecuentes, setLoadingFrecuentes] = useState(false);
 
   const calcularCuposCumpleanos = (personas: DisplayablePerson[]): {
     cuposDisponibles: number;
@@ -151,7 +163,7 @@ export function ControlAcceso() {
     if (!term.trim()) { setMensajeBusqueda('Ingrese un término de búsqueda.'); return; }
 
     setLoading(true);
-    setSocioTitular(null); setDisplayablePeople([]); setInvitadosState([]); setMensajeBusqueda('Buscando...'); setPersonasSeleccionadas(new Set());
+    setSocioTitular(null); setDisplayablePeople([]); setInvitadosState([]); setMensajeBusqueda('Buscando...'); setPersonasSeleccionadas(new Set()); setInvitadosFrecuentes([]);
 
     try {
       const functions = getFunctions();
@@ -227,9 +239,42 @@ export function ControlAcceso() {
       const invitadosConEstado = await Promise.all(invitados.map(async inv => {
           const yaIngreso = await verificarIngresoHoy(inv.dni);
           const ultimoIngreso = yaIngreso ? await obtenerUltimoIngreso(inv.dni) : null;
-          return { ...inv, id: inv.dni, esInvitadoCumpleanos: inv.esDeCumpleanos || false, metodoPago: inv.metodoPago || null, esCumpleanero: detectarCumple(inv.fechaNacimiento), yaIngresado: yaIngreso, ultimoIngreso, socioId: titularData.id };
+          return {
+            ...inv,
+            id: inv.dni,
+            esInvitadoCumpleanos: inv.esDeCumpleanos || false,
+            metodoPago: inv.metodoPago || null,
+            esCumpleanero: detectarCumple(inv.fechaNacimiento),
+            yaIngresado: yaIngreso,
+            ultimoIngreso,
+            puedeIngresar: true, // Default a true, se puede ajustar con lógica adicional
+            socioId: titularData.id,
+            aptoMedico: getAptoMedicoStatus(inv.aptoMedico, inv.fechaNacimiento)
+          };
       }));
       setInvitadosState(invitadosConEstado as any);
+
+      // --- CARGAR INVITADOS FRECUENTES ---
+      const cargarFrecuentes = async () => {
+        setLoadingFrecuentes(true);
+        try {
+          const frecuentesRef = collection(db, 'socios', titularData.id, 'invitados_frecuentes');
+          const frecuentesSnap = await getDocs(frecuentesRef);
+          const frecuentes = frecuentesSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            fechaNacimiento: doc.data().fechaNacimiento.toDate(),
+            ultimoUso: doc.data().ultimoUso?.toDate()
+          })) as InvitadoFrecuente[];
+          frecuentes.sort((a, b) => b.vecesUsado - a.vecesUsado);
+          setInvitadosFrecuentes(frecuentes);
+        } catch (error) {
+          console.error('Error al cargar invitados frecuentes:', error);
+        } finally {
+          setLoadingFrecuentes(false);
+        }
+      };
+      cargarFrecuentes();
 
       setMensajeBusqueda('');
     } catch (error: any) {
@@ -253,6 +298,54 @@ export function ControlAcceso() {
       return nuevo;
     });
   };
+
+  // --- LÓGICA DE SELECCIÓN MASIVA ---
+  const familiaresSeleccionables = useMemo(() => {
+    return displayablePeople.filter(p => {
+      const esTitular = p.tipo === 'titular';
+      const esAdherente = p.tipo === 'adherente';
+      const socioActivo = socioTitular?.estadoSocio === 'Activo';
+      const puedeEntrar = esTitular ? socioActivo : (esAdherente ? (socioActivo && p.estadoAdherente === 'Activo') : socioActivo);
+      return puedeEntrar && !p.yaIngreso;
+    });
+  }, [displayablePeople, socioTitular]);
+
+  const invitadosSeleccionables = useMemo(() => {
+    return invitadosState.filter(i => estadoResponsable.hayResponsable && !i.yaIngresado);
+  }, [invitadosState, estadoResponsable]);
+
+  const todosFamiliaresSeleccionados = useMemo(() => 
+    familiaresSeleccionables.length > 0 && familiaresSeleccionables.every(p => personasSeleccionadas.has(p.dni)),
+  [familiaresSeleccionables, personasSeleccionadas]);
+
+  const todosInvitadosSeleccionados = useMemo(() => 
+    invitadosSeleccionables.length > 0 && invitadosSeleccionables.every(i => personasSeleccionadas.has(i.dni)),
+  [invitadosSeleccionables, personasSeleccionadas]);
+
+  const toggleSeleccionarTodoElGrupo = () => {
+    setPersonasSeleccionadas(prev => {
+      const nuevo = new Set(prev);
+      if (todosFamiliaresSeleccionados) {
+        familiaresSeleccionables.forEach(p => nuevo.delete(p.dni));
+      } else {
+        familiaresSeleccionables.forEach(p => nuevo.add(p.dni));
+      }
+      return nuevo;
+    });
+  };
+
+  const toggleSeleccionarTodosInvitados = () => {
+    setPersonasSeleccionadas(prev => {
+      const nuevo = new Set(prev);
+      if (todosInvitadosSeleccionados) {
+        invitadosSeleccionables.forEach(i => nuevo.delete(i.dni));
+      } else {
+        invitadosSeleccionables.forEach(i => nuevo.add(i.dni));
+      }
+      return nuevo;
+    });
+  };
+  // ---------------------------------
 
   // Registrar ingresos de todas las personas seleccionadas
   const registrarIngresosMultiples = async () => {
@@ -644,6 +737,24 @@ export function ControlAcceso() {
 
       {socioTitular && (
         <div className="w-full max-w-4xl mx-auto space-y-4">
+            <div className="flex items-center justify-between px-1 mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-gray-500" />
+                <h3 className="font-bold text-lg">Grupo Familiar</h3>
+              </div>
+              {familiaresSeleccionables.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={toggleSeleccionarTodoElGrupo}
+                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  {todosFamiliaresSeleccionados ? 'Deseleccionar todo el grupo' : 'Marcar todo el grupo'}
+                </Button>
+              )}
+            </div>
+
             {displayablePeople.map(p => (
               <MemberCard 
                 key={p.id} 
@@ -668,7 +779,27 @@ export function ControlAcceso() {
               toggleSeleccion={toggleSeleccion}
               userRole={userRole}
               socioTitular={socioTitular}
+              onToggleSelectAll={toggleSeleccionarTodosInvitados}
+              isAllSelected={todosInvitadosSeleccionados}
             />
+            
+            {userRole === 'portero' && invitadosFrecuentes.length > 0 && (
+              <FrequentGuestsSection 
+                frecuentes={invitadosFrecuentes} 
+                invitadosActualesDnis={invitadosState.map(i => i.dni)}
+                onAdd={(inv) => {
+                  const event = new CustomEvent('manual-guest-submit', {
+                    detail: {
+                      nombre: inv.nombre,
+                      apellido: inv.apellido,
+                      dni: inv.dni,
+                      fechaNacimiento: inv.fechaNacimiento
+                    }
+                  });
+                  window.dispatchEvent(event);
+                }}
+              />
+            )}
             
             {/* Barra de registro múltiple */}
             {personasSeleccionadas.size > 0 && (
@@ -704,6 +835,61 @@ export function ControlAcceso() {
     </div>
   );
 }
+
+function FrequentGuestsSection({ frecuentes, invitadosActualesDnis, onAdd }: { frecuentes: InvitadoFrecuente[], invitadosActualesDnis: string[], onAdd: (inv: InvitadoFrecuente) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Card className="border-blue-200 bg-blue-50/30 overflow-hidden">
+      <CardHeader className="p-4 pb-0">
+        <Button 
+          variant="ghost" 
+          className="w-full flex justify-between items-center hover:bg-blue-50"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <div className="flex items-center gap-2 font-semibold text-blue-700">
+            <UserPlus className="w-5 h-5" />
+            Invitados Frecuentes del Socio
+          </div>
+          {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </Button>
+      </CardHeader>
+      
+      {isOpen && (
+        <CardContent className="p-4 pt-4">
+          <p className="text-xs text-blue-600 mb-4 bg-blue-100/50 p-2 rounded-lg flex items-start gap-2">
+            <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            Estos son invitados que el socio suele traer. Haz clic en el botón azul para agregarlos rápidamente a la lista de hoy.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {frecuentes.map((inv) => {
+              const yaEnLista = invitadosActualesDnis.includes(inv.dni);
+              return (
+                <div key={inv.id} className="bg-white p-3 rounded-xl border border-blue-100 flex justify-between items-center shadow-sm">
+                  <div className="min-w-0 pr-2">
+                    <p className="font-medium text-gray-900 text-sm truncate">{inv.nombre} {inv.apellido}</p>
+                    <p className="text-[10px] text-gray-500 font-mono">DNI: {inv.dni}</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant={yaEnLista ? "outline" : "default"}
+                    className={`h-8 w-8 p-0 rounded-lg shrink-0 ${yaEnLista ? 'bg-green-50 border-green-200 text-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    disabled={yaEnLista}
+                    onClick={() => onAdd(inv)}
+                  >
+                    {yaEnLista ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ... Rest of sub-components
 
 // =================================================================
 // SUB-COMPONENTES
@@ -782,6 +968,7 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, on
                       {person.esCumpleanero && <Badge className="bg-pink-500 text-white"><Gift className="mr-1 h-3 w-3" /> ¡Hoy Cumple!</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">DNI: {person.dni}</p>
+                    <p className="text-sm text-muted-foreground italic">F. Nacimiento: {person.fechaNacimiento ? (typeof person.fechaNacimiento === 'string' ? formatDate(parseISO(person.fechaNacimiento), 'dd/MM/yyyy') : formatDate(person.fechaNacimiento, 'dd/MM/yyyy')) : '---'}</p>
                     {(person.relacion === 'Titular' || person.relacion === 'Adherente') && <div className="text-sm text-muted-foreground">Estado: <Badge variant={puedeIngresarGeneral ? 'default' : 'destructive'} className={puedeIngresarGeneral ? 'bg-green-500' : ''}>{person.relacion === 'Titular' ? person.estadoSocio : person.estadoAdherente}</Badge></div>}
                 </div>
             </div>
@@ -803,6 +990,11 @@ function MemberCard({ person, onRegister, onCancel, onShowCarnet, isSelected, on
             <p className={`text-sm font-medium ${person.aptoMedico.colorClass.replace('bg-', 'text-')}`}>
                 Apto Médico: <strong>{person.aptoMedico.status}</strong>. {person.aptoMedico.message}
             </p>
+            {person.aptoMedico.observaciones && (
+              <p className="mt-1 text-xs text-muted-foreground border-t border-current/20 pt-1">
+                <strong>Obs:</strong> {person.aptoMedico.observaciones}
+              </p>
+            )}
         </Alert>
       </CardContent>
     </Card>
@@ -819,6 +1011,8 @@ function GuestSection({
   cuposCumpleanos,
   personasSeleccionadas,
   toggleSeleccion,
+  onToggleSelectAll,
+  isAllSelected,
   userRole,
   socioTitular
 }: { 
@@ -831,9 +1025,13 @@ function GuestSection({
   cuposCumpleanos: { disponibles: number; usados: number; quienesCumplen: string[]; };
   personasSeleccionadas?: Set<string>;
   toggleSeleccion?: (dni: string) => void;
+  onToggleSelectAll?: () => void;
+  isAllSelected?: boolean;
   userRole: string | null;
   socioTitular: Socio | null;
 }) {
+  const tieneInvitadosSeleccionables = invitados.some(i => estadoResponsable.hayResponsable && !i.yaIngresado);
+
   return (
     <div className="mt-6 border-t pt-6">
       <div className="flex items-center justify-between mb-3">
@@ -841,6 +1039,17 @@ function GuestSection({
            <Users className="text-orange-500" />
            <h3 className="font-bold text-lg">Invitados Diarios</h3>
         </div>
+        {tieneInvitadosSeleccionables && onToggleSelectAll && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onToggleSelectAll}
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            {isAllSelected ? 'Deseleccionar todos' : 'Marcar todos los invitados'}
+          </Button>
+        )}
      </div>
 
       <Dialog>
@@ -958,6 +1167,15 @@ function GuestCard({
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">DNI: {invitado.dni}</p>
+                  <p className="text-[10px] text-muted-foreground italic">F. Nacimiento: {invitado.fechaNacimiento ? (typeof invitado.fechaNacimiento === 'string' ? formatDate(parseISO(invitado.fechaNacimiento), 'dd/MM/yyyy') : formatDate(invitado.fechaNacimiento, 'dd/MM/yyyy')) : '---'}</p>
+                  {invitado.aptoMedico && (
+                    <div className="mt-1">
+                      <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${invitado.aptoMedico.status === 'Válido' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
+                        {invitado.aptoMedico.status === 'Válido' ? 'Apto' : invitado.aptoMedico.status}
+                      </Badge>
+                      {invitado.aptoMedico.observaciones && <span className="text-[9px] text-muted-foreground ml-1 line-clamp-1 italic">Obs: {invitado.aptoMedico.observaciones}</span>}
+                    </div>
+                  )}
                 </div>
             </div>
            </div>

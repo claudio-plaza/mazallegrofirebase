@@ -1,5 +1,6 @@
-fix: verification of guest entry flow
+fix(security): Correcciones de seguridad y mejora de búsqueda
 
-- Verified manual guest entry flow functionality.
-- Confirmed payment options visibility logic.
-- Updated task status.
+- Búsqueda por N° de socio ahora prioriza coincidencias exactas
+- Storage rules: fotos ahora requieren autenticación para lectura
+- API upload: agregada validación de token
+- Múltiples correcciones menores en componentes

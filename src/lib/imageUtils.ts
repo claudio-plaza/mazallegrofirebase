@@ -8,14 +8,14 @@ import imageCompression from 'browser-image-compression';
  * @param maxDimension Dimensión máxima (ancho o alto)
  * @param quality Calidad (0 a 1)
  */
-export async function compressImage(file: File, maxDimension: number = 1280, quality: number = 0.7): Promise<File> {
+export async function compressImage(file: File, maxDimension: number = 1200, quality: number = 0.6): Promise<File> {
   // Si no es imagen, devolver el archivo original
   if (!file.type.match(/image.*/)) {
     return file;
   }
 
   const options = {
-    maxSizeMB: 1, // Objetivo: menos de 1MB (ajustable)
+    maxSizeMB: 0.8, // Bajamos un poco para asegurar éxito en móviles
     maxWidthOrHeight: maxDimension,
     useWebWorker: true, // Importante para no congelar la UI
     initialQuality: quality,

@@ -59,15 +59,15 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNac
   }
 
   if (!aptoMedico) {
-    return { status: 'Pendiente', message: 'Sin datos de apto médico', colorClass: 'text-yellow-600 bg-yellow-100' };
+    return { status: 'Pendiente', message: 'Sin datos de apto médico', colorClass: 'text-yellow-600 bg-yellow-100', observaciones: '' };
   }
 
   if (aptoMedico.valido === false && aptoMedico.razonInvalidez) {
-    return { status: 'Inválido', message: `Inválido (${aptoMedico.razonInvalidez})`, colorClass: 'text-red-600 bg-red-100' };
+    return { status: 'Inválido', message: `Inválido (${aptoMedico.razonInvalidez})`, colorClass: 'text-red-600 bg-red-100', observaciones: aptoMedico.observaciones };
   }
   
   if (aptoMedico.valido === false) {
-    return { status: 'Inválido', message: 'No Apto (Razón no especificada)', colorClass: 'text-red-600 bg-red-100'};
+    return { status: 'Inválido', message: 'No Apto (Razón no especificada)', colorClass: 'text-red-600 bg-red-100', observaciones: aptoMedico.observaciones };
   }
 
   if (aptoMedico.valido && aptoMedico.fechaVencimiento) {
@@ -85,11 +85,11 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNac
       fechaVencimientoDate = new Timestamp(fv.seconds, fv.nanoseconds).toDate();
     } else {
       console.error("Invalid type for aptoMedico.fechaVencimiento:", fv);
-      return { status: 'Error', message: 'Formato de fecha de vencimiento interno inválido.', colorClass: 'text-red-600 bg-red-100' };
+      return { status: 'Error', message: 'Formato de fecha de vencimiento interno inválido.', colorClass: 'text-red-600 bg-red-100', observaciones: aptoMedico.observaciones };
     }
     
     if (!fechaVencimientoDate || !isValid(fechaVencimientoDate)) {
-        return { status: 'Error', message: 'Fecha de vencimiento inválida tras procesar.', colorClass: 'text-red-600 bg-red-100' };
+        return { status: 'Error', message: 'Fecha de vencimiento inválida tras procesar.', colorClass: 'text-red-600 bg-red-100', observaciones: aptoMedico.observaciones };
     }
 
     const fechaVencimientoComparable = new Date(fechaVencimientoDate.valueOf());
@@ -100,17 +100,17 @@ export const getAptoMedicoStatus = (aptoMedico?: AptoMedicoInfo | null, fechaNac
       let colorClass = 'text-green-600 bg-green-100';
       if (daysLeft <= 7) colorClass = 'text-orange-600 bg-orange-100'; 
 
-      return { status: 'Válido', message: `Válido hasta: ${formatDate(fechaVencimientoDate)}`, colorClass };
+      return { status: 'Válido', message: `Válido hasta: ${formatDate(fechaVencimientoDate)}`, colorClass, observaciones: aptoMedico.observaciones };
     } else {
-      return { status: 'Vencido', message: `Vencido (Venció el ${formatDate(fechaVencimientoDate)})`, colorClass: 'text-red-600 bg-red-100' };
+      return { status: 'Vencido', message: `Vencido (Venció el ${formatDate(fechaVencimientoDate)})`, colorClass: 'text-red-600 bg-red-100', observaciones: aptoMedico.observaciones };
     }
   }
   
   if (aptoMedico.valido && !aptoMedico.fechaVencimiento) {
-     return { status: 'Válido', message: 'Válido (Sin fecha de vencimiento especificada)', colorClass: 'text-green-600 bg-green-100' };
+     return { status: 'Válido', message: 'Válido (Sin fecha de vencimiento especificada)', colorClass: 'text-green-600 bg-green-100', observaciones: aptoMedico.observaciones };
   }
 
-  return { status: 'Pendiente', message: 'Apto médico pendiente o información incompleta', colorClass: 'text-yellow-600 bg-yellow-100' };
+  return { status: 'Pendiente', message: 'Apto médico pendiente o información incompleta', colorClass: 'text-yellow-600 bg-yellow-100', observaciones: aptoMedico.observaciones };
 };
 
 

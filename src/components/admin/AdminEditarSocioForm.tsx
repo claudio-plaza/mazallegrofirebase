@@ -525,6 +525,11 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                       <span className="text-sm font-medium">{aptoStatusTitular.status}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{aptoStatusTitular.message}</p>
+                    {aptoStatusTitular.observaciones && (
+                      <p className="text-[10px] mt-1 text-muted-foreground border-t border-current/10 pt-1 italic">
+                        <strong>Obs (Médico):</strong> {aptoStatusTitular.observaciones}
+                      </p>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">La gestión de aptos se realiza desde el Panel Médico.</p>
                 </div>
@@ -546,7 +551,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
               <div className="space-y-6">
                 {familiaresFields.map((field, index) => {
                   const familiarData = socio.familiares?.find((f: MiembroFamiliar) => f.id === field.id);
-                  const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
+                  const aptoStatusFamiliar = familiarData ? getAptoMedicoStatus(familiarData.aptoMedico, familiarData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500', observaciones: '' };
 
                   const getFotoPerfilFamiliarActual = () => {
                     const watchedFoto = form.watch(`familiares.${index}.fotoPerfil`);
@@ -611,7 +616,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <AvatarImage src={fotoPerfilFamiliarActual!} alt={form.watch(`familiares.${index}.nombre`)} data-ai-hint="family member photo" />
                             <AvatarFallback>{form.watch(`familiares.${index}.nombre`)?.[0]}{form.watch(`familiares.${index}.apellido`)?.[0]}</AvatarFallback>
                           </Avatar>
-                          <p className={`text-xs mt-1 text-center p-1 rounded ${aptoStatusFamiliar.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>Apto: {aptoStatusFamiliar.status}</p>
+                          <div className={`mt-1 w-full text-center p-1 rounded ${aptoStatusFamiliar.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>
+                            <p className="text-xs font-medium">Apto: {aptoStatusFamiliar.status}</p>
+                            {aptoStatusFamiliar.observaciones && <p className="text-[9px] text-muted-foreground italic line-clamp-2">Obs: {aptoStatusFamiliar.observaciones}</p>}
+                          </div>
                         </div>
                       </div>
                       <Separator className="my-3" />
@@ -643,7 +651,7 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
               <div className="space-y-6">
                 {adherentesFields.map((field, index) => {
                   const adherenteData = socio.adherentes?.find((a: Adherente) => a.id === field.id);
-                  const aptoStatusAdherente = adherenteData ? getAptoMedicoStatus(adherenteData.aptoMedico, adherenteData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500' };
+                  const aptoStatusAdherente = adherenteData ? getAptoMedicoStatus(adherenteData.aptoMedico, adherenteData.fechaNacimiento) : { status: 'N/A', message: 'No se pudo cargar apto', colorClass: 'text-gray-500', observaciones: '' };
 
                   const getFotoPerfilAdherenteActual = () => {
                     const watchedFoto = form.watch(`adherentes.${index}.fotoPerfil`);
@@ -693,7 +701,10 @@ export function AdminEditarSocioForm({ socioId }: AdminEditarSocioFormProps) {
                             <AvatarImage src={fotoPerfilAdherenteActual!} alt={form.watch(`adherentes.${index}.nombre`)} data-ai-hint="adherent photo" />
                             <AvatarFallback>{form.watch(`adherentes.${index}.nombre`)?.[0]}{form.watch(`adherentes.${index}.apellido`)?.[0]}</AvatarFallback>
                           </Avatar>
-                          <p className={`text-xs mt-1 text-center p-1 rounded ${aptoStatusAdherente.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>Apto: {aptoStatusAdherente.status}</p>
+                          <div className={`mt-1 w-full text-center p-1 rounded ${aptoStatusAdherente.colorClass.replace('bg-', 'bg-opacity-20 ')}`}>
+                            <p className="text-xs font-medium">Apto: {aptoStatusAdherente.status}</p>
+                            {aptoStatusAdherente.observaciones && <p className="text-[9px] text-muted-foreground italic line-clamp-2">Obs: {aptoStatusAdherente.observaciones}</p>}
+                          </div>
                         </div>
                       </div>
                       <Separator className="my-3" />

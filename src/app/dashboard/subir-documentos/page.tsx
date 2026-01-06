@@ -104,54 +104,37 @@ export default function SubirDocumentosPage() {
     setLoading(true);
 
     try {
-      // 1. Fase de Compresión
-      toast.info('Optimizando imágenes para subida rápida...', { id: 'upload', duration: Infinity });
-      
-      const compressWithFallback = async (file: File) => {
+      // 1. Fase de Procesamiento SECUENCIAL
+      const procesarYSubir = async (file: File, path: string, label: string) => {
+        toast.loading(`Optimizando y subiendo ${label}...`, { id: 'upload' });
+        
+        let fileToUpload = file;
         try {
-          // Comprimir a max 1280px y calidad 0.8
-          return await compressImage(file, 1280, 0.8);
+          fileToUpload = await compressImage(file, 1200, 0.6);
         } catch (e) {
-          return file;
+          console.warn(`Error comprimiendo ${label}, se subirá original:`, e);
         }
-      };
 
-      const [compressedDniFrente, compressedDniDorso, compressedFotoPerfil] = await Promise.all([
-        compressWithFallback(dniFrente),
-        compressWithFallback(dniDorso),
-        compressWithFallback(fotoPerfil)
-      ]);
-
-      let compressedFotoCarnet = null;
-      if (fotoCarnet) {
-        compressedFotoCarnet = await compressWithFallback(fotoCarnet);
-      }
-
-      // 2. Fase de Subida
-      toast.loading('Subiendo documentos...', { id: 'upload' });
-
-      const subirImagen = async (file: File, path: string) => {
         const storageRef = ref(storage, path);
-        // Añadir metadata para caché
         const metadata = {
           cacheControl: 'public,max-age=31536000',
-          contentType: file.type || 'image/jpeg',
+          contentType: fileToUpload.type || 'image/jpeg',
         };
-        await uploadBytes(storageRef, file, metadata);
+        await uploadBytes(storageRef, fileToUpload, metadata);
         return await getDownloadURL(storageRef);
       };
 
-      const uploads = [
-        subirImagen(compressedDniFrente, `socios/${user.uid}/dni-frente.jpg`),
-        subirImagen(compressedDniDorso, `socios/${user.uid}/dni-dorso.jpg`),
-        subirImagen(compressedFotoPerfil, `socios/${user.uid}/foto-perfil.jpg`),
-      ];
-
-      if (compressedFotoCarnet) {
-        uploads.push(subirImagen(compressedFotoCarnet, `socios/${user.uid}/foto-carnet.jpg`));
+      // Ejecución paso a paso para evitar crashes de memoria en móviles
+      const dniFrenteUrl = await procesarYSubir(dniFrente, `socios/${user.uid}/dni-frente.jpg`, 'DNI Frente');
+      const dniDorsoUrl = await procesarYSubir(dniDorso, `socios/${user.uid}/dni-dorso.jpg`, 'DNI Dorso');
+      const fotoPerfilUrl = await procesarYSubir(fotoPerfil, `socios/${user.uid}/foto-perfil.jpg`, 'Foto Perfil');
+      
+      let fotoCarnetUrl = null;
+      if (fotoCarnet) {
+        fotoCarnetUrl = await procesarYSubir(fotoCarnet, `socios/${user.uid}/foto-carnet.jpg`, 'Foto Carnet');
       }
 
-      const [dniFrenteUrl, dniDorsoUrl, fotoPerfilUrl, fotoCarnetUrl] = await Promise.all(uploads);
+      toast.loading('Guardando cambios finales...', { id: 'upload' });
 
       const dataToUpdate: any = {
         fotoPerfil: fotoPerfilUrl,

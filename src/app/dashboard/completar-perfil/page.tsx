@@ -13,7 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Upload, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
-function FileInput({ label, setFile, preview, setPreview }: any) {
+import { compressImage } from '@/lib/imageUtils';
+
+function FileInput({ label, setFile, preview, setPreview, name }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
@@ -26,8 +28,8 @@ function FileInput({ label, setFile, preview, setPreview }: any) {
 
   return (
     <div>
-      <Label>{label}</Label>
-      <label className="relative block w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 overflow-hidden mt-2">
+      <Label className="text-sm font-medium">{label}</Label>
+      <label className="relative block w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 overflow-hidden mt-2 transition-colors">
         {preview ? (
           <Image src={preview} alt="preview" fill className="object-cover" />
         ) : (
@@ -46,6 +48,7 @@ export default function CompletarPerfilPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   
   const [dniFrente, setDniFrente] = useState<File | null>(null);
   const [dniDorso, setDniDorso] = useState<File | null>(null);
@@ -69,25 +72,33 @@ export default function CompletarPerfilPage() {
     setLoading(true);
 
     try {
-      const subirImagen = async (file: File, path: string) => {
+      const procesarYSubir = async (file: File, path: string, label: string) => {
+        setStatusMessage(`Optimizando ${label}...`);
+        const compressed = await compressImage(file);
+        
+        setStatusMessage(`Subiendo ${label}...`);
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, file);
+        const metadata = {
+          cacheControl: 'public,max-age=31536000',
+          contentType: 'image/jpeg'
+        };
+        await uploadBytes(storageRef, compressed, metadata);
         return await getDownloadURL(storageRef);
       };
 
-      const [dniFrenteUrl, dniDorsoUrl, fotoPerfilUrl] = await Promise.all([
-        subirImagen(dniFrente, `socios/${user.uid}/dni-frente.jpg`),
-        subirImagen(dniDorso, `socios/${user.uid}/dni-dorso.jpg`),
-        subirImagen(fotoPerfil, `socios/${user.uid}/foto-perfil.jpg`),
-      ]);
+      // Procesamiento CUATRO SECUENCIAL para no saturar memoria en móviles
+      const dniFrenteUrl = await procesarYSubir(dniFrente, `socios/${user.uid}/dni-frente.jpg`, 'DNI Frente');
+      const dniDorsoUrl = await procesarYSubir(dniDorso, `socios/${user.uid}/dni-dorso.jpg`, 'DNI Dorso');
+      const fotoPerfilUrl = await procesarYSubir(fotoPerfil, `socios/${user.uid}/foto-perfil.jpg`, 'Foto Perfil');
 
+      setStatusMessage('Guardando cambios...');
       await setDoc(doc(db, 'socios', user.uid), {
         fotoPerfil: fotoPerfilUrl,
         fotoUrl: fotoPerfilUrl,
         fotoDniFrente: dniFrenteUrl,
         fotoDniDorso: dniDorsoUrl,
         imagenesSubidas: true,
-        imagenesPendientes: false, // Limpiar el flag de pendiente
+        imagenesPendientes: false,
         updatedAt: Timestamp.now()
       }, { merge: true });
 
@@ -99,6 +110,7 @@ export default function CompletarPerfilPage() {
       toast.error('Ocurrió un error al subir los documentos. Por favor, intenta nuevamente.');
     } finally {
       setLoading(false);
+      setStatusMessage('');
     }
   };
 
@@ -143,7 +155,7 @@ export default function CompletarPerfilPage() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Subiendo...
+                {statusMessage || 'Subiendo...'}
               </>
             ) : (
               <>

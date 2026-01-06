@@ -271,6 +271,11 @@ export function CarnetDigital() {
                 {aptoStatus.status === 'No Aplica' && <Info className="h-5 w-5 text-gray-200" />}
                 <Badge variant="outline" className={cn("text-xs border-current", aptoStatus.colorClass.includes('green') && "text-green-100 border-green-200", aptoStatus.colorClass.includes('orange') && "text-orange-100 border-orange-200", aptoStatus.colorClass.includes('red') && "text-red-100 border-red-200", aptoStatus.colorClass.includes('yellow') && "text-yellow-100 border-yellow-200", aptoStatus.colorClass.includes('gray') && "text-gray-100 border-gray-200")}>{aptoStatus.status}</Badge>
               </div>
+              {aptoStatus.observaciones && (
+                <p className="mt-1 text-[10px] text-primary-foreground/60 italic line-clamp-1">
+                   Obs: {aptoStatus.observaciones}
+                </p>
+              )}
             </div>
           </div>
           

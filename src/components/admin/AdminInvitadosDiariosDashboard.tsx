@@ -125,12 +125,7 @@ export function AdminInvitadosDiariosDashboard() {
       id: generateId(),
       ingresado: false,
       metodoPago: null,
-      aptoMedico: {
-        valido: true,
-        fechaEmision: new Date(),
-        fechaVencimiento: addDays(new Date(), 15),
-        observaciones: 'Apto automático (Admin - Invitado Diario)'
-      }
+      aptoMedico: null
     };
     setListaNuevosInvitados(prev => [...prev, nuevoInvitado]);
     form.reset();
@@ -373,12 +368,13 @@ export function AdminInvitadosDiariosDashboard() {
                    <h3 className="text-md font-semibold mb-2">Lista de Invitados para {selectedSocio.nombre} ({listaNuevosInvitados.length} en total)</h3>
                    <ScrollArea className="h-[200px] border rounded-md">
                     <Table>
-                      <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>DNI</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
+                      <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>DNI</TableHead><TableHead>F. Nacimiento</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {listaNuevosInvitados.map(inv => (
                           <TableRow key={inv.dni}>
                             <TableCell>{inv.nombre} {inv.apellido}</TableCell>
                             <TableCell>{inv.dni}</TableCell>
+                            <TableCell>{inv.fechaNacimiento ? formatDate(inv.fechaNacimiento, 'dd/MM/yyyy') : '---'}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemoveInvitadoFromList(inv.dni)}><X className="h-4 w-4 mr-1"/>Quitar</Button>
                             </TableCell>
@@ -496,7 +492,12 @@ export function AdminInvitadosDiariosDashboard() {
                                 {solicitud.listaInvitadosDiarios.map(inv => (
                                   <li key={inv.dni} className="text-xs border-b border-dashed pb-1 last:border-b-0 last:pb-0">
                                     <div className="flex justify-between items-center">
-                                        <span>{inv.nombre} {inv.apellido} (DNI: {inv.dni})</span>
+                                        <div>
+                                          <span className="font-medium">{inv.nombre} {inv.apellido}</span>
+                                          <span className="block text-[10px] text-muted-foreground">
+                                            DNI: {inv.dni} | F. Nac: {inv.fechaNacimiento ? formatDate(inv.fechaNacimiento, 'dd/MM/yyyy') : '---'}
+                                          </span>
+                                        </div>
                                         {getInvitadoBadge(inv)}
                                     </div>
                                   </li>

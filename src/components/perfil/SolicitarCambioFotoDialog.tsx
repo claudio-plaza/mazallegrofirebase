@@ -73,8 +73,8 @@ export function SolicitarCambioFotoDialog({
 
     setLoading(true);
     try {
-      // Comprimir imagen antes de enviar
-      const compressedFile = await compressImage(selectedFile, 1280, 0.8);
+      // Comprimir imagen antes de enviar (usa los nuevos defaults optimizados para móviles)
+      const compressedFile = await compressImage(selectedFile);
 
       await crearSolicitudCambioFoto(
         {

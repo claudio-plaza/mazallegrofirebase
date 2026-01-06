@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { PlusCircle, Edit, Users, AlertCircle, CheckCircle, Clock, XCircle, Info } from 'lucide-react';
+import { PlusCircle, Edit, Users, AlertCircle, CheckCircle, Clock, XCircle, Info, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState } from 'react';
 import { AgregarEditarFamiliarDialog } from '@/components/perfil/AgregarEditarFamiliarDialog';
 import { SolicitarCambioFotoDialog } from '@/components/perfil/SolicitarCambioFotoDialog';
+import { getAptoMedicoStatus } from '@/lib/helpers';
 
 import { TipoFotoSolicitud, RelacionFamiliar, EstadoCambioFamiliares, type MiembroFamiliar } from '@/types';
 import { SocioHeader } from '@/components/layout/SocioHeader';
@@ -204,6 +205,33 @@ export default function FamiliaresPage() {
                   Fotos
                 </Button>
               </div>
+
+              {/* ESTADO MÉDICO */}
+              {(() => {
+                const apto = getAptoMedicoStatus(familiar.aptoMedico, familiar.fechaNacimiento);
+                return (
+                  <div className={`mt-3 p-2 rounded border ${apto.colorClass.replace('text-', 'border-').replace('bg-', 'bg-opacity-10 ')}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {apto.status === 'Válido' && <ShieldCheck className="w-4 h-4 text-green-600" />}
+                      {(apto.status === 'Vencido' || apto.status === 'Inválido') && <ShieldAlert className="w-4 h-4 text-red-600" />}
+                      {apto.status === 'Pendiente' && <AlertTriangle className="w-4 h-4 text-yellow-600" />}
+                      {apto.status === 'No Aplica' && <Info className="w-4 h-4 text-gray-600" />}
+                      <span className="text-xs font-bold uppercase">{apto.status}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{apto.message}</p>
+                    {apto.status !== 'Válido' && apto.status !== 'No Aplica' && apto.observaciones && (
+                      <p className="mt-1 text-[10px] italic border-t border-current/10 pt-1">
+                        Obs: {apto.observaciones}
+                      </p>
+                    )}
+                    {apto.status === 'Válido' && apto.observaciones && (
+                      <p className="mt-1 text-[10px] italic border-t border-current/10 pt-1">
+                        Obs: {apto.observaciones}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         ))}

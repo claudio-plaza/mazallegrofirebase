@@ -7,14 +7,15 @@ import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Phone, MapPin, Calendar, Building, AlertTriangle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Building, AlertTriangle, ShieldCheck, ShieldAlert, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { SolicitarCambioFotoDialog } from '@/components/perfil/SolicitarCambioFotoDialog';
-import { TipoFotoSolicitud } from '@/types';
+import { TipoFotoSolicitud, AptoMedicoInfo } from '@/types';
 import { SocioHeader } from '@/components/layout/SocioHeader';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { EliminarCuentaDialog } from '@/components/perfil/EliminarCuentaDialog';
+import { getAptoMedicoStatus } from '@/lib/helpers';
 
 interface SocioData {
   id: string;
@@ -33,6 +34,7 @@ interface SocioData {
   fotoDniFrente?: string;
   fotoDniDorso?: string;
   fotoCarnet?: string;
+  aptoMedico?: AptoMedicoInfo;
 }
 
 const DocumentoItem = ({ socio, title, url, tipoFoto }: { socio: SocioData, title: string, url?: string, tipoFoto: TipoFotoSolicitud }) => (
@@ -173,6 +175,32 @@ export default function MiPerfilPage() {
                 </div>
               </div>
             )}
+
+            {/* ESTADO MÉDICO */}
+            {(() => {
+              const apto = getAptoMedicoStatus(socio.aptoMedico, socio.fechaNacimiento);
+              return (
+                <div className={`col-span-1 md:col-span-2 flex flex-col gap-2 p-3 rounded-lg border-2 ${apto.colorClass.replace('text-', 'border-').replace('bg-', 'bg-opacity-10 ')}`}>
+                  <div className="flex items-center gap-3">
+                    {apto.status === 'Válido' && <ShieldCheck className="w-6 h-6 text-green-600" />}
+                    {(apto.status === 'Vencido' || apto.status === 'Inválido') && <ShieldAlert className="w-6 h-6 text-red-600" />}
+                    {apto.status === 'Pendiente' && <AlertTriangle className="w-6 h-6 text-yellow-600" />}
+                    {apto.status === 'No Aplica' && <Info className="w-6 h-6 text-gray-600" />}
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Estado Médico</p>
+                      <p className="font-bold text-lg leading-tight">{apto.status}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 px-1">{apto.message}</p>
+                  {apto.observaciones && (
+                    <div className="mt-1 p-2 bg-white/50 rounded border border-current/10">
+                      <p className="text-xs font-semibold text-gray-500">Observaciones del Médico:</p>
+                      <p className="text-sm italic">{apto.observaciones}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>
